@@ -14,55 +14,13 @@
  */
 
 #include "sds.h"
+#include "sds_types.h"  /* Generated types and registry */
 #include "sds_platform.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-
-/* ============== Test Table Structures ============== */
-
-/* Manually defined for testing (normally generated) */
-
-typedef struct {
-    uint8_t command;
-    float threshold;
-} SensorNodeConfig;
-
-typedef struct {
-    float temperature;
-    float humidity;
-} SensorNodeState;
-
-typedef struct {
-    uint8_t error_code;
-    uint8_t battery_percent;
-} SensorNodeStatus;
-
-/* Device table */
-typedef struct {
-    SensorNodeConfig config;
-    SensorNodeState state;
-    SensorNodeStatus status;
-} SensorNodeTable;
-
-/* Owner table */
-#define MAX_NODES 16
-
-typedef struct {
-    char node_id[32];
-    bool valid;
-    uint32_t last_seen_ms;
-    SensorNodeStatus status;
-} SensorNodeStatusSlot;
-
-typedef struct {
-    SensorNodeConfig config;
-    SensorNodeState state;
-    SensorNodeStatusSlot status[MAX_NODES];
-    uint8_t status_count;
-} SensorNodeOwnerTable;
 
 /* ============== Test State ============== */
 
@@ -125,15 +83,19 @@ static void test_init(const char* broker) {
     TEST_ASSERT(err == SDS_ERR_ALREADY_INITIALIZED, "Double init returns error");
 }
 
+static SensorNodeTable g_device_table;
+
 static void test_table_registration_device(void) {
     printf("\n=== Test: Device Table Registration ===\n");
     
-    static SensorNodeTable device_table;
-    memset(&device_table, 0, sizeof(device_table));
+    memset(&g_device_table, 0, sizeof(g_device_table));
+    g_device_table.state.temperature = 22.5f;
+    g_device_table.state.humidity = 55.0f;
+    g_device_table.status.battery_percent = 80;
     
     SdsTableOptions opts = { .sync_interval_ms = 500 };
     
-    SdsError err = sds_register_table(&device_table, "SensorNode", SDS_ROLE_DEVICE, &opts);
+    SdsError err = sds_register_table(&g_device_table, "SensorNode", SDS_ROLE_DEVICE, &opts);
     TEST_ASSERT(err == SDS_OK, "Register device table");
     TEST_ASSERT(sds_get_table_count() == 1, "Table count is 1");
     
@@ -141,18 +103,22 @@ static void test_table_registration_device(void) {
     sds_on_config_update("SensorNode", on_config_update);
     
     /* Test duplicate registration */
-    err = sds_register_table(&device_table, "SensorNode", SDS_ROLE_DEVICE, NULL);
+    SensorNodeTable dup_table = {0};
+    err = sds_register_table(&dup_table, "SensorNode", SDS_ROLE_DEVICE, NULL);
     TEST_ASSERT(err == SDS_ERR_TABLE_ALREADY_REGISTERED, "Duplicate registration fails");
 }
+
+static ActuatorNodeOwnerTable g_owner_table;
 
 static void test_table_registration_owner(void) {
     printf("\n=== Test: Owner Table Registration ===\n");
     
-    static SensorNodeOwnerTable owner_table;
-    memset(&owner_table, 0, sizeof(owner_table));
+    memset(&g_owner_table, 0, sizeof(g_owner_table));
+    g_owner_table.config.target_position = 50;
+    g_owner_table.config.speed = 25;
     
-    /* Register as owner for different table type */
-    SdsError err = sds_register_table(&owner_table, "ActuatorNode", SDS_ROLE_OWNER, NULL);
+    /* Register as owner for ActuatorNode */
+    SdsError err = sds_register_table(&g_owner_table, "ActuatorNode", SDS_ROLE_OWNER, NULL);
     TEST_ASSERT(err == SDS_OK, "Register owner table");
     TEST_ASSERT(sds_get_table_count() == 2, "Table count is 2");
     
@@ -233,4 +199,3 @@ int main(int argc, char* argv[]) {
     
     return g_test_fail > 0 ? 1 : 0;
 }
-
