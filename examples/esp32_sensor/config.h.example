@@ -1,0 +1,60 @@
+/*
+ * config.h - Configuration for SDS ESP32/ESP8266 Sensor Example
+ * 
+ * SETUP INSTRUCTIONS:
+ *   1. Copy this file to 'config.h'
+ *   2. Edit the values below with your settings
+ *   3. config.h is gitignored - your credentials stay private
+ */
+
+#ifndef CONFIG_H
+#define CONFIG_H
+
+/* ============== Version ============== */
+
+#define FIRMWARE_VERSION    "1.0.0"
+#define FIRMWARE_NAME       "SDS Sensor"
+
+/* ============== WiFi Configuration ============== */
+
+#define WIFI_SSID           "your-wifi-ssid"
+#define WIFI_PASSWORD       "your-wifi-password"
+
+/* WiFi connection timeout (seconds) */
+#define WIFI_TIMEOUT_SEC    30
+
+/* ============== MQTT Configuration ============== */
+
+#define MQTT_BROKER         "192.168.1.100"
+#define MQTT_PORT           1883
+
+/* Optional: MQTT authentication (leave empty if not used) */
+#define MQTT_USERNAME       ""
+#define MQTT_PASSWORD       ""
+
+/* ============== Device Configuration ============== */
+
+/* Node ID prefix (MAC address will be appended) */
+#define NODE_ID_PREFIX      "sensor"
+
+/* ============== Hardware Configuration ============== */
+
+/* LED pin for status indication (set to -1 to disable) */
+#define STATUS_LED_PIN      2
+
+/* Sensor update interval in milliseconds */
+#define SENSOR_UPDATE_MS    1000
+
+/* Serial baud rate */
+#define SERIAL_BAUD         115200
+
+/* ============== Debug Configuration ============== */
+
+/* Enable verbose debug output */
+#define DEBUG_ENABLED       1
+
+/* Print sensor readings to serial every N seconds (0 to disable) */
+#define DEBUG_PRINT_INTERVAL_SEC  5
+
+#endif /* CONFIG_H */
+

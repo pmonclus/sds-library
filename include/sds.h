@@ -345,6 +345,36 @@ void sds_foreach_node(
 
 #ifdef __cplusplus
 }
-#endif
+
+/* ============== Arduino C++ Wrapper ============== */
+
+/**
+ * Arduino-style wrapper class for SDS.
+ * 
+ * Provides a simpler interface for Arduino/ESP sketches.
+ */
+class SDSClient {
+public:
+    bool begin(const char* node_id, const char* broker, uint16_t port = 1883) {
+        SdsConfig config = {
+            .node_id = node_id,
+            .mqtt_broker = broker,
+            .mqtt_port = port
+        };
+        return sds_init(&config) == SDS_OK;
+    }
+    
+    void loop() { sds_loop(); }
+    void end() { sds_shutdown(); }
+    bool isReady() { return sds_is_ready(); }
+    const char* getNodeId() { return sds_get_node_id(); }
+    const SdsStats* getStats() { return sds_get_stats(); }
+    
+    static const char* errorString(SdsError err) {
+        return sds_error_string(err);
+    }
+};
+
+#endif /* __cplusplus */
 
 #endif /* SDS_H */
