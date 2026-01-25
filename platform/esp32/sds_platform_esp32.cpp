@@ -1,17 +1,27 @@
 /*
- * sds_platform_esp32.cpp - ESP32/Arduino Platform Implementation
+ * sds_platform_esp32.cpp - ESP32/ESP8266 Arduino Platform Implementation
  * 
  * For ESP32/ESP8266 using Arduino framework and PubSubClient.
  * 
  * Dependencies (PlatformIO lib_deps):
  *   - knolleary/PubSubClient
- *   - WiFi (built-in for ESP32)
+ *   - WiFi (built-in for ESP32/ESP8266)
  */
 
 #include "sds_platform.h"
 
 #include <Arduino.h>
-#include <WiFi.h>
+
+#if defined(ESP32)
+  #include <WiFi.h>
+  #define SDS_PLATFORM_NAME "ESP32"
+#elif defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #define SDS_PLATFORM_NAME "ESP8266"
+#else
+  #error "This platform file requires ESP32 or ESP8266"
+#endif
+
 #include <PubSubClient.h>
 
 /* ============== Configuration ============== */
@@ -52,7 +62,7 @@ extern "C" bool sds_platform_init(void) {
     _mqtt_client.setCallback(mqtt_callback);
     
     _initialized = true;
-    SDS_LOG_I("Platform initialized (ESP32)");
+    SDS_LOG_I("Platform initialized (" SDS_PLATFORM_NAME ")");
     return true;
 }
 
