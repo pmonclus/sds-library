@@ -1,0 +1,47 @@
+// schema.sds - SDS Schema Example
+// 
+// Defines table types with config/state/status sections.
+// Run codegen to generate C types for both OWNER and DEVICE roles.
+
+@version = "1.0.0"
+
+// Sensor node table - temperature/humidity monitoring
+table SensorNode {
+    @sync_interval = 1000
+    
+    config {
+        uint8 command;           // 0=off, 1=on, 2=auto
+        float threshold = 25.0;  // Temperature threshold for alerts
+    }
+    
+    state {
+        float temperature;
+        float humidity;
+    }
+    
+    status {
+        uint8 error_code;
+        uint8 battery_percent;
+        uint32 uptime_seconds;
+    }
+}
+
+// Actuator node table - motor/servo control
+table ActuatorNode {
+    @sync_interval = 100
+    
+    config {
+        uint8 target_position;
+        uint8 speed = 50;
+    }
+    
+    state {
+        uint8 current_position;
+    }
+    
+    status {
+        uint8 motor_status;      // 0=idle, 1=moving, 2=error
+        uint16 error_code;
+    }
+}
+

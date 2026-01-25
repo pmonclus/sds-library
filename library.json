@@ -1,0 +1,36 @@
+{
+    "name": "SDS",
+    "version": "0.3.0",
+    "description": "Simple DDS - Lightweight MQTT state synchronization for embedded systems",
+    "keywords": ["sds", "mqtt", "iot", "embedded", "state-sync", "esp32", "arduino"],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/your-repo/sds-library"
+    },
+    "authors": [
+        {
+            "name": "SDS Team"
+        }
+    ],
+    "license": "MIT",
+    "frameworks": "arduino",
+    "platforms": ["espressif32", "espressif8266"],
+    "dependencies": {
+        "knolleary/PubSubClient": "^2.8"
+    },
+    "build": {
+        "srcFilter": [
+            "+<src/*.c>",
+            "+<platform/esp32/*.cpp>"
+        ],
+        "includeDir": "include"
+    },
+    "export": {
+        "include": [
+            "include/*",
+            "src/*",
+            "platform/esp32/*"
+        ]
+    }
+}
+
