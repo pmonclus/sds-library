@@ -218,6 +218,11 @@ SdsError sds_init(const SdsConfig* config) {
 
 void sds_loop(void) {
     if (!_initialized) {
+        static bool warned = false;
+        if (!warned) {
+            SDS_LOG_W("sds_loop called before sds_init()");
+            warned = true;
+        }
         return;
     }
     
