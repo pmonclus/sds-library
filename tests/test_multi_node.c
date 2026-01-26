@@ -22,6 +22,7 @@
 #include <string.h>
 #include <signal.h>
 #include <stddef.h>
+#include <math.h>
 
 /* ============== Table Definitions ============== */
 
@@ -227,6 +228,43 @@ static float g_expected_tableA_threshold = 0;
 static uint8_t g_expected_tableB_position = 0;
 static uint8_t g_expected_tableB_enabled = 0;
 
+/* Status tracking for owner validation */
+#define MAX_TRACKED_DEVICES 4
+typedef struct {
+    char node_id[SDS_MAX_NODE_ID_LEN];
+    int status_count;
+    uint8_t last_battery_level;  /* For TableA status */
+    uint32_t last_uptime_ms;
+} TrackedDeviceStatus;
+
+static TrackedDeviceStatus g_tableA_device_status[MAX_TRACKED_DEVICES];
+static int g_tableA_unique_devices = 0;
+
+static TrackedDeviceStatus g_tableB_device_status[MAX_TRACKED_DEVICES];
+static int g_tableB_unique_devices = 0;
+
+/* Helper to find or add a device in the tracking array */
+static TrackedDeviceStatus* find_or_add_device(TrackedDeviceStatus* arr, int* count, const char* node_id) {
+    /* Search for existing */
+    for (int i = 0; i < *count; i++) {
+        if (strcmp(arr[i].node_id, node_id) == 0) {
+            return &arr[i];
+        }
+    }
+    /* Add new if space available */
+    if (*count < MAX_TRACKED_DEVICES) {
+        TrackedDeviceStatus* slot = &arr[*count];
+        strncpy(slot->node_id, node_id, SDS_MAX_NODE_ID_LEN - 1);
+        slot->node_id[SDS_MAX_NODE_ID_LEN - 1] = '\0';
+        slot->status_count = 0;
+        slot->last_battery_level = 0;
+        slot->last_uptime_ms = 0;
+        (*count)++;
+        return slot;
+    }
+    return NULL;
+}
+
 /* ============== Signal Handler ============== */
 
 static void signal_handler(int sig) {
@@ -269,7 +307,36 @@ static void on_tableA_status(const char* table_type, const char* from_node) {
     g_status_updates_received++;
     
     if (g_node_type == NODE_1) {
-        printf("[%s] TableA status from %s\n", g_node_id, from_node);
+        /* Track this device's status */
+        TrackedDeviceStatus* tracked = find_or_add_device(
+            g_tableA_device_status, &g_tableA_unique_devices, from_node);
+        
+        if (tracked) {
+            tracked->status_count++;
+            
+            /* Try to read status from owner's status_slots (Issue 7 validation) */
+            /* Once Issue 7 is implemented, this will find the device's status */
+            bool found_in_slots = false;
+            for (int i = 0; i < MAX_NODES; i++) {
+                TableAStatusSlot* slot = &g_tableA.owner.status_slots[i];
+                if (slot->valid && strcmp(slot->node_id, from_node) == 0) {
+                    found_in_slots = true;
+                    tracked->last_battery_level = slot->status.battery_level;
+                    tracked->last_uptime_ms = slot->status.uptime_ms;
+                    printf("[%s] TableA status from %s: battery=%d%% uptime=%ums (slot %d)\n",
+                           g_node_id, from_node, 
+                           slot->status.battery_level, slot->status.uptime_ms, i);
+                    break;
+                }
+            }
+            
+            if (!found_in_slots) {
+                printf("[%s] TableA status from %s (callback received, but no slot data yet)\n",
+                       g_node_id, from_node);
+            }
+        } else {
+            printf("[%s] TableA status from %s (tracking full)\n", g_node_id, from_node);
+        }
     }
 }
 
@@ -305,7 +372,33 @@ static void on_tableB_status(const char* table_type, const char* from_node) {
     g_status_updates_received++;
     
     if (g_node_type == NODE_2) {
-        printf("[%s] TableB status from %s\n", g_node_id, from_node);
+        /* Track this device's status */
+        TrackedDeviceStatus* tracked = find_or_add_device(
+            g_tableB_device_status, &g_tableB_unique_devices, from_node);
+        
+        if (tracked) {
+            tracked->status_count++;
+            
+            /* Try to read status from owner's status_slots (Issue 7 validation) */
+            bool found_in_slots = false;
+            for (int i = 0; i < MAX_NODES; i++) {
+                TableBStatusSlot* slot = &g_tableB.owner.status_slots[i];
+                if (slot->valid && strcmp(slot->node_id, from_node) == 0) {
+                    found_in_slots = true;
+                    printf("[%s] TableB status from %s: motor=%d errors=%d (slot %d)\n",
+                           g_node_id, from_node, 
+                           slot->status.motor_status, slot->status.error_count, i);
+                    break;
+                }
+            }
+            
+            if (!found_in_slots) {
+                printf("[%s] TableB status from %s (callback received, but no slot data yet)\n",
+                       g_node_id, from_node);
+            }
+        } else {
+            printf("[%s] TableB status from %s (tracking full)\n", g_node_id, from_node);
+        }
     }
 }
 
@@ -331,6 +424,16 @@ static SdsError setup_node1(void) {
         NULL, deserialize_tableA_status
     );
     if (err != SDS_OK) return err;
+    
+    /* Configure status slot metadata for per-device tracking (Issue 7) */
+    sds_set_owner_status_slots(
+        "TableA",
+        offsetof(TableAOwnerTable, status_slots),
+        sizeof(TableAStatusSlot),
+        offsetof(TableAStatusSlot, status),
+        offsetof(TableAOwnerTable, status_count),
+        MAX_NODES
+    );
     
     sds_on_state_update("TableA", on_tableA_state);
     sds_on_status_update("TableA", on_tableA_status);
@@ -410,6 +513,16 @@ static SdsError setup_node2(void) {
         NULL, deserialize_tableB_status
     );
     if (err != SDS_OK) return err;
+    
+    /* Configure status slot metadata for per-device tracking (Issue 7) */
+    sds_set_owner_status_slots(
+        "TableB",
+        offsetof(TableBOwnerTable, status_slots),
+        sizeof(TableBStatusSlot),
+        offsetof(TableBStatusSlot, status),
+        offsetof(TableBOwnerTable, status_count),
+        MAX_NODES
+    );
     
     sds_on_state_update("TableB", on_tableB_state);
     sds_on_status_update("TableB", on_tableB_status);
@@ -553,6 +666,7 @@ int main(int argc, char* argv[]) {
     printf("Press Ctrl+C to quit\n\n");
     
     signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);  /* Handle graceful termination from test harness */
     
     SdsConfig config = {
         .node_id = g_node_id,
@@ -578,11 +692,20 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    /* Phase 1: Stabilization - let MQTT subscriptions propagate */
+    printf("[%s] Setup complete, stabilizing subscriptions...\n", g_node_id);
+    for (int i = 0; i < 20 && g_running; i++) {
+        sds_loop();  /* Process any early messages */
+        sds_platform_delay_ms(100);
+    }
+    printf("[%s] Stabilization complete\n", g_node_id);
+    
+    /* Phase 2: Test phase */
     uint32_t start_time = sds_platform_millis();
     uint32_t last_stats = 0;
-    uint32_t test_duration_ms = 15000;
+    uint32_t test_duration_ms = 10000;  /* Reduced since we added setup/shutdown time */
     
-    printf("[%s] Running for %u seconds...\n\n", g_node_id, test_duration_ms / 1000);
+    printf("[%s] Running test phase for %u seconds...\n\n", g_node_id, test_duration_ms / 1000);
     
     while (g_running) {
         uint32_t now = sds_platform_millis();
@@ -635,6 +758,81 @@ int main(int argc, char* argv[]) {
             } else {
                 printf("✓ PASS: Received TableA state from devices (%d updates)\n", g_state_updates_received);
             }
+            
+            /* Validate status from devices (node2 and node3 both send TableA status) */
+            printf("\n--- TableA Owner Status Validation ---\n");
+            printf("Status callbacks received: %d\n", g_status_updates_received);
+            printf("Unique devices tracked: %d\n", g_tableA_unique_devices);
+            
+            if (g_tableA_unique_devices < 2) {
+                printf("✗ FAIL: Expected status from 2 devices (node2, node3), got %d\n", 
+                       g_tableA_unique_devices);
+                test_passed = false;
+            } else {
+                printf("✓ PASS: Received status from %d unique devices\n", g_tableA_unique_devices);
+                for (int i = 0; i < g_tableA_unique_devices; i++) {
+                    printf("  Device '%s': %d status updates\n", 
+                           g_tableA_device_status[i].node_id,
+                           g_tableA_device_status[i].status_count);
+                }
+            }
+            
+            /* Validate that status is in owner's status_slots (Issue 7 test) */
+            {
+                int valid_slots = 0;
+                printf("\nOwner status_slots check:\n");
+                for (int i = 0; i < MAX_NODES; i++) {
+                    TableAStatusSlot* slot = &g_tableA.owner.status_slots[i];
+                    if (slot->valid) {
+                        valid_slots++;
+                        printf("  Slot %d: node='%s' battery=%d%% uptime=%ums\n",
+                               i, slot->node_id, 
+                               slot->status.battery_level, slot->status.uptime_ms);
+                    }
+                }
+                
+                if (valid_slots < 2) {
+                    printf("✗ FAIL: Expected 2 valid status slots, got %d (Issue 7 not implemented?)\n", 
+                           valid_slots);
+                    test_passed = false;
+                } else {
+                    printf("✓ PASS: Found %d valid status slots with deserialized data\n", valid_slots);
+                    
+                    /* Validate specific values */
+                    bool found_node2 = false, found_node3 = false;
+                    for (int i = 0; i < MAX_NODES; i++) {
+                        TableAStatusSlot* slot = &g_tableA.owner.status_slots[i];
+                        if (slot->valid) {
+                            if (strcmp(slot->node_id, "node2") == 0) {
+                                found_node2 = true;
+                                /* node2 starts with battery_level=85 */
+                                if (slot->status.battery_level == 0) {
+                                    printf("  ✗ node2 battery_level is 0 (not deserialized?)\n");
+                                } else {
+                                    printf("  ✓ node2 battery=%d%% (expected ~85%%)\n", 
+                                           slot->status.battery_level);
+                                }
+                            }
+                            if (strcmp(slot->node_id, "node3") == 0) {
+                                found_node3 = true;
+                                /* node3 starts with battery_level=92 */
+                                if (slot->status.battery_level == 0) {
+                                    printf("  ✗ node3 battery_level is 0 (not deserialized?)\n");
+                                } else {
+                                    printf("  ✓ node3 battery=%d%% (expected ~92%%)\n", 
+                                           slot->status.battery_level);
+                                }
+                            }
+                        }
+                    }
+                    if (!found_node2 || !found_node3) {
+                        printf("✗ FAIL: Missing expected device slots (node2=%s, node3=%s)\n",
+                               found_node2 ? "found" : "missing",
+                               found_node3 ? "found" : "missing");
+                        test_passed = false;
+                    }
+                }
+            }
             break;
             
         case NODE_2:
@@ -650,24 +848,86 @@ int main(int argc, char* argv[]) {
             } else {
                 printf("✓ PASS: Received TableB state from devices (%d updates)\n", g_state_updates_received);
             }
+            
+            /* Validate status from devices (node1 and node3 both send TableB status) */
+            printf("\n--- TableB Owner Status Validation ---\n");
+            printf("Status callbacks received: %d\n", g_status_updates_received);
+            printf("Unique devices tracked: %d\n", g_tableB_unique_devices);
+            
+            if (g_tableB_unique_devices < 2) {
+                printf("✗ FAIL: Expected status from 2 devices (node1, node3), got %d\n", 
+                       g_tableB_unique_devices);
+                test_passed = false;
+            } else {
+                printf("✓ PASS: Received status from %d unique devices\n", g_tableB_unique_devices);
+            }
+            
+            /* Validate status slots */
+            {
+                int valid_slots = 0;
+                printf("\nOwner status_slots check:\n");
+                for (int i = 0; i < MAX_NODES; i++) {
+                    TableBStatusSlot* slot = &g_tableB.owner.status_slots[i];
+                    if (slot->valid) {
+                        valid_slots++;
+                        printf("  Slot %d: node='%s' motor=%d errors=%d\n",
+                               i, slot->node_id, 
+                               slot->status.motor_status, slot->status.error_count);
+                    }
+                }
+                
+                if (valid_slots < 2) {
+                    printf("✗ FAIL: Expected 2 valid status slots, got %d (Issue 7 not implemented?)\n", 
+                           valid_slots);
+                    test_passed = false;
+                } else {
+                    printf("✓ PASS: Found %d valid status slots with deserialized data\n", valid_slots);
+                }
+            }
             break;
             
         case NODE_3:
-            if (g_config_updates_received < 2) {
-                printf("✗ FAIL: Expected config from both owners, got %d\n", 
-                       g_config_updates_received);
-                test_passed = false;
+            /* Validate TableA config was applied (may arrive before callback was set) */
+            if (g_tableA.device.config.mode == g_expected_tableA_mode &&
+                fabsf(g_tableA.device.config.threshold - g_expected_tableA_threshold) < 0.1f) {
+                printf("✓ PASS: TableA config applied correctly (mode=%d, threshold=%.1f)\n",
+                       g_tableA.device.config.mode, g_tableA.device.config.threshold);
             } else {
-                printf("✓ PASS: Received config from both owners\n");
+                printf("✗ FAIL: TableA config not applied (mode=%d expected %d, threshold=%.1f expected %.1f)\n",
+                       g_tableA.device.config.mode, g_expected_tableA_mode,
+                       g_tableA.device.config.threshold, g_expected_tableA_threshold);
+                test_passed = false;
             }
+            /* Validate TableB config was applied */
+            if (g_tableB.device.config.target_position == g_expected_tableB_position &&
+                g_tableB.device.config.enabled == g_expected_tableB_enabled) {
+                printf("✓ PASS: TableB config applied correctly (pos=%d, enabled=%d)\n",
+                       g_tableB.device.config.target_position, g_tableB.device.config.enabled);
+            } else {
+                printf("✗ FAIL: TableB config not applied (pos=%d expected %d, enabled=%d expected %d)\n",
+                       g_tableB.device.config.target_position, g_expected_tableB_position,
+                       g_tableB.device.config.enabled, g_expected_tableB_enabled);
+                test_passed = false;
+            }
+            printf("(Config callbacks received: %d - may be less due to retained message timing)\n",
+                   g_config_updates_received);
             break;
     }
     
     printf("\nOverall: %s\n", test_passed ? "PASSED" : "FAILED");
     
+    /* Phase 3: Graceful shutdown - let final messages flush */
+    printf("\n[%s] Graceful shutdown, flushing messages...\n", g_node_id);
+    for (int i = 0; i < 10 && g_running; i++) {
+        sds_loop();
+        sds_platform_delay_ms(50);
+    }
+    
     sds_unregister_table("TableA");
     sds_unregister_table("TableB");
     sds_shutdown();
+    
+    printf("[%s] Shutdown complete\n", g_node_id);
     
     return test_passed ? 0 : 1;
 }

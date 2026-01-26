@@ -11,6 +11,18 @@
 #include <string.h>
 #include <stdio.h>
 
+/* ============== Shadow Buffer Configuration ============== */
+
+/*
+ * Use generated max section size if available (from sds_types.h),
+ * otherwise fall back to 256 bytes for manual/standalone usage.
+ */
+#ifdef SDS_GENERATED_MAX_SECTION_SIZE
+    #define SDS_SHADOW_SIZE SDS_GENERATED_MAX_SECTION_SIZE
+#else
+    #define SDS_SHADOW_SIZE 256
+#endif
+
 /* ============== Internal Types ============== */
 
 /* Serialization callback types */
@@ -34,9 +46,9 @@ typedef struct {
     SdsDeserializeFunc deserialize_status;
     
     /* Shadow copies for change detection */
-    uint8_t shadow_config[256];
-    uint8_t shadow_state[256];
-    uint8_t shadow_status[256];
+    uint8_t shadow_config[SDS_SHADOW_SIZE];
+    uint8_t shadow_state[SDS_SHADOW_SIZE];
+    uint8_t shadow_status[SDS_SHADOW_SIZE];
     size_t config_size;
     size_t state_size;
     size_t status_size;
@@ -55,6 +67,8 @@ typedef struct {
     size_t status_slots_offset;  /* Offset to status array in owner table */
     size_t status_slot_size;     /* Size of each status slot */
     uint8_t max_status_slots;
+    size_t slot_status_offset;      /* Offset to status within a slot */
+    size_t status_count_offset;     /* Offset to status_count in owner table */
 } SdsTableContext;
 
 /* ============== Internal State ============== */
@@ -65,6 +79,8 @@ static SdsTableContext _tables[SDS_MAX_TABLES];
 static uint8_t _table_count = 0;
 static SdsStats _stats = {0};
 
+#define SDS_MAX_BROKER_LEN 128
+static char _mqtt_broker_buf[SDS_MAX_BROKER_LEN] = "";
 static const char* _mqtt_broker = NULL;
 static uint16_t _mqtt_port = SDS_DEFAULT_MQTT_PORT;
 
@@ -72,10 +88,14 @@ static uint16_t _mqtt_port = SDS_DEFAULT_MQTT_PORT;
 static const SdsTableMeta* _table_registry = NULL;
 static size_t _table_registry_count = 0;
 
+/* Error callback for async error notifications */
+static SdsErrorCallback _error_callback = NULL;
+
 /* ============== Forward Declarations ============== */
 
 static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t payload_len);
 static SdsTableContext* find_table(const char* table_type);
+static void notify_error(SdsError error, const char* context);
 static void subscribe_table_topics(SdsTableContext* ctx);
 static void unsubscribe_table_topics(SdsTableContext* ctx);
 static void sync_table(SdsTableContext* ctx);
@@ -101,6 +121,7 @@ const char* sds_error_string(SdsError error) {
         case SDS_ERR_OWNER_EXISTS:          return "Owner already exists";
         case SDS_ERR_MAX_NODES_REACHED:     return "Max nodes reached";
         case SDS_ERR_BUFFER_FULL:           return "Buffer full";
+        case SDS_ERR_SECTION_TOO_LARGE:     return "Section too large for shadow buffer";
         case SDS_ERR_PLATFORM_NOT_SET:      return "Platform not set";
         case SDS_ERR_PLATFORM_ERROR:        return "Platform error";
         default:                            return "Unknown error";
@@ -143,17 +164,37 @@ SdsError sds_init(const SdsConfig* config) {
         return SDS_ERR_PLATFORM_ERROR;
     }
     
-    /* Set node ID */
+    /* Set node ID with validation */
     if (config->node_id && config->node_id[0] != '\0') {
+        size_t node_id_len = strlen(config->node_id);
+        if (node_id_len >= SDS_MAX_NODE_ID_LEN) {
+            SDS_LOG_E("Node ID too long (%zu chars, max %d)", node_id_len, SDS_MAX_NODE_ID_LEN - 1);
+            sds_platform_shutdown();
+            return SDS_ERR_INVALID_CONFIG;
+        }
         strncpy(_node_id, config->node_id, SDS_MAX_NODE_ID_LEN - 1);
         _node_id[SDS_MAX_NODE_ID_LEN - 1] = '\0';
     } else {
         snprintf(_node_id, SDS_MAX_NODE_ID_LEN, "node_%08x", (unsigned int)sds_platform_millis());
+        SDS_LOG_D("Using auto-generated node_id: %s", _node_id);
     }
     
-    /* Store broker info */
-    _mqtt_broker = config->mqtt_broker;
-    _mqtt_port = config->mqtt_port ? config->mqtt_port : SDS_DEFAULT_MQTT_PORT;
+    /* Store broker info - copy the string to avoid dangling pointer */
+    size_t broker_len = strlen(config->mqtt_broker);
+    if (broker_len >= SDS_MAX_BROKER_LEN) {
+        SDS_LOG_E("Broker hostname too long (%zu chars, max %d)", broker_len, SDS_MAX_BROKER_LEN - 1);
+        sds_platform_shutdown();
+        return SDS_ERR_INVALID_CONFIG;
+    }
+    strncpy(_mqtt_broker_buf, config->mqtt_broker, SDS_MAX_BROKER_LEN - 1);
+    _mqtt_broker_buf[SDS_MAX_BROKER_LEN - 1] = '\0';
+    _mqtt_broker = _mqtt_broker_buf;
+    if (config->mqtt_port) {
+        _mqtt_port = config->mqtt_port;
+    } else {
+        _mqtt_port = SDS_DEFAULT_MQTT_PORT;
+        SDS_LOG_D("Using default MQTT port: %u", _mqtt_port);
+    }
     
     /* Initialize tables */
     memset(_tables, 0, sizeof(_tables));
@@ -190,6 +231,8 @@ void sds_loop(void) {
                     subscribe_table_topics(&_tables[i]);
                 }
             }
+        } else {
+            notify_error(SDS_ERR_MQTT_DISCONNECTED, "Reconnect failed");
         }
         return;
     }
@@ -309,7 +352,7 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
         );
     } else {
         /* OWNER role */
-        return sds_register_table_ex(
+        SdsError err = sds_register_table_ex(
             table, table_type, role, options,
             meta->own_config_offset, meta->own_config_size,
             meta->own_state_offset, meta->own_state_size,
@@ -321,6 +364,20 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
             NULL,                         /* Owner doesn't send status */
             meta->deserialize_status      /* Owner receives status */
         );
+        
+        /* Populate status slot metadata for owners */
+        if (err == SDS_OK && meta->own_status_slots_offset > 0) {
+            SdsTableContext* ctx = find_table(table_type);
+            if (ctx) {
+                ctx->status_slots_offset = meta->own_status_slots_offset;
+                ctx->status_slot_size = meta->own_status_slot_size;
+                ctx->max_status_slots = meta->own_max_status_slots;
+                ctx->slot_status_offset = meta->slot_status_offset;
+                ctx->status_count_offset = meta->own_status_count_offset;
+            }
+        }
+        
+        return err;
     }
 }
 
@@ -390,12 +447,21 @@ SdsError sds_register_table_ex(
         return SDS_ERR_MAX_TABLES_REACHED;
     }
     
+    /* Validate section sizes against shadow buffer capacity */
+    if (config_size > SDS_SHADOW_SIZE || state_size > SDS_SHADOW_SIZE || status_size > SDS_SHADOW_SIZE) {
+        SDS_LOG_E("Section size exceeds SDS_SHADOW_SIZE (%d bytes): config=%zu state=%zu status=%zu",
+                  (int)SDS_SHADOW_SIZE, config_size, state_size, status_size);
+        ctx->active = false;
+        _table_count--;
+        return SDS_ERR_SECTION_TOO_LARGE;
+    }
+    
     ctx->config_offset = config_offset;
-    ctx->config_size = config_size < 256 ? config_size : 256;
+    ctx->config_size = config_size;
     ctx->state_offset = state_offset;
-    ctx->state_size = state_size < 256 ? state_size : 256;
+    ctx->state_size = state_size;
     ctx->status_offset = status_offset;
-    ctx->status_size = status_size < 256 ? status_size : 256;
+    ctx->status_size = status_size;
     
     ctx->serialize_config = serialize_config;
     ctx->deserialize_config = deserialize_config;
@@ -464,6 +530,45 @@ void sds_on_status_update(const char* table_type, SdsStatusCallback callback) {
     }
 }
 
+void sds_on_error(SdsErrorCallback callback) {
+    _error_callback = callback;
+}
+
+void sds_set_owner_status_slots(
+    const char* table_type,
+    size_t slots_offset,
+    size_t slot_size,
+    size_t slot_status_offset,
+    size_t count_offset,
+    uint8_t max_slots
+) {
+    SdsTableContext* ctx = find_table(table_type);
+    if (!ctx || ctx->role != SDS_ROLE_OWNER) {
+        SDS_LOG_W("sds_set_owner_status_slots: table %s not found or not owner", 
+                  table_type ? table_type : "(null)");
+        return;
+    }
+    
+    ctx->status_slots_offset = slots_offset;
+    ctx->status_slot_size = slot_size;
+    ctx->slot_status_offset = slot_status_offset;
+    ctx->status_count_offset = count_offset;
+    ctx->max_status_slots = max_slots;
+    
+    SDS_LOG_D("Configured status slots for %s: offset=%zu size=%zu max=%d",
+              table_type, slots_offset, slot_size, max_slots);
+}
+
+/**
+ * Internal helper to notify errors through the callback.
+ */
+static void notify_error(SdsError error, const char* context) {
+    _stats.errors++;
+    if (_error_callback) {
+        _error_callback(error, context);
+    }
+}
+
 /* ============== Statistics ============== */
 
 const SdsStats* sds_get_stats(void) {
@@ -473,17 +578,51 @@ const SdsStats* sds_get_stats(void) {
 /* ============== Owner Helpers ============== */
 
 const void* sds_find_node_status(const void* owner_table, const char* table_type, const char* node_id) {
-    (void)owner_table;
-    (void)table_type;
-    (void)node_id;
+    if (!owner_table || !table_type || !node_id) return NULL;
+    
+    /* Find the table context to get slot metadata */
+    SdsTableContext* ctx = find_table(table_type);
+    if (!ctx || ctx->role != SDS_ROLE_OWNER) return NULL;
+    if (ctx->status_slots_offset == 0 || ctx->max_status_slots == 0) return NULL;
+    
+    const uint8_t* slots_base = (const uint8_t*)owner_table + ctx->status_slots_offset;
+    
+    /* Search for the node */
+    for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
+        const uint8_t* slot = slots_base + (i * ctx->status_slot_size);
+        const char* slot_node_id = (const char*)slot;
+        const bool* slot_valid = (const bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        
+        if (*slot_valid && strcmp(slot_node_id, node_id) == 0) {
+            /* Return pointer to status within the slot */
+            return slot + ctx->slot_status_offset;
+        }
+    }
+    
     return NULL;
 }
 
 void sds_foreach_node(const void* owner_table, const char* table_type, SdsNodeIterator callback, void* user_data) {
-    (void)owner_table;
-    (void)table_type;
-    (void)callback;
-    (void)user_data;
+    if (!owner_table || !table_type || !callback) return;
+    
+    /* Find the table context to get slot metadata */
+    SdsTableContext* ctx = find_table(table_type);
+    if (!ctx || ctx->role != SDS_ROLE_OWNER) return;
+    if (ctx->status_slots_offset == 0 || ctx->max_status_slots == 0) return;
+    
+    const uint8_t* slots_base = (const uint8_t*)owner_table + ctx->status_slots_offset;
+    
+    /* Iterate over all valid slots */
+    for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
+        const uint8_t* slot = slots_base + (i * ctx->status_slot_size);
+        const char* slot_node_id = (const char*)slot;
+        const bool* slot_valid = (const bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        
+        if (*slot_valid) {
+            const void* status = slot + ctx->slot_status_offset;
+            callback(slot_node_id, status, user_data);
+        }
+    }
 }
 
 /* ============== Internal Functions ============== */
@@ -550,12 +689,16 @@ static void sync_table(SdsTableContext* ctx) {
                 ctx->serialize_config(config_ptr, &w);  /* Pass section pointer */
                 sds_json_end_object(&w);
                 
-                snprintf(topic, sizeof(topic), "sds/%s/config", ctx->table_type);
-                sds_platform_mqtt_publish(topic, (uint8_t*)buffer, sds_json_get_length(&w), true);
-                
-                memcpy(ctx->shadow_config, config_ptr, ctx->config_size);
-                _stats.messages_sent++;
-                SDS_LOG_D("Published config: %s", ctx->table_type);
+                if (sds_json_has_error(&w)) {
+                    notify_error(SDS_ERR_BUFFER_FULL, "Config serialization buffer overflow");
+                } else {
+                    snprintf(topic, sizeof(topic), "sds/%s/config", ctx->table_type);
+                    sds_platform_mqtt_publish(topic, (uint8_t*)buffer, sds_json_get_length(&w), true);
+                    
+                    memcpy(ctx->shadow_config, config_ptr, ctx->config_size);
+                    _stats.messages_sent++;
+                    SDS_LOG_D("Published config: %s", ctx->table_type);
+                }
             }
         }
     }
@@ -573,12 +716,16 @@ static void sync_table(SdsTableContext* ctx) {
             ctx->serialize_state(state_ptr, &w);  /* Pass section pointer */
             sds_json_end_object(&w);
             
-            snprintf(topic, sizeof(topic), "sds/%s/state", ctx->table_type);
-            sds_platform_mqtt_publish(topic, (uint8_t*)buffer, sds_json_get_length(&w), false);
-            
-            memcpy(ctx->shadow_state, state_ptr, ctx->state_size);
-            _stats.messages_sent++;
-            SDS_LOG_D("Published state: %s", ctx->table_type);
+            if (sds_json_has_error(&w)) {
+                notify_error(SDS_ERR_BUFFER_FULL, "State serialization buffer overflow");
+            } else {
+                snprintf(topic, sizeof(topic), "sds/%s/state", ctx->table_type);
+                sds_platform_mqtt_publish(topic, (uint8_t*)buffer, sds_json_get_length(&w), false);
+                
+                memcpy(ctx->shadow_state, state_ptr, ctx->state_size);
+                _stats.messages_sent++;
+                SDS_LOG_D("Published state: %s", ctx->table_type);
+            }
         }
     }
     
@@ -594,12 +741,16 @@ static void sync_table(SdsTableContext* ctx) {
             ctx->serialize_status(status_ptr, &w);  /* Pass section pointer */
             sds_json_end_object(&w);
             
-            snprintf(topic, sizeof(topic), "sds/%s/status/%s", ctx->table_type, _node_id);
-            sds_platform_mqtt_publish(topic, (uint8_t*)buffer, sds_json_get_length(&w), false);
-            
-            memcpy(ctx->shadow_status, status_ptr, ctx->status_size);
-            _stats.messages_sent++;
-            SDS_LOG_D("Published status: %s", ctx->table_type);
+            if (sds_json_has_error(&w)) {
+                notify_error(SDS_ERR_BUFFER_FULL, "Status serialization buffer overflow");
+            } else {
+                snprintf(topic, sizeof(topic), "sds/%s/status/%s", ctx->table_type, _node_id);
+                sds_platform_mqtt_publish(topic, (uint8_t*)buffer, sds_json_get_length(&w), false);
+                
+                memcpy(ctx->shadow_status, status_ptr, ctx->status_size);
+                _stats.messages_sent++;
+                SDS_LOG_D("Published status: %s", ctx->table_type);
+            }
         }
     }
 }
@@ -653,21 +804,90 @@ static void handle_state_message(SdsTableContext* ctx, const char* from_node, co
     }
 }
 
+/**
+ * Find or allocate a status slot for a device node.
+ * 
+ * @param ctx Table context (must be OWNER role)
+ * @param node_id Device node ID to find/allocate
+ * @return Pointer to status slot, or NULL if slots are full/not configured
+ */
+static void* find_or_alloc_status_slot(SdsTableContext* ctx, const char* node_id) {
+    if (ctx->status_slots_offset == 0 || ctx->max_status_slots == 0) {
+        return NULL;  /* No slots configured */
+    }
+    
+    uint8_t* slots_base = (uint8_t*)ctx->table + ctx->status_slots_offset;
+    
+    /* Search for existing slot with this node_id */
+    for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
+        uint8_t* slot = slots_base + (i * ctx->status_slot_size);
+        char* slot_node_id = (char*)slot;  /* node_id is first field */
+        bool* slot_valid = (bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        
+        if (*slot_valid && strcmp(slot_node_id, node_id) == 0) {
+            return slot;  /* Found existing slot */
+        }
+    }
+    
+    /* Find first empty slot */
+    for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
+        uint8_t* slot = slots_base + (i * ctx->status_slot_size);
+        bool* slot_valid = (bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        
+        if (!*slot_valid) {
+            /* Initialize new slot */
+            strncpy((char*)slot, node_id, SDS_MAX_NODE_ID_LEN - 1);
+            ((char*)slot)[SDS_MAX_NODE_ID_LEN - 1] = '\0';
+            *slot_valid = true;
+            
+            /* Increment status_count in owner table */
+            if (ctx->status_count_offset > 0) {
+                uint8_t* count_ptr = (uint8_t*)ctx->table + ctx->status_count_offset;
+                (*count_ptr)++;
+            }
+            
+            SDS_LOG_D("Allocated status slot %d for node: %s", i, node_id);
+            return slot;
+        }
+    }
+    
+    SDS_LOG_W("Status slots full (%d max), dropping status from %s", 
+              ctx->max_status_slots, node_id);
+    return NULL;
+}
+
 static void handle_status_message(SdsTableContext* ctx, const char* from_node, const uint8_t* payload, size_t len) {
     if (ctx->role != SDS_ROLE_OWNER) return;
     if (!ctx->deserialize_status) return;
     
-    /* TODO: Find or create status slot for from_node */
-    /* For now, just invoke callback */
+    /* Find or allocate a slot for this device */
+    void* slot = find_or_alloc_status_slot(ctx, from_node);
+    if (!slot) {
+        /* Log and invoke callback anyway - slot might not be configured */
+        SDS_LOG_D("Status from %s (no slot available): %s", from_node, ctx->table_type);
+        if (ctx->status_callback) {
+            ctx->status_callback(ctx->table_type, from_node);
+        }
+        return;
+    }
     
-    SDS_LOG_I("Status received from %s: %s", from_node, ctx->table_type);
+    /* Update last_seen timestamp (field after node_id and valid) */
+    uint32_t* last_seen = (uint32_t*)((uint8_t*)slot + SDS_MAX_NODE_ID_LEN + sizeof(bool));
+    *last_seen = sds_platform_millis();
+    
+    /* Get pointer to status data within the slot */
+    void* status_ptr = (uint8_t*)slot + ctx->slot_status_offset;
+    
+    /* Deserialize status into the slot */
+    SdsJsonReader r;
+    sds_json_reader_init(&r, (const char*)payload, len);
+    ctx->deserialize_status(status_ptr, &r);
+    
+    SDS_LOG_D("Status updated from %s: %s", from_node, ctx->table_type);
     
     if (ctx->status_callback) {
         ctx->status_callback(ctx->table_type, from_node);
     }
-    
-    (void)payload;
-    (void)len;
 }
 
 static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t payload_len) {
@@ -686,7 +906,17 @@ static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t pa
     
     char table_type[SDS_MAX_TABLE_TYPE_LEN];
     size_t table_len = table_end - table_start;
-    if (table_len >= SDS_MAX_TABLE_TYPE_LEN) return;
+    
+    /* Validate table_type length */
+    if (table_len == 0) {
+        SDS_LOG_D("Malformed topic (empty table type): %s", topic);
+        return;
+    }
+    if (table_len >= SDS_MAX_TABLE_TYPE_LEN) {
+        SDS_LOG_D("Malformed topic (table type too long): %s", topic);
+        return;
+    }
+    
     strncpy(table_type, table_start, table_len);
     table_type[table_len] = '\0';
     

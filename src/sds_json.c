@@ -46,6 +46,47 @@ static void json_append_char(SdsJsonWriter* w, char c) {
     w->buffer[w->pos] = '\0';
 }
 
+/**
+ * Append a string with JSON escaping for special characters.
+ * Escapes: " \ newline tab carriage-return
+ */
+static void json_append_escaped(SdsJsonWriter* w, const char* str) {
+    if (w->error || !str) return;
+    
+    while (*str) {
+        char c = *str++;
+        
+        /* Check if we need to escape this character */
+        const char* escape_seq = NULL;
+        switch (c) {
+            case '"':  escape_seq = "\\\""; break;
+            case '\\': escape_seq = "\\\\"; break;
+            case '\n': escape_seq = "\\n";  break;
+            case '\r': escape_seq = "\\r";  break;
+            case '\t': escape_seq = "\\t";  break;
+            default:
+                /* Control characters (0x00-0x1F) should be escaped, but we'll 
+                 * skip them for simplicity in embedded systems */
+                if (c >= 0x20) {
+                    json_append_char(w, c);
+                }
+                continue;
+        }
+        
+        /* Append the escape sequence */
+        if (escape_seq) {
+            /* Check we have room for 2 chars */
+            if (w->pos + 2 >= w->size) {
+                w->error = true;
+                return;
+            }
+            w->buffer[w->pos++] = escape_seq[0];
+            w->buffer[w->pos++] = escape_seq[1];
+            w->buffer[w->pos] = '\0';
+        }
+    }
+}
+
 static bool needs_comma(SdsJsonWriter* w) {
     /* Need comma if last char is not { or [ */
     if (w->pos == 0) return false;
@@ -64,9 +105,9 @@ void sds_json_end_object(SdsJsonWriter* w) {
 void sds_json_add_string(SdsJsonWriter* w, const char* key, const char* value) {
     if (needs_comma(w)) json_append_char(w, ',');
     json_append_char(w, '"');
-    json_append(w, key);
+    json_append(w, key);  /* Keys don't need escaping - they're from code */
     json_append(w, "\":\"");
-    json_append(w, value);
+    json_append_escaped(w, value);  /* Values need escaping - they're user data */
     json_append_char(w, '"');
 }
 
@@ -176,7 +217,35 @@ const char* sds_json_find_field(SdsJsonReader* r, const char* key) {
     return NULL;
 }
 
+/**
+ * Parse a JSON string value with bounds checking.
+ * 
+ * @param value Pointer to opening quote of the string value
+ * @param max_len Maximum bytes to read from value (remaining in buffer)
+ * @param out Output buffer for the string
+ * @param out_size Size of output buffer
+ * @return true if successfully parsed, false on error
+ */
+static bool parse_string_bounded(const char* value, size_t max_len, char* out, size_t out_size) {
+    if (!value || max_len < 2 || *value != '"') return false;
+    
+    value++;  /* Skip opening quote */
+    max_len--;
+    size_t i = 0;
+    
+    /* Read until closing quote, respecting both max_len and out_size */
+    while (max_len > 0 && *value != '"' && *value != '\0' && i < out_size - 1) {
+        out[i++] = *value++;
+        max_len--;
+    }
+    out[i] = '\0';
+    
+    /* Return true only if we found the closing quote */
+    return (max_len > 0 && *value == '"');
+}
+
 bool sds_json_parse_string(const char* value, char* out, size_t out_size) {
+    /* Legacy API - assume null-terminated string (less safe) */
     if (!value || *value != '"') return false;
     
     value++;  /* Skip opening quote */
@@ -240,7 +309,10 @@ bool sds_json_parse_bool(const char* value, bool* out) {
 bool sds_json_get_string_field(SdsJsonReader* r, const char* key, char* out, size_t out_size) {
     const char* value = sds_json_find_field(r, key);
     if (!value) return false;
-    return sds_json_parse_string(value, out, out_size);
+    
+    /* Calculate remaining bytes in the JSON buffer from value position */
+    size_t remaining = r->len - (size_t)(value - r->json);
+    return parse_string_bounded(value, remaining, out, out_size);
 }
 
 bool sds_json_get_int_field(SdsJsonReader* r, const char* key, int32_t* out) {

@@ -90,6 +90,11 @@ typedef void (*SdsStatusCallback)(const char* table_type, const char* from_node)
  */
 typedef void (*SdsNodeIterator)(const char* node_id, const void* status, void* user_data);
 
+/**
+ * Called when an error occurs during async operations (e.g., in sds_loop()).
+ */
+typedef void (*SdsErrorCallback)(SdsError error, const char* context);
+
 /* ============== Serialization Types ============== */
 
 /**
@@ -134,6 +139,13 @@ typedef struct {
     size_t own_config_size;
     size_t own_state_offset;
     size_t own_state_size;
+    
+    /* Owner status slot management (for per-device tracking) */
+    size_t own_status_slots_offset;     /* offsetof(OwnerTable, status_slots) */
+    size_t own_status_slot_size;        /* sizeof(StatusSlot) */
+    size_t own_status_count_offset;     /* offsetof(OwnerTable, status_count) */
+    size_t slot_status_offset;          /* offsetof(StatusSlot, status) */
+    uint8_t own_max_status_slots;       /* SDS_GENERATED_MAX_NODES */
     
     /* Serialization callbacks */
     SdsSerializeFunc serialize_config;
@@ -312,6 +324,16 @@ void sds_on_state_update(const char* table_type, SdsStateCallback callback);
  */
 void sds_on_status_update(const char* table_type, SdsStatusCallback callback);
 
+/**
+ * Set callback for async error notifications.
+ * 
+ * Errors that occur during sds_loop() or other async operations
+ * will be reported through this callback.
+ * 
+ * @param callback Function to call on error (NULL to disable)
+ */
+void sds_on_error(SdsErrorCallback callback);
+
 /* ============== Owner Helpers ============== */
 
 /**
@@ -341,6 +363,28 @@ void sds_foreach_node(
     const char* table_type,
     SdsNodeIterator callback,
     void* user_data
+);
+
+/**
+ * Configure status slot metadata for owner tables (for manual registration).
+ * 
+ * When using sds_register_table_ex() directly (not via codegen registry),
+ * call this to enable per-device status tracking for owner tables.
+ * 
+ * @param table_type Table type name
+ * @param slots_offset offsetof(OwnerTable, status_slots)
+ * @param slot_size sizeof(StatusSlot)
+ * @param slot_status_offset offsetof(StatusSlot, status)
+ * @param count_offset offsetof(OwnerTable, status_count)
+ * @param max_slots Maximum number of device slots
+ */
+void sds_set_owner_status_slots(
+    const char* table_type,
+    size_t slots_offset,
+    size_t slot_size,
+    size_t slot_status_offset,
+    size_t count_offset,
+    uint8_t max_slots
 );
 
 #ifdef __cplusplus

@@ -180,6 +180,17 @@ static void actuator_node_deserialize_status(void* section, SdsJsonReader* r) {
     { uint32_t tmp; if (sds_json_get_uint_field(r, "error_code", &tmp)) st->error_code = tmp; }
 }
 
+/* ============== Max Section Size (for shadow buffers) ============== */
+
+/* Helper macros for compile-time max calculation */
+#define _SDS_MAX2(a, b) ((a) > (b) ? (a) : (b))
+#define _SDS_MAX3(a, b, c) _SDS_MAX2(_SDS_MAX2(a, b), c)
+
+/* Auto-calculated maximum section size across all tables */
+#define SDS_GENERATED_MAX_SECTION_SIZE ( \
+    _SDS_MAX2(_SDS_MAX3(_SDS_MAX3(sizeof(SensorNodeConfig), sizeof(SensorNodeState), sizeof(SensorNodeStatus)), sizeof(ActuatorNodeConfig), sizeof(ActuatorNodeState)), sizeof(ActuatorNodeStatus)) \
+)
+
 /* ============== Table Registry ============== */
 
 #define SDS_TABLE_REGISTRY_COUNT 2
@@ -201,6 +212,11 @@ static const SdsTableMeta SDS_TABLE_REGISTRY[] = {
         .own_config_size = sizeof(SensorNodeConfig),
         .own_state_offset = offsetof(SensorNodeOwnerTable, state),
         .own_state_size = sizeof(SensorNodeState),
+        .own_status_slots_offset = offsetof(SensorNodeOwnerTable, status_slots),
+        .own_status_slot_size = sizeof(SensorNodeStatusSlot),
+        .own_status_count_offset = offsetof(SensorNodeOwnerTable, status_count),
+        .slot_status_offset = offsetof(SensorNodeStatusSlot, status),
+        .own_max_status_slots = SDS_GENERATED_MAX_NODES,
         .serialize_config = sensor_node_serialize_config,
         .serialize_state = sensor_node_serialize_state,
         .serialize_status = sensor_node_serialize_status,
@@ -224,6 +240,11 @@ static const SdsTableMeta SDS_TABLE_REGISTRY[] = {
         .own_config_size = sizeof(ActuatorNodeConfig),
         .own_state_offset = offsetof(ActuatorNodeOwnerTable, state),
         .own_state_size = sizeof(ActuatorNodeState),
+        .own_status_slots_offset = offsetof(ActuatorNodeOwnerTable, status_slots),
+        .own_status_slot_size = sizeof(ActuatorNodeStatusSlot),
+        .own_status_count_offset = offsetof(ActuatorNodeOwnerTable, status_count),
+        .slot_status_offset = offsetof(ActuatorNodeStatusSlot, status),
+        .own_max_status_slots = SDS_GENERATED_MAX_NODES,
         .serialize_config = actuator_node_serialize_config,
         .serialize_state = actuator_node_serialize_state,
         .serialize_status = actuator_node_serialize_status,

@@ -166,26 +166,43 @@ run_multi_node_test() {
     local tmpdir
     tmpdir=$(mktemp -d)
     
-    # Start all three nodes
+    # Start owners first (node1=TableA owner, node2=TableB owner)
+    # They need to subscribe before devices start publishing
+    echo "  Starting owners first (node1, node2)..."
     "$BUILD_DIR/$test_binary" node1 "$BROKER_HOST" > "$tmpdir/node1.log" 2>&1 &
     local pid1=$!
     
     "$BUILD_DIR/$test_binary" node2 "$BROKER_HOST" > "$tmpdir/node2.log" 2>&1 &
     local pid2=$!
     
+    # Give owners time to connect and subscribe
+    sleep 2
+    
+    # Now start pure device (node3=both device)
+    echo "  Starting device (node3)..."
     "$BUILD_DIR/$test_binary" node3 "$BROKER_HOST" > "$tmpdir/node3.log" 2>&1 &
     local pid3=$!
     
     echo "  Started node1 (PID: $pid1), node2 (PID: $pid2), node3 (PID: $pid3)"
     echo "  Waiting ${MULTI_NODE_DURATION}s for test completion..."
     
-    # Wait for tests to complete
+    # Wait for tests to complete (adjusted for staggered start)
     sleep "$MULTI_NODE_DURATION"
     
-    # Check if processes are still running and kill them
+    # Send graceful termination signal (SIGTERM) to allow cleanup
     for pid in $pid1 $pid2 $pid3; do
         if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid" 2>/dev/null || true
+            kill -TERM "$pid" 2>/dev/null || true
+        fi
+    done
+    
+    # Give processes time to flush and shutdown gracefully
+    sleep 2
+    
+    # Force kill any remaining processes
+    for pid in $pid1 $pid2 $pid3; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
         fi
     done
     

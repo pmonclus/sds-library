@@ -121,6 +121,9 @@ def generate_header(schema: Schema, output: TextIO):
     for name, table in schema.tables.items():
         _generate_table(output, name, table)
     
+    # Generate max section size macro (for shadow buffer sizing)
+    _generate_max_section_size(output, schema)
+    
     # Generate table registry
     _generate_table_registry(output, schema)
     
@@ -290,6 +293,47 @@ def _write_deserialize_field(output: TextIO, field: Field, ptr_name: str):
         output.write(f'    sds_json_get_uint_field(r, "{field.name}", &{ptr_name}->{field.name});\n')
 
 
+def _generate_max_section_size(output: TextIO, schema: Schema):
+    """Generate compile-time max section size for shadow buffer sizing."""
+    output.write("/* ============== Max Section Size (for shadow buffers) ============== */\n\n")
+    output.write("/* Helper macros for compile-time max calculation */\n")
+    output.write("#define _SDS_MAX2(a, b) ((a) > (b) ? (a) : (b))\n")
+    output.write("#define _SDS_MAX3(a, b, c) _SDS_MAX2(_SDS_MAX2(a, b), c)\n\n")
+    
+    # Collect all section size expressions
+    size_exprs = []
+    for name, table in schema.tables.items():
+        if table.config_fields:
+            size_exprs.append(f"sizeof({name}Config)")
+        if table.state_fields:
+            size_exprs.append(f"sizeof({name}State)")
+        if table.status_fields:
+            size_exprs.append(f"sizeof({name}Status)")
+    
+    if not size_exprs:
+        output.write("#define SDS_GENERATED_MAX_SECTION_SIZE 64\n\n")
+        return
+    
+    # Build nested MAX expression
+    output.write("/* Auto-calculated maximum section size across all tables */\n")
+    output.write("#define SDS_GENERATED_MAX_SECTION_SIZE ( \\\n")
+    
+    # Process in groups of 3 for _SDS_MAX3
+    while len(size_exprs) > 3:
+        # Group first 3 into a MAX3
+        expr = f"_SDS_MAX3({size_exprs[0]}, {size_exprs[1]}, {size_exprs[2]})"
+        size_exprs = [expr] + size_exprs[3:]
+    
+    if len(size_exprs) == 3:
+        output.write(f"    _SDS_MAX3({size_exprs[0]}, {size_exprs[1]}, {size_exprs[2]}) \\\n")
+    elif len(size_exprs) == 2:
+        output.write(f"    _SDS_MAX2({size_exprs[0]}, {size_exprs[1]}) \\\n")
+    else:
+        output.write(f"    ({size_exprs[0]}) \\\n")
+    
+    output.write(")\n\n")
+
+
 def _generate_table_registry(output: TextIO, schema: Schema):
     """Generate table registry with complete metadata for runtime lookup."""
     output.write("/* ============== Table Registry ============== */\n\n")
@@ -345,6 +389,20 @@ def _generate_table_registry(output: TextIO, schema: Schema):
         else:
             output.write("        .own_state_offset = 0,\n")
             output.write("        .own_state_size = 0,\n")
+        
+        # Owner status slot metadata (for per-device tracking)
+        if table.status_fields:
+            output.write(f"        .own_status_slots_offset = offsetof({name}OwnerTable, status_slots),\n")
+            output.write(f"        .own_status_slot_size = sizeof({name}StatusSlot),\n")
+            output.write(f"        .own_status_count_offset = offsetof({name}OwnerTable, status_count),\n")
+            output.write(f"        .slot_status_offset = offsetof({name}StatusSlot, status),\n")
+            output.write("        .own_max_status_slots = SDS_GENERATED_MAX_NODES,\n")
+        else:
+            output.write("        .own_status_slots_offset = 0,\n")
+            output.write("        .own_status_slot_size = 0,\n")
+            output.write("        .own_status_count_offset = 0,\n")
+            output.write("        .slot_status_offset = 0,\n")
+            output.write("        .own_max_status_slots = 0,\n")
         
         # Serialization callbacks
         if table.config_fields:

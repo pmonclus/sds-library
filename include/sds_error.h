@@ -34,6 +34,7 @@ typedef enum {
     /* Capacity errors */
     SDS_ERR_MAX_NODES_REACHED,      /* Owner's node slots full */
     SDS_ERR_BUFFER_FULL,            /* Message buffer too small */
+    SDS_ERR_SECTION_TOO_LARGE,      /* Table section exceeds shadow buffer size */
     
     /* Platform errors */
     SDS_ERR_PLATFORM_NOT_SET,       /* Platform not configured */

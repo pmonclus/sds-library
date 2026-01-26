@@ -16,8 +16,8 @@
  */
 
 #include "config.h"
-#include "sds.h"
-#include "sds_types.h"
+#include <SDS.h>
+#include "sds_types.h"  /* Generated from schema.sds */
 
 /* WiFi library - auto-selected based on platform */
 #if defined(ESP32)
