@@ -102,6 +102,10 @@ void loop() {
     static unsigned long last_sensor_update = 0;
     static unsigned long start_time = 0;
     
+    /* Always call sds.loop() - it handles MQTT reconnection internally */
+    sds.loop();
+    
+    /* Check if connected - if not, blink LED and skip sensor work */
     if (!sds.isReady()) {
         #if STATUS_LED_PIN >= 0
         /* Blink slowly when disconnected */
@@ -117,8 +121,6 @@ void loop() {
     if (start_time == 0) {
         start_time = millis();
     }
-    
-    sds.loop();
     
     /* Update sensor data at configured interval */
     if (millis() - last_sensor_update >= SENSOR_UPDATE_MS) {
