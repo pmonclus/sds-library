@@ -67,6 +67,11 @@ if(SDS_BUILD_TESTS)
     target_link_libraries(test_simple_api sds ${PAHO_MQTT_LIB})
     target_include_directories(test_simple_api PRIVATE ${PAHO_MQTT_INCLUDE})
     
+    # JSON-only test (no MQTT dependency)
+    add_executable(test_json tests/test_json.c src/sds_json.c)
+    target_include_directories(test_json PRIVATE include)
+    target_link_libraries(test_json m)  # Link math library for fabsf
+    
     if(APPLE)
         target_include_directories(test_sds_basic PRIVATE /opt/homebrew/include /usr/local/include)
         target_include_directories(test_multi_node PRIVATE /opt/homebrew/include /usr/local/include)

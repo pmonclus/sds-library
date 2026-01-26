@@ -267,6 +267,7 @@ build_project
 # Run unit tests
 print_header "Unit Tests"
 
+run_single_test "test_json" "test_json" "JSON serialization/parsing" || true
 run_single_test "test_sds_basic" "test_sds_basic" "Core API functionality" || true
 run_single_test "test_simple_api" "test_simple_api" "Simple registration API" || true
 
