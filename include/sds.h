@@ -29,6 +29,7 @@ extern "C" {
 #define SDS_MAX_TABLE_TYPE_LEN   32     /* Max table type name length */
 #define SDS_DEFAULT_MQTT_PORT    1883
 #define SDS_DEFAULT_SYNC_INTERVAL_MS 1000
+#define SDS_DEFAULT_LIVENESS_INTERVAL_MS 30000  /* Default 30s heartbeat */
 #define SDS_TOPIC_BUFFER_SIZE    128
 #define SDS_MSG_BUFFER_SIZE      512
 
@@ -121,6 +122,7 @@ typedef void (*SdsDeserializeFunc)(void* section, SdsJsonReader* r);
 typedef struct {
     const char* table_type;             /* Table type name (e.g., "SensorNode") */
     uint32_t sync_interval_ms;          /* Default sync interval */
+    uint32_t liveness_interval_ms;      /* Max time between status publishes (heartbeat) */
     
     /* Struct sizes */
     size_t device_table_size;           /* sizeof({Table}Table) */
@@ -386,6 +388,35 @@ void sds_set_owner_status_slots(
     size_t count_offset,
     uint8_t max_slots
 );
+
+/**
+ * Check if a device is currently online (owner only).
+ * 
+ * A device is considered online if:
+ * - We have a valid status slot for it
+ * - The "online" flag is true (not set false by LWT or graceful disconnect)
+ * - Last message was received within the specified timeout
+ * 
+ * @param owner_table Pointer to owner table structure
+ * @param table_type Table type name
+ * @param node_id Device node ID to check
+ * @param timeout_ms Liveness timeout (typically 1.5× @liveness)
+ * @return true if device is online
+ */
+bool sds_is_device_online(
+    const void* owner_table,
+    const char* table_type,
+    const char* node_id,
+    uint32_t timeout_ms
+);
+
+/**
+ * Get the liveness interval for a table type.
+ * 
+ * @param table_type Table type name
+ * @return Liveness interval in milliseconds, or 0 if not found
+ */
+uint32_t sds_get_liveness_interval(const char* table_type);
 
 #ifdef __cplusplus
 }

@@ -22,7 +22,7 @@
 /* ============== Global State ============== */
 
 static volatile bool g_running = true;
-static SensorNodeOwnerTable g_sensor_table;
+static SensorDataOwnerTable g_sensor_table;
 
 /* ============== Signal Handler ============== */
 
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
      * Just: table pointer, type name, role, options
      * No need for explicit callbacks or offsets.
      */
-    err = sds_register_table(&g_sensor_table, "SensorNode", SDS_ROLE_OWNER, NULL);
+    err = sds_register_table(&g_sensor_table, "SensorData", SDS_ROLE_OWNER, NULL);
     if (err != SDS_OK) {
         printf("Failed to register table: %s\n", sds_error_string(err));
         sds_shutdown();
@@ -93,10 +93,10 @@ int main(int argc, char* argv[]) {
     }
     
     /* Set up callbacks (these are still registered separately) */
-    sds_on_state_update("SensorNode", on_state_update);
-    sds_on_status_update("SensorNode", on_status_update);
+    sds_on_state_update("SensorData", on_state_update);
+    sds_on_status_update("SensorData", on_status_update);
     
-    printf("Registered as OWNER for SensorNode\n");
+    printf("Registered as OWNER for SensorData\n");
     printf("Config: command=%d threshold=%.1f\n\n", 
            g_sensor_table.config.command, g_sensor_table.config.threshold);
     
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
     }
     
     /* Cleanup */
-    sds_unregister_table("SensorNode");
+    sds_unregister_table("SensorData");
     sds_shutdown();
     
     printf("Done.\n");

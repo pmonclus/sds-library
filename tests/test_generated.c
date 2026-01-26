@@ -5,9 +5,9 @@
  * when using the generated types and registration helpers.
  * 
  * Usage:
- *   ./test_generated node1 [broker]   # SensorNode=OWNER, ActuatorNode=DEVICE
- *   ./test_generated node2 [broker]   # SensorNode=DEVICE, ActuatorNode=OWNER
- *   ./test_generated node3 [broker]   # SensorNode=DEVICE, ActuatorNode=DEVICE
+ *   ./test_generated node1 [broker]   # SensorData=OWNER, ActuatorData=DEVICE
+ *   ./test_generated node2 [broker]   # SensorData=DEVICE, ActuatorData=OWNER
+ *   ./test_generated node3 [broker]   # SensorData=DEVICE, ActuatorData=DEVICE
  */
 
 #include "sds.h"
@@ -27,13 +27,13 @@ static int g_node_num;
 
 /* Tables - we use unions since each node has different roles */
 static union {
-    SensorNodeTable device;
-    SensorNodeOwnerTable owner;
+    SensorDataTable device;
+    SensorDataOwnerTable owner;
 } g_sensor;
 
 static union {
-    ActuatorNodeTable device;
-    ActuatorNodeOwnerTable owner;
+    ActuatorDataTable device;
+    ActuatorDataOwnerTable owner;
 } g_actuator;
 
 /* Stats */
@@ -53,42 +53,42 @@ static void signal_handler(int sig) {
 static void on_sensor_config(const char* table_type) {
     (void)table_type;
     g_config_rx++;
-    printf("[%s] SensorNode config received: command=%d threshold=%.1f\n",
+    printf("[%s] SensorData config received: command=%d threshold=%.1f\n",
            g_node_id, g_sensor.device.config.command, g_sensor.device.config.threshold);
 }
 
 static void on_sensor_state(const char* table_type, const char* from_node) {
     (void)table_type;
     g_state_rx++;
-    printf("[%s] SensorNode state from %s: temp=%.1f humidity=%.1f\n",
+    printf("[%s] SensorData state from %s: temp=%.1f humidity=%.1f\n",
            g_node_id, from_node, g_sensor.owner.state.temperature, g_sensor.owner.state.humidity);
 }
 
 static void on_sensor_status(const char* table_type, const char* from_node) {
     (void)table_type;
     g_status_rx++;
-    printf("[%s] SensorNode status from %s: error=%d battery=%d%%\n",
+    printf("[%s] SensorData status from %s: error=%d battery=%d%%\n",
            g_node_id, from_node, 0, 0);  /* Status slots not fully implemented yet */
 }
 
 static void on_actuator_config(const char* table_type) {
     (void)table_type;
     g_config_rx++;
-    printf("[%s] ActuatorNode config received: pos=%d speed=%d\n",
+    printf("[%s] ActuatorData config received: pos=%d speed=%d\n",
            g_node_id, g_actuator.device.config.target_position, g_actuator.device.config.speed);
 }
 
 static void on_actuator_state(const char* table_type, const char* from_node) {
     (void)table_type;
     g_state_rx++;
-    printf("[%s] ActuatorNode state from %s: pos=%d\n",
+    printf("[%s] ActuatorData state from %s: pos=%d\n",
            g_node_id, from_node, g_actuator.owner.state.current_position);
 }
 
 static void on_actuator_status(const char* table_type, const char* from_node) {
     (void)table_type;
     g_status_rx++;
-    printf("[%s] ActuatorNode status from %s\n", g_node_id, from_node);
+    printf("[%s] ActuatorData status from %s\n", g_node_id, from_node);
 }
 
 /* ============== Node Setup ============== */
@@ -97,30 +97,30 @@ static SdsError setup_node1(void) {
     SdsError err;
     SdsTableOptions opts;
     
-    /* SensorNode as OWNER */
+    /* SensorData as OWNER */
     memset(&g_sensor.owner, 0, sizeof(g_sensor.owner));
     g_sensor.owner.config.command = 2;
     g_sensor.owner.config.threshold = 25.5f;
     
-    opts.sync_interval_ms = SDS_SENSOR_NODE_SYNC_INTERVAL_MS;
-    err = sds_register_table(&g_sensor.owner, "SensorNode", SDS_ROLE_OWNER, &opts);
+    opts.sync_interval_ms = SDS_SENSOR_DATA_SYNC_INTERVAL_MS;
+    err = sds_register_table(&g_sensor.owner, "SensorData", SDS_ROLE_OWNER, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_state_update("SensorNode", on_sensor_state);
-    sds_on_status_update("SensorNode", on_sensor_status);
+    sds_on_state_update("SensorData", on_sensor_state);
+    sds_on_status_update("SensorData", on_sensor_status);
     
-    /* ActuatorNode as DEVICE */
+    /* ActuatorData as DEVICE */
     memset(&g_actuator.device, 0, sizeof(g_actuator.device));
     g_actuator.device.state.current_position = 0;
     g_actuator.device.status.motor_status = 0;
     
-    opts.sync_interval_ms = SDS_ACTUATOR_NODE_SYNC_INTERVAL_MS;
-    err = sds_register_table(&g_actuator.device, "ActuatorNode", SDS_ROLE_DEVICE, &opts);
+    opts.sync_interval_ms = SDS_ACTUATOR_DATA_SYNC_INTERVAL_MS;
+    err = sds_register_table(&g_actuator.device, "ActuatorData", SDS_ROLE_DEVICE, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("ActuatorNode", on_actuator_config);
+    sds_on_config_update("ActuatorData", on_actuator_config);
     
-    printf("[%s] Setup: SensorNode=OWNER, ActuatorNode=DEVICE\n", g_node_id);
+    printf("[%s] Setup: SensorData=OWNER, ActuatorData=DEVICE\n", g_node_id);
     return SDS_OK;
 }
 
@@ -128,31 +128,31 @@ static SdsError setup_node2(void) {
     SdsError err;
     SdsTableOptions opts;
     
-    /* SensorNode as DEVICE */
+    /* SensorData as DEVICE */
     memset(&g_sensor.device, 0, sizeof(g_sensor.device));
     g_sensor.device.state.temperature = 23.5f;
     g_sensor.device.state.humidity = 45.0f;
     g_sensor.device.status.battery_percent = 85;
     
-    opts.sync_interval_ms = SDS_SENSOR_NODE_SYNC_INTERVAL_MS;
-    err = sds_register_table(&g_sensor.device, "SensorNode", SDS_ROLE_DEVICE, &opts);
+    opts.sync_interval_ms = SDS_SENSOR_DATA_SYNC_INTERVAL_MS;
+    err = sds_register_table(&g_sensor.device, "SensorData", SDS_ROLE_DEVICE, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("SensorNode", on_sensor_config);
+    sds_on_config_update("SensorData", on_sensor_config);
     
-    /* ActuatorNode as OWNER */
+    /* ActuatorData as OWNER */
     memset(&g_actuator.owner, 0, sizeof(g_actuator.owner));
     g_actuator.owner.config.target_position = 75;
     g_actuator.owner.config.speed = 50;
     
-    opts.sync_interval_ms = SDS_ACTUATOR_NODE_SYNC_INTERVAL_MS;
-    err = sds_register_table(&g_actuator.owner, "ActuatorNode", SDS_ROLE_OWNER, &opts);
+    opts.sync_interval_ms = SDS_ACTUATOR_DATA_SYNC_INTERVAL_MS;
+    err = sds_register_table(&g_actuator.owner, "ActuatorData", SDS_ROLE_OWNER, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_state_update("ActuatorNode", on_actuator_state);
-    sds_on_status_update("ActuatorNode", on_actuator_status);
+    sds_on_state_update("ActuatorData", on_actuator_state);
+    sds_on_status_update("ActuatorData", on_actuator_status);
     
-    printf("[%s] Setup: SensorNode=DEVICE, ActuatorNode=OWNER\n", g_node_id);
+    printf("[%s] Setup: SensorData=DEVICE, ActuatorData=OWNER\n", g_node_id);
     return SDS_OK;
 }
 
@@ -160,30 +160,30 @@ static SdsError setup_node3(void) {
     SdsError err;
     SdsTableOptions opts;
     
-    /* SensorNode as DEVICE */
+    /* SensorData as DEVICE */
     memset(&g_sensor.device, 0, sizeof(g_sensor.device));
     g_sensor.device.state.temperature = 24.8f;
     g_sensor.device.state.humidity = 52.0f;
     g_sensor.device.status.battery_percent = 92;
     
-    opts.sync_interval_ms = SDS_SENSOR_NODE_SYNC_INTERVAL_MS;
-    err = sds_register_table(&g_sensor.device, "SensorNode", SDS_ROLE_DEVICE, &opts);
+    opts.sync_interval_ms = SDS_SENSOR_DATA_SYNC_INTERVAL_MS;
+    err = sds_register_table(&g_sensor.device, "SensorData", SDS_ROLE_DEVICE, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("SensorNode", on_sensor_config);
+    sds_on_config_update("SensorData", on_sensor_config);
     
-    /* ActuatorNode as DEVICE */
+    /* ActuatorData as DEVICE */
     memset(&g_actuator.device, 0, sizeof(g_actuator.device));
     g_actuator.device.state.current_position = 0;
     g_actuator.device.status.motor_status = 0;
     
-    opts.sync_interval_ms = SDS_ACTUATOR_NODE_SYNC_INTERVAL_MS;
-    err = sds_register_table(&g_actuator.device, "ActuatorNode", SDS_ROLE_DEVICE, &opts);
+    opts.sync_interval_ms = SDS_ACTUATOR_DATA_SYNC_INTERVAL_MS;
+    err = sds_register_table(&g_actuator.device, "ActuatorData", SDS_ROLE_DEVICE, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("ActuatorNode", on_actuator_config);
+    sds_on_config_update("ActuatorData", on_actuator_config);
     
-    printf("[%s] Setup: SensorNode=DEVICE, ActuatorNode=DEVICE\n", g_node_id);
+    printf("[%s] Setup: SensorData=DEVICE, ActuatorData=DEVICE\n", g_node_id);
     return SDS_OK;
 }
 
@@ -192,13 +192,13 @@ static SdsError setup_node3(void) {
 static void simulate(uint32_t elapsed) {
     switch (g_node_num) {
         case 1:
-            /* ActuatorNode device simulation */
+            /* ActuatorData device simulation */
             g_actuator.device.state.current_position = (elapsed / 100) % 100;
             g_actuator.device.status.motor_status = (elapsed % 2000) < 1000 ? 1 : 0;
             break;
             
         case 2:
-            /* SensorNode device simulation */
+            /* SensorData device simulation */
             g_sensor.device.state.temperature = 23.5f + (float)(elapsed % 1000) / 500.0f;
             g_sensor.device.state.humidity = 45.0f + (float)(elapsed % 500) / 100.0f;
             g_sensor.device.status.uptime_seconds = elapsed / 1000;
@@ -221,9 +221,9 @@ static void simulate(uint32_t elapsed) {
 static void print_usage(const char* prog) {
     printf("Usage: %s <node1|node2|node3> [broker]\n", prog);
     printf("\n");
-    printf("  node1: SensorNode=OWNER, ActuatorNode=DEVICE\n");
-    printf("  node2: SensorNode=DEVICE, ActuatorNode=OWNER\n");
-    printf("  node3: SensorNode=DEVICE, ActuatorNode=DEVICE\n");
+    printf("  node1: SensorData=OWNER, ActuatorData=DEVICE\n");
+    printf("  node2: SensorData=DEVICE, ActuatorData=OWNER\n");
+    printf("  node3: SensorData=DEVICE, ActuatorData=DEVICE\n");
 }
 
 int main(int argc, char* argv[]) {
@@ -312,42 +312,42 @@ int main(int argc, char* argv[]) {
     bool passed = true;
     switch (g_node_num) {
         case 1:
-            /* Check ActuatorNode config by value (retained message may arrive before callback) */
+            /* Check ActuatorData config by value (retained message may arrive before callback) */
             if (g_actuator.device.config.target_position == 75) {
-                printf("✓ ActuatorNode config received: pos=%d\n", g_actuator.device.config.target_position);
+                printf("✓ ActuatorData config received: pos=%d\n", g_actuator.device.config.target_position);
             } else if (g_config_rx > 0) {
-                printf("✓ ActuatorNode config callback fired\n");
+                printf("✓ ActuatorData config callback fired\n");
             } else {
-                printf("✗ No ActuatorNode config\n"); passed = false;
+                printf("✗ No ActuatorData config\n"); passed = false;
             }
-            if (g_state_rx == 0) { printf("✗ No SensorNode state received\n"); passed = false; }
-            else printf("✓ SensorNode state received (%d)\n", g_state_rx);
+            if (g_state_rx == 0) { printf("✗ No SensorData state received\n"); passed = false; }
+            else printf("✓ SensorData state received (%d)\n", g_state_rx);
             break;
         case 2:
-            /* Check SensorNode config by value */
+            /* Check SensorData config by value */
             if (g_sensor.device.config.command == 2) {
-                printf("✓ SensorNode config received: cmd=%d\n", g_sensor.device.config.command);
+                printf("✓ SensorData config received: cmd=%d\n", g_sensor.device.config.command);
             } else if (g_config_rx > 0) {
-                printf("✓ SensorNode config callback fired\n");
+                printf("✓ SensorData config callback fired\n");
             } else {
-                printf("✗ No SensorNode config\n"); passed = false;
+                printf("✗ No SensorData config\n"); passed = false;
             }
-            if (g_state_rx == 0) { printf("✗ No ActuatorNode state received\n"); passed = false; }
-            else printf("✓ ActuatorNode state received (%d)\n", g_state_rx);
+            if (g_state_rx == 0) { printf("✗ No ActuatorData state received\n"); passed = false; }
+            else printf("✓ ActuatorData state received (%d)\n", g_state_rx);
             break;
         case 3:
             /* Check both configs by value */
             if (g_sensor.device.config.command == 2 && g_sensor.device.config.threshold > 25.0f) {
-                printf("✓ SensorNode config: cmd=%d thresh=%.1f\n", 
+                printf("✓ SensorData config: cmd=%d thresh=%.1f\n", 
                        g_sensor.device.config.command, g_sensor.device.config.threshold);
             } else {
-                printf("✗ SensorNode config not received\n"); passed = false;
+                printf("✗ SensorData config not received\n"); passed = false;
             }
             if (g_actuator.device.config.target_position == 75 && g_actuator.device.config.speed == 50) {
-                printf("✓ ActuatorNode config: pos=%d speed=%d\n",
+                printf("✓ ActuatorData config: pos=%d speed=%d\n",
                        g_actuator.device.config.target_position, g_actuator.device.config.speed);
             } else {
-                printf("✗ ActuatorNode config not received\n"); passed = false;
+                printf("✗ ActuatorData config not received\n"); passed = false;
             }
             break;
     }

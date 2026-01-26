@@ -112,6 +112,64 @@ extern "C" bool sds_platform_mqtt_connect(const char* broker, uint16_t port, con
     return true;
 }
 
+extern "C" bool sds_platform_mqtt_connect_with_lwt(
+    const char* broker,
+    uint16_t port,
+    const char* client_id,
+    const char* will_topic,
+    const uint8_t* will_payload,
+    size_t will_payload_len,
+    bool will_retain
+) {
+    if (!_initialized) {
+        SDS_LOG_E("Platform not initialized");
+        return false;
+    }
+    
+    /* Check WiFi connection */
+    if (WiFi.status() != WL_CONNECTED) {
+        SDS_LOG_E("WiFi not connected");
+        return false;
+    }
+    
+    /* Store connection info for reconnects */
+    strncpy(_broker, broker, sizeof(_broker) - 1);
+    _broker[sizeof(_broker) - 1] = '\0';
+    strncpy(_client_id, client_id, sizeof(_client_id) - 1);
+    _client_id[sizeof(_client_id) - 1] = '\0';
+    _port = port;
+    
+    /* Configure and connect with LWT */
+    _mqtt_client.setServer(_broker, _port);
+    
+    bool success;
+    if (will_topic && will_payload && will_payload_len > 0) {
+        /* PubSubClient::connect with LWT parameters */
+        success = _mqtt_client.connect(
+            _client_id,
+            NULL,           /* username */
+            NULL,           /* password */
+            will_topic,     /* willTopic */
+            1,              /* willQoS (QoS 1 for reliability) */
+            will_retain,    /* willRetain */
+            (const char*)will_payload  /* willMessage */
+        );
+        if (success) {
+            SDS_LOG_D("LWT configured: topic=%s", will_topic);
+        }
+    } else {
+        success = _mqtt_client.connect(_client_id);
+    }
+    
+    if (!success) {
+        SDS_LOG_E("Failed to connect to MQTT broker %s:%u", _broker, _port);
+        return false;
+    }
+    
+    SDS_LOG_I("Connected to MQTT broker: %s:%u (with LWT)", _broker, _port);
+    return true;
+}
+
 extern "C" void sds_platform_mqtt_disconnect(void) {
     if (_mqtt_client.connected()) {
         _mqtt_client.disconnect();

@@ -68,6 +68,31 @@ bool sds_platform_mqtt_connect(
 );
 
 /**
+ * Connect to MQTT broker with Last Will and Testament (LWT).
+ * 
+ * If the device disconnects unexpectedly, the broker will publish
+ * the will message to the will topic.
+ * 
+ * @param broker Hostname or IP address
+ * @param port Port number
+ * @param client_id Unique client identifier
+ * @param will_topic Topic for LWT message (NULL to disable LWT)
+ * @param will_payload LWT message payload
+ * @param will_payload_len Length of will payload
+ * @param will_retain Whether LWT should be retained
+ * @return true on success
+ */
+bool sds_platform_mqtt_connect_with_lwt(
+    const char* broker,
+    uint16_t port,
+    const char* client_id,
+    const char* will_topic,
+    const uint8_t* will_payload,
+    size_t will_payload_len,
+    bool will_retain
+);
+
+/**
  * Disconnect from MQTT broker.
  */
 void sds_platform_mqtt_disconnect(void);

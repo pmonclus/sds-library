@@ -2,7 +2,7 @@
  * test_simple_api.c - Test the simplified sds_register_table() API
  * 
  * This test demonstrates that users can use the simple form:
- *   sds_register_table(&table, "SensorNode", SDS_ROLE_DEVICE, NULL);
+ *   sds_register_table(&table, "SensorData", SDS_ROLE_DEVICE, NULL);
  * 
  * instead of the verbose sds_register_table_ex() or the generated helpers.
  * 
@@ -65,15 +65,15 @@ static bool test_simple_registration(void) {
         return true;  /* Not a failure, just skip */
     }
     
-    /* Test 1: Register SensorNode as DEVICE using simple API */
-    printf("Test 1: Register SensorNode (DEVICE)...\n");
+    /* Test 1: Register SensorData as DEVICE using simple API */
+    printf("Test 1: Register SensorData (DEVICE)...\n");
     
-    SensorNodeTable sensor_device = {0};
+    SensorDataTable sensor_device = {0};
     sensor_device.state.temperature = 22.5f;
     sensor_device.state.humidity = 55.0f;
     sensor_device.status.battery_percent = 80;
     
-    err = sds_register_table(&sensor_device, "SensorNode", SDS_ROLE_DEVICE, NULL);
+    err = sds_register_table(&sensor_device, "SensorData", SDS_ROLE_DEVICE, NULL);
     if (err != SDS_OK) {
         printf("  FAIL: Registration failed: %s\n", sds_error_string(err));
         passed = false;
@@ -84,8 +84,8 @@ static bool test_simple_registration(void) {
     /* Test 2: Try to register same table again (should fail) */
     printf("Test 2: Double registration (should fail)...\n");
     
-    SensorNodeTable sensor_device2 = {0};
-    err = sds_register_table(&sensor_device2, "SensorNode", SDS_ROLE_DEVICE, NULL);
+    SensorDataTable sensor_device2 = {0};
+    err = sds_register_table(&sensor_device2, "SensorData", SDS_ROLE_DEVICE, NULL);
     if (err == SDS_ERR_TABLE_ALREADY_REGISTERED) {
         printf("  PASS: Correctly rejected double registration\n");
     } else {
@@ -93,14 +93,14 @@ static bool test_simple_registration(void) {
         passed = false;
     }
     
-    /* Test 3: Register ActuatorNode as OWNER using simple API */
-    printf("Test 3: Register ActuatorNode (OWNER)...\n");
+    /* Test 3: Register ActuatorData as OWNER using simple API */
+    printf("Test 3: Register ActuatorData (OWNER)...\n");
     
-    ActuatorNodeOwnerTable actuator_owner = {0};
+    ActuatorDataOwnerTable actuator_owner = {0};
     actuator_owner.config.target_position = 50;
     actuator_owner.config.speed = 25;
     
-    err = sds_register_table(&actuator_owner, "ActuatorNode", SDS_ROLE_OWNER, NULL);
+    err = sds_register_table(&actuator_owner, "ActuatorData", SDS_ROLE_OWNER, NULL);
     if (err != SDS_OK) {
         printf("  FAIL: Registration failed: %s\n", sds_error_string(err));
         passed = false;
@@ -150,8 +150,8 @@ static bool test_simple_registration(void) {
     }
     
     /* Cleanup */
-    sds_unregister_table("SensorNode");
-    sds_unregister_table("ActuatorNode");
+    sds_unregister_table("SensorData");
+    sds_unregister_table("ActuatorData");
     sds_shutdown();
     
     return passed;

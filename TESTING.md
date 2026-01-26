@@ -25,10 +25,12 @@ This document describes the test suite for the SDS library, including test descr
 
 | Test | Type | Duration | Description |
 |------|------|----------|-------------|
+| `test_json` | Unit | <1s | JSON serialization/parsing |
 | `test_sds_basic` | Unit | ~7s | Core API functionality |
 | `test_simple_api` | Unit | ~5s | Simple registration API |
 | `test_generated` | Integration | ~15s | Multi-node with generated types |
 | `test_multi_node` | Integration | ~15s | Multi-node communication patterns |
+| `test_liveness` | Integration | ~14s | Liveness/heartbeat detection |
 
 ## Running All Tests
 
@@ -170,6 +172,42 @@ wait
 ```
 
 **Expected output**: Each node prints `Overall: PASSED`
+
+---
+
+### 5. `test_liveness`
+
+**Purpose**: Validates the liveness/heartbeat detection mechanism between owner and device nodes.
+
+**What it tests**:
+- ✅ Device sends periodic heartbeats even when data is unchanged
+- ✅ Owner tracks `last_seen_ms` timestamp for each device
+- ✅ `sds_is_device_online()` API returns correct status
+- ✅ Heartbeat interval matches `@liveness` configuration
+- ✅ Uptime tracking across heartbeats
+- ✅ Graceful shutdown with explicit offline message
+
+**Node configurations**:
+| Node | Role | Description |
+|------|------|-------------|
+| node1 | OWNER | Receives heartbeats, tracks device liveness |
+| node2 | DEVICE | Sends periodic heartbeats (1000ms interval) |
+
+**Run manually** (requires 2 terminals):
+```bash
+# Terminal 1 - Start owner first
+./build/test_liveness node1
+
+# Terminal 2 - Start device
+./build/test_liveness node2
+```
+
+**Expected output**: Each node prints `✓ <node>: PASSED`
+
+**Test validation**:
+- Owner verifies it received sufficient heartbeats (min ~6 over 8 seconds)
+- Owner verifies `sds_is_device_online()` returns true
+- Owner verifies device uptime is incrementing
 
 ---
 

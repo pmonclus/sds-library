@@ -18,164 +18,168 @@
 
 #define SDS_GENERATED_MAX_NODES 16
 
-/* ============== Table: SensorNode ============== */
+/* ============== Table: SensorData ============== */
 
-#define SDS_SENSOR_NODE_SYNC_INTERVAL_MS 1000
+#define SDS_SENSOR_DATA_SYNC_INTERVAL_MS 1000
+#define SDS_SENSOR_DATA_LIVENESS_INTERVAL_MS 3000
 
 /* Config section (Owner → Devices) */
 typedef struct {
     uint8_t command;
     float threshold;
-} SensorNodeConfig;
+} SensorDataConfig;
 
 /* State section (All → Owner, LWW) */
 typedef struct {
     float temperature;
     float humidity;
-} SensorNodeState;
+} SensorDataState;
 
 /* Status section (Device → Owner) */
 typedef struct {
     uint8_t error_code;
     uint8_t battery_percent;
     uint32_t uptime_seconds;
-} SensorNodeStatus;
+} SensorDataStatus;
 
 /* Device Table (for SDS_ROLE_DEVICE) */
 typedef struct {
-    SensorNodeConfig config;
-    SensorNodeState state;
-    SensorNodeStatus status;
-} SensorNodeTable;
+    SensorDataConfig config;
+    SensorDataState state;
+    SensorDataStatus status;
+} SensorDataTable;
 
 /* Status slot for per-device tracking at Owner */
 typedef struct {
     char node_id[SDS_MAX_NODE_ID_LEN];
     bool valid;
-    uint32_t last_seen_ms;
-    SensorNodeStatus status;
-} SensorNodeStatusSlot;
+    bool online;           /* false if LWT received or graceful disconnect */
+    uint32_t last_seen_ms; /* Timestamp of last received status */
+    SensorDataStatus status;
+} SensorDataStatusSlot;
 
 /* Owner Table (for SDS_ROLE_OWNER) */
 typedef struct {
-    SensorNodeConfig config;
-    SensorNodeState state;  /* Merged from all devices */
-    SensorNodeStatusSlot status_slots[SDS_GENERATED_MAX_NODES];
+    SensorDataConfig config;
+    SensorDataState state;  /* Merged from all devices */
+    SensorDataStatusSlot status_slots[SDS_GENERATED_MAX_NODES];
     uint8_t status_count;
-} SensorNodeOwnerTable;
+} SensorDataOwnerTable;
 
-static void sensor_node_serialize_config(void* section, SdsJsonWriter* w) {
-    SensorNodeConfig* cfg = (SensorNodeConfig*)section;
+static void sensor_data_serialize_config(void* section, SdsJsonWriter* w) {
+    SensorDataConfig* cfg = (SensorDataConfig*)section;
     sds_json_add_uint(w, "command", cfg->command);
     sds_json_add_float(w, "threshold", cfg->threshold);
 }
 
-static void sensor_node_serialize_state(void* section, SdsJsonWriter* w) {
-    SensorNodeState* st = (SensorNodeState*)section;
+static void sensor_data_serialize_state(void* section, SdsJsonWriter* w) {
+    SensorDataState* st = (SensorDataState*)section;
     sds_json_add_float(w, "temperature", st->temperature);
     sds_json_add_float(w, "humidity", st->humidity);
 }
 
-static void sensor_node_serialize_status(void* section, SdsJsonWriter* w) {
-    SensorNodeStatus* st = (SensorNodeStatus*)section;
+static void sensor_data_serialize_status(void* section, SdsJsonWriter* w) {
+    SensorDataStatus* st = (SensorDataStatus*)section;
     sds_json_add_uint(w, "error_code", st->error_code);
     sds_json_add_uint(w, "battery_percent", st->battery_percent);
     sds_json_add_uint(w, "uptime_seconds", st->uptime_seconds);
 }
 
-static void sensor_node_deserialize_config(void* section, SdsJsonReader* r) {
-    SensorNodeConfig* cfg = (SensorNodeConfig*)section;
+static void sensor_data_deserialize_config(void* section, SdsJsonReader* r) {
+    SensorDataConfig* cfg = (SensorDataConfig*)section;
     sds_json_get_uint8_field(r, "command", &cfg->command);
     sds_json_get_float_field(r, "threshold", &cfg->threshold);
 }
 
-static void sensor_node_deserialize_state(void* section, SdsJsonReader* r) {
-    SensorNodeState* st = (SensorNodeState*)section;
+static void sensor_data_deserialize_state(void* section, SdsJsonReader* r) {
+    SensorDataState* st = (SensorDataState*)section;
     sds_json_get_float_field(r, "temperature", &st->temperature);
     sds_json_get_float_field(r, "humidity", &st->humidity);
 }
 
-static void sensor_node_deserialize_status(void* section, SdsJsonReader* r) {
-    SensorNodeStatus* st = (SensorNodeStatus*)section;
+static void sensor_data_deserialize_status(void* section, SdsJsonReader* r) {
+    SensorDataStatus* st = (SensorDataStatus*)section;
     sds_json_get_uint8_field(r, "error_code", &st->error_code);
     sds_json_get_uint8_field(r, "battery_percent", &st->battery_percent);
     { uint32_t tmp; if (sds_json_get_uint_field(r, "uptime_seconds", &tmp)) st->uptime_seconds = tmp; }
 }
 
-/* ============== Table: ActuatorNode ============== */
+/* ============== Table: ActuatorData ============== */
 
-#define SDS_ACTUATOR_NODE_SYNC_INTERVAL_MS 100
+#define SDS_ACTUATOR_DATA_SYNC_INTERVAL_MS 100
+#define SDS_ACTUATOR_DATA_LIVENESS_INTERVAL_MS 1500
 
 /* Config section (Owner → Devices) */
 typedef struct {
     uint8_t target_position;
     uint8_t speed;
-} ActuatorNodeConfig;
+} ActuatorDataConfig;
 
 /* State section (All → Owner, LWW) */
 typedef struct {
     uint8_t current_position;
-} ActuatorNodeState;
+} ActuatorDataState;
 
 /* Status section (Device → Owner) */
 typedef struct {
     uint8_t motor_status;
     uint16_t error_code;
-} ActuatorNodeStatus;
+} ActuatorDataStatus;
 
 /* Device Table (for SDS_ROLE_DEVICE) */
 typedef struct {
-    ActuatorNodeConfig config;
-    ActuatorNodeState state;
-    ActuatorNodeStatus status;
-} ActuatorNodeTable;
+    ActuatorDataConfig config;
+    ActuatorDataState state;
+    ActuatorDataStatus status;
+} ActuatorDataTable;
 
 /* Status slot for per-device tracking at Owner */
 typedef struct {
     char node_id[SDS_MAX_NODE_ID_LEN];
     bool valid;
-    uint32_t last_seen_ms;
-    ActuatorNodeStatus status;
-} ActuatorNodeStatusSlot;
+    bool online;           /* false if LWT received or graceful disconnect */
+    uint32_t last_seen_ms; /* Timestamp of last received status */
+    ActuatorDataStatus status;
+} ActuatorDataStatusSlot;
 
 /* Owner Table (for SDS_ROLE_OWNER) */
 typedef struct {
-    ActuatorNodeConfig config;
-    ActuatorNodeState state;  /* Merged from all devices */
-    ActuatorNodeStatusSlot status_slots[SDS_GENERATED_MAX_NODES];
+    ActuatorDataConfig config;
+    ActuatorDataState state;  /* Merged from all devices */
+    ActuatorDataStatusSlot status_slots[SDS_GENERATED_MAX_NODES];
     uint8_t status_count;
-} ActuatorNodeOwnerTable;
+} ActuatorDataOwnerTable;
 
-static void actuator_node_serialize_config(void* section, SdsJsonWriter* w) {
-    ActuatorNodeConfig* cfg = (ActuatorNodeConfig*)section;
+static void actuator_data_serialize_config(void* section, SdsJsonWriter* w) {
+    ActuatorDataConfig* cfg = (ActuatorDataConfig*)section;
     sds_json_add_uint(w, "target_position", cfg->target_position);
     sds_json_add_uint(w, "speed", cfg->speed);
 }
 
-static void actuator_node_serialize_state(void* section, SdsJsonWriter* w) {
-    ActuatorNodeState* st = (ActuatorNodeState*)section;
+static void actuator_data_serialize_state(void* section, SdsJsonWriter* w) {
+    ActuatorDataState* st = (ActuatorDataState*)section;
     sds_json_add_uint(w, "current_position", st->current_position);
 }
 
-static void actuator_node_serialize_status(void* section, SdsJsonWriter* w) {
-    ActuatorNodeStatus* st = (ActuatorNodeStatus*)section;
+static void actuator_data_serialize_status(void* section, SdsJsonWriter* w) {
+    ActuatorDataStatus* st = (ActuatorDataStatus*)section;
     sds_json_add_uint(w, "motor_status", st->motor_status);
     sds_json_add_uint(w, "error_code", st->error_code);
 }
 
-static void actuator_node_deserialize_config(void* section, SdsJsonReader* r) {
-    ActuatorNodeConfig* cfg = (ActuatorNodeConfig*)section;
+static void actuator_data_deserialize_config(void* section, SdsJsonReader* r) {
+    ActuatorDataConfig* cfg = (ActuatorDataConfig*)section;
     sds_json_get_uint8_field(r, "target_position", &cfg->target_position);
     sds_json_get_uint8_field(r, "speed", &cfg->speed);
 }
 
-static void actuator_node_deserialize_state(void* section, SdsJsonReader* r) {
-    ActuatorNodeState* st = (ActuatorNodeState*)section;
+static void actuator_data_deserialize_state(void* section, SdsJsonReader* r) {
+    ActuatorDataState* st = (ActuatorDataState*)section;
     sds_json_get_uint8_field(r, "current_position", &st->current_position);
 }
 
-static void actuator_node_deserialize_status(void* section, SdsJsonReader* r) {
-    ActuatorNodeStatus* st = (ActuatorNodeStatus*)section;
+static void actuator_data_deserialize_status(void* section, SdsJsonReader* r) {
+    ActuatorDataStatus* st = (ActuatorDataStatus*)section;
     sds_json_get_uint8_field(r, "motor_status", &st->motor_status);
     { uint32_t tmp; if (sds_json_get_uint_field(r, "error_code", &tmp)) st->error_code = tmp; }
 }
@@ -188,7 +192,7 @@ static void actuator_node_deserialize_status(void* section, SdsJsonReader* r) {
 
 /* Auto-calculated maximum section size across all tables */
 #define SDS_GENERATED_MAX_SECTION_SIZE ( \
-    _SDS_MAX2(_SDS_MAX3(_SDS_MAX3(sizeof(SensorNodeConfig), sizeof(SensorNodeState), sizeof(SensorNodeStatus)), sizeof(ActuatorNodeConfig), sizeof(ActuatorNodeState)), sizeof(ActuatorNodeStatus)) \
+    _SDS_MAX2(_SDS_MAX3(_SDS_MAX3(sizeof(SensorDataConfig), sizeof(SensorDataState), sizeof(SensorDataStatus)), sizeof(ActuatorDataConfig), sizeof(ActuatorDataState)), sizeof(ActuatorDataStatus)) \
 )
 
 /* ============== Table Registry ============== */
@@ -196,61 +200,63 @@ static void actuator_node_deserialize_status(void* section, SdsJsonReader* r) {
 #define SDS_TABLE_REGISTRY_COUNT 2
 
 static const SdsTableMeta SDS_TABLE_REGISTRY[] = {
-    /* SensorNode */
+    /* SensorData */
     {
-        .table_type = "SensorNode",
-        .sync_interval_ms = SDS_SENSOR_NODE_SYNC_INTERVAL_MS,
-        .device_table_size = sizeof(SensorNodeTable),
-        .owner_table_size = sizeof(SensorNodeOwnerTable),
-        .dev_config_offset = offsetof(SensorNodeTable, config),
-        .dev_config_size = sizeof(SensorNodeConfig),
-        .dev_state_offset = offsetof(SensorNodeTable, state),
-        .dev_state_size = sizeof(SensorNodeState),
-        .dev_status_offset = offsetof(SensorNodeTable, status),
-        .dev_status_size = sizeof(SensorNodeStatus),
-        .own_config_offset = offsetof(SensorNodeOwnerTable, config),
-        .own_config_size = sizeof(SensorNodeConfig),
-        .own_state_offset = offsetof(SensorNodeOwnerTable, state),
-        .own_state_size = sizeof(SensorNodeState),
-        .own_status_slots_offset = offsetof(SensorNodeOwnerTable, status_slots),
-        .own_status_slot_size = sizeof(SensorNodeStatusSlot),
-        .own_status_count_offset = offsetof(SensorNodeOwnerTable, status_count),
-        .slot_status_offset = offsetof(SensorNodeStatusSlot, status),
+        .table_type = "SensorData",
+        .sync_interval_ms = SDS_SENSOR_DATA_SYNC_INTERVAL_MS,
+        .liveness_interval_ms = SDS_SENSOR_DATA_LIVENESS_INTERVAL_MS,
+        .device_table_size = sizeof(SensorDataTable),
+        .owner_table_size = sizeof(SensorDataOwnerTable),
+        .dev_config_offset = offsetof(SensorDataTable, config),
+        .dev_config_size = sizeof(SensorDataConfig),
+        .dev_state_offset = offsetof(SensorDataTable, state),
+        .dev_state_size = sizeof(SensorDataState),
+        .dev_status_offset = offsetof(SensorDataTable, status),
+        .dev_status_size = sizeof(SensorDataStatus),
+        .own_config_offset = offsetof(SensorDataOwnerTable, config),
+        .own_config_size = sizeof(SensorDataConfig),
+        .own_state_offset = offsetof(SensorDataOwnerTable, state),
+        .own_state_size = sizeof(SensorDataState),
+        .own_status_slots_offset = offsetof(SensorDataOwnerTable, status_slots),
+        .own_status_slot_size = sizeof(SensorDataStatusSlot),
+        .own_status_count_offset = offsetof(SensorDataOwnerTable, status_count),
+        .slot_status_offset = offsetof(SensorDataStatusSlot, status),
         .own_max_status_slots = SDS_GENERATED_MAX_NODES,
-        .serialize_config = sensor_node_serialize_config,
-        .serialize_state = sensor_node_serialize_state,
-        .serialize_status = sensor_node_serialize_status,
-        .deserialize_config = sensor_node_deserialize_config,
-        .deserialize_state = sensor_node_deserialize_state,
-        .deserialize_status = sensor_node_deserialize_status,
+        .serialize_config = sensor_data_serialize_config,
+        .serialize_state = sensor_data_serialize_state,
+        .serialize_status = sensor_data_serialize_status,
+        .deserialize_config = sensor_data_deserialize_config,
+        .deserialize_state = sensor_data_deserialize_state,
+        .deserialize_status = sensor_data_deserialize_status,
     },
-    /* ActuatorNode */
+    /* ActuatorData */
     {
-        .table_type = "ActuatorNode",
-        .sync_interval_ms = SDS_ACTUATOR_NODE_SYNC_INTERVAL_MS,
-        .device_table_size = sizeof(ActuatorNodeTable),
-        .owner_table_size = sizeof(ActuatorNodeOwnerTable),
-        .dev_config_offset = offsetof(ActuatorNodeTable, config),
-        .dev_config_size = sizeof(ActuatorNodeConfig),
-        .dev_state_offset = offsetof(ActuatorNodeTable, state),
-        .dev_state_size = sizeof(ActuatorNodeState),
-        .dev_status_offset = offsetof(ActuatorNodeTable, status),
-        .dev_status_size = sizeof(ActuatorNodeStatus),
-        .own_config_offset = offsetof(ActuatorNodeOwnerTable, config),
-        .own_config_size = sizeof(ActuatorNodeConfig),
-        .own_state_offset = offsetof(ActuatorNodeOwnerTable, state),
-        .own_state_size = sizeof(ActuatorNodeState),
-        .own_status_slots_offset = offsetof(ActuatorNodeOwnerTable, status_slots),
-        .own_status_slot_size = sizeof(ActuatorNodeStatusSlot),
-        .own_status_count_offset = offsetof(ActuatorNodeOwnerTable, status_count),
-        .slot_status_offset = offsetof(ActuatorNodeStatusSlot, status),
+        .table_type = "ActuatorData",
+        .sync_interval_ms = SDS_ACTUATOR_DATA_SYNC_INTERVAL_MS,
+        .liveness_interval_ms = SDS_ACTUATOR_DATA_LIVENESS_INTERVAL_MS,
+        .device_table_size = sizeof(ActuatorDataTable),
+        .owner_table_size = sizeof(ActuatorDataOwnerTable),
+        .dev_config_offset = offsetof(ActuatorDataTable, config),
+        .dev_config_size = sizeof(ActuatorDataConfig),
+        .dev_state_offset = offsetof(ActuatorDataTable, state),
+        .dev_state_size = sizeof(ActuatorDataState),
+        .dev_status_offset = offsetof(ActuatorDataTable, status),
+        .dev_status_size = sizeof(ActuatorDataStatus),
+        .own_config_offset = offsetof(ActuatorDataOwnerTable, config),
+        .own_config_size = sizeof(ActuatorDataConfig),
+        .own_state_offset = offsetof(ActuatorDataOwnerTable, state),
+        .own_state_size = sizeof(ActuatorDataState),
+        .own_status_slots_offset = offsetof(ActuatorDataOwnerTable, status_slots),
+        .own_status_slot_size = sizeof(ActuatorDataStatusSlot),
+        .own_status_count_offset = offsetof(ActuatorDataOwnerTable, status_count),
+        .slot_status_offset = offsetof(ActuatorDataStatusSlot, status),
         .own_max_status_slots = SDS_GENERATED_MAX_NODES,
-        .serialize_config = actuator_node_serialize_config,
-        .serialize_state = actuator_node_serialize_state,
-        .serialize_status = actuator_node_serialize_status,
-        .deserialize_config = actuator_node_deserialize_config,
-        .deserialize_state = actuator_node_deserialize_state,
-        .deserialize_status = actuator_node_deserialize_status,
+        .serialize_config = actuator_data_serialize_config,
+        .serialize_state = actuator_data_serialize_state,
+        .serialize_status = actuator_data_serialize_status,
+        .deserialize_config = actuator_data_deserialize_config,
+        .deserialize_state = actuator_data_deserialize_state,
+        .deserialize_status = actuator_data_deserialize_status,
     },
 };
 

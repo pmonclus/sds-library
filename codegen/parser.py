@@ -50,6 +50,7 @@ class Table:
     """A table with config/state/status sections."""
     name: str
     sync_interval_ms: int = 1000
+    liveness_interval_ms: int = 30000  # Default 30s heartbeat
     config_fields: List[Field] = dataclass_field(default_factory=list)
     state_fields: List[Field] = dataclass_field(default_factory=list)
     status_fields: List[Field] = dataclass_field(default_factory=list)
@@ -221,6 +222,8 @@ class Parser:
             ann_name, ann_value = self._parse_annotation()
             if ann_name == 'sync_interval':
                 table.sync_interval_ms = ann_value
+            elif ann_name == 'liveness':
+                table.liveness_interval_ms = ann_value
         
         # Parse sections
         while self.current()[0] != 'RBRACE':

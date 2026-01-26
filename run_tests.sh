@@ -249,6 +249,94 @@ run_multi_node_test() {
     fi
 }
 
+# Run 2-node test (owner + device)
+run_two_node_test() {
+    local test_name=$1
+    local test_binary=$2
+    local description=$3
+    local duration=${4:-12}
+    
+    print_test_start "$test_name - $description"
+    
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    
+    # Start owner first
+    echo "  Starting owner (node1)..."
+    "$BUILD_DIR/$test_binary" node1 "$BROKER_HOST" > "$tmpdir/node1.log" 2>&1 &
+    local pid1=$!
+    
+    # Give owner time to connect and subscribe
+    sleep 1
+    
+    # Now start device
+    echo "  Starting device (node2)..."
+    "$BUILD_DIR/$test_binary" node2 "$BROKER_HOST" > "$tmpdir/node2.log" 2>&1 &
+    local pid2=$!
+    
+    echo "  Started node1 (PID: $pid1), node2 (PID: $pid2)"
+    echo "  Waiting ${duration}s for test completion..."
+    
+    # Wait for tests to complete
+    sleep "$duration"
+    
+    # Send graceful termination signal
+    for pid in $pid1 $pid2; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -TERM "$pid" 2>/dev/null || true
+        fi
+    done
+    
+    # Give processes time to shutdown
+    sleep 2
+    
+    # Force kill any remaining
+    for pid in $pid1 $pid2; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
+    
+    wait $pid1 2>/dev/null || true
+    wait $pid2 2>/dev/null || true
+    
+    # Check results
+    local all_passed=true
+    local node_results=""
+    
+    for node in node1 node2; do
+        local logfile="$tmpdir/$node.log"
+        if [ -f "$logfile" ]; then
+            if grep -q "PASSED" "$logfile"; then
+                node_results="$node_results  ${GREEN}✓${NC} $node: PASSED\n"
+            else
+                node_results="$node_results  ${RED}✗${NC} $node: FAILED\n"
+                all_passed=false
+                if $VERBOSE; then
+                    echo "--- $node output ---"
+                    cat "$logfile"
+                    echo "---"
+                fi
+            fi
+        else
+            node_results="$node_results  ${RED}✗${NC} $node: NO OUTPUT\n"
+            all_passed=false
+        fi
+    done
+    
+    echo -e "$node_results"
+    
+    rm -rf "$tmpdir"
+    
+    if $all_passed; then
+        print_pass "$test_name"
+        return 0
+    else
+        print_fail "$test_name"
+        return 1
+    fi
+}
+
 # Main execution
 print_header "SDS Library Test Suite"
 
@@ -277,6 +365,7 @@ if ! $QUICK_MODE; then
     
     run_multi_node_test "test_generated" "test_generated" "Generated types integration" || true
     run_multi_node_test "test_multi_node" "test_multi_node" "Multi-node communication" || true
+    run_two_node_test "test_liveness" "test_liveness" "Liveness/heartbeat detection" 14 || true
 else
     echo ""
     echo -e "${YELLOW}Skipping multi-node integration tests (--quick mode)${NC}"

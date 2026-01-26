@@ -83,7 +83,7 @@ static void test_init(const char* broker) {
     TEST_ASSERT(err == SDS_ERR_ALREADY_INITIALIZED, "Double init returns error");
 }
 
-static SensorNodeTable g_device_table;
+static SensorDataTable g_device_table;
 
 static void test_table_registration_device(void) {
     printf("\n=== Test: Device Table Registration ===\n");
@@ -95,20 +95,20 @@ static void test_table_registration_device(void) {
     
     SdsTableOptions opts = { .sync_interval_ms = 500 };
     
-    SdsError err = sds_register_table(&g_device_table, "SensorNode", SDS_ROLE_DEVICE, &opts);
+    SdsError err = sds_register_table(&g_device_table, "SensorData", SDS_ROLE_DEVICE, &opts);
     TEST_ASSERT(err == SDS_OK, "Register device table");
     TEST_ASSERT(sds_get_table_count() == 1, "Table count is 1");
     
     /* Set up callbacks */
-    sds_on_config_update("SensorNode", on_config_update);
+    sds_on_config_update("SensorData", on_config_update);
     
     /* Test duplicate registration */
-    SensorNodeTable dup_table = {0};
-    err = sds_register_table(&dup_table, "SensorNode", SDS_ROLE_DEVICE, NULL);
+    SensorDataTable dup_table = {0};
+    err = sds_register_table(&dup_table, "SensorData", SDS_ROLE_DEVICE, NULL);
     TEST_ASSERT(err == SDS_ERR_TABLE_ALREADY_REGISTERED, "Duplicate registration fails");
 }
 
-static ActuatorNodeOwnerTable g_owner_table;
+static ActuatorDataOwnerTable g_owner_table;
 
 static void test_table_registration_owner(void) {
     printf("\n=== Test: Owner Table Registration ===\n");
@@ -117,14 +117,14 @@ static void test_table_registration_owner(void) {
     g_owner_table.config.target_position = 50;
     g_owner_table.config.speed = 25;
     
-    /* Register as owner for ActuatorNode */
-    SdsError err = sds_register_table(&g_owner_table, "ActuatorNode", SDS_ROLE_OWNER, NULL);
+    /* Register as owner for ActuatorData */
+    SdsError err = sds_register_table(&g_owner_table, "ActuatorData", SDS_ROLE_OWNER, NULL);
     TEST_ASSERT(err == SDS_OK, "Register owner table");
     TEST_ASSERT(sds_get_table_count() == 2, "Table count is 2");
     
     /* Set up callbacks */
-    sds_on_state_update("ActuatorNode", on_state_update);
-    sds_on_status_update("ActuatorNode", on_status_update);
+    sds_on_state_update("ActuatorData", on_state_update);
+    sds_on_status_update("ActuatorData", on_status_update);
 }
 
 static void test_loop(int iterations) {
@@ -147,12 +147,12 @@ static void test_loop(int iterations) {
 static void test_unregister(void) {
     printf("\n=== Test: Table Unregistration ===\n");
     
-    SdsError err = sds_unregister_table("SensorNode");
-    TEST_ASSERT(err == SDS_OK, "Unregister SensorNode");
+    SdsError err = sds_unregister_table("SensorData");
+    TEST_ASSERT(err == SDS_OK, "Unregister SensorData");
     TEST_ASSERT(sds_get_table_count() == 1, "Table count is 1");
     
-    err = sds_unregister_table("ActuatorNode");
-    TEST_ASSERT(err == SDS_OK, "Unregister ActuatorNode");
+    err = sds_unregister_table("ActuatorData");
+    TEST_ASSERT(err == SDS_OK, "Unregister ActuatorData");
     TEST_ASSERT(sds_get_table_count() == 0, "Table count is 0");
     
     err = sds_unregister_table("NonExistent");

@@ -136,7 +136,8 @@ def _generate_table(output: TextIO, name: str, table: Table):
     lower_name = _to_lower_snake(name)
     
     output.write(f"/* ============== Table: {name} ============== */\n\n")
-    output.write(f"#define SDS_{upper_name}_SYNC_INTERVAL_MS {table.sync_interval_ms}\n\n")
+    output.write(f"#define SDS_{upper_name}_SYNC_INTERVAL_MS {table.sync_interval_ms}\n")
+    output.write(f"#define SDS_{upper_name}_LIVENESS_INTERVAL_MS {table.liveness_interval_ms}\n\n")
     
     # Config struct
     if table.config_fields:
@@ -179,7 +180,8 @@ def _generate_table(output: TextIO, name: str, table: Table):
         output.write(f"typedef struct {{\n")
         output.write(f"    char node_id[SDS_MAX_NODE_ID_LEN];\n")
         output.write(f"    bool valid;\n")
-        output.write(f"    uint32_t last_seen_ms;\n")
+        output.write(f"    bool online;           /* false if LWT received or graceful disconnect */\n")
+        output.write(f"    uint32_t last_seen_ms; /* Timestamp of last received status */\n")
         output.write(f"    {name}Status status;\n")
         output.write(f"}} {name}StatusSlot;\n\n")
     
@@ -350,6 +352,7 @@ def _generate_table_registry(output: TextIO, schema: Schema):
         output.write("    {\n")
         output.write(f'        .table_type = "{name}",\n')
         output.write(f"        .sync_interval_ms = SDS_{upper_name}_SYNC_INTERVAL_MS,\n")
+        output.write(f"        .liveness_interval_ms = SDS_{upper_name}_LIVENESS_INTERVAL_MS,\n")
         output.write(f"        .device_table_size = sizeof({name}Table),\n")
         output.write(f"        .owner_table_size = sizeof({name}OwnerTable),\n")
         

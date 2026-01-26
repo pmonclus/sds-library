@@ -5,9 +5,10 @@
 
 @version = "1.0.0"
 
-// Sensor node table - temperature/humidity monitoring
-table SensorNode {
+// Sensor data table - temperature/humidity monitoring
+table SensorData {
     @sync_interval = 1000
+    @liveness = 3000       // Heartbeat every 3s (even if no changes)
     
     config {
         uint8 command;           // 0=off, 1=on, 2=auto
@@ -26,9 +27,10 @@ table SensorNode {
     }
 }
 
-// Actuator node table - motor/servo control
-table ActuatorNode {
+// Actuator data table - motor/servo control
+table ActuatorData {
     @sync_interval = 100
+    @liveness = 1500       // Fast heartbeat (critical system)
     
     config {
         uint8 target_position;

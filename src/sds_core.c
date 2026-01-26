@@ -36,6 +36,8 @@ typedef struct {
     SdsRole role;
     uint32_t sync_interval_ms;
     uint32_t last_sync_ms;
+    uint32_t liveness_interval_ms;  /* Max time between status publishes */
+    uint32_t last_publish_ms;       /* Last time we published anything (for liveness) */
     
     /* Serialization callbacks (set during registration) */
     SdsSerializeFunc serialize_config;
@@ -204,8 +206,16 @@ SdsError sds_init(const SdsConfig* config) {
     /* Set MQTT callback */
     sds_platform_mqtt_set_callback(on_mqtt_message);
     
-    /* Connect to MQTT */
-    if (!sds_platform_mqtt_connect(_mqtt_broker, _mqtt_port, _node_id)) {
+    /* Build LWT topic and payload */
+    char lwt_topic[SDS_TOPIC_BUFFER_SIZE];
+    char lwt_payload[128];
+    snprintf(lwt_topic, sizeof(lwt_topic), "sds/lwt/%s", _node_id);
+    snprintf(lwt_payload, sizeof(lwt_payload), "{\"online\":false,\"node\":\"%s\",\"ts\":0}", _node_id);
+    
+    /* Connect to MQTT with LWT */
+    if (!sds_platform_mqtt_connect_with_lwt(
+            _mqtt_broker, _mqtt_port, _node_id,
+            lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true)) {
         sds_platform_shutdown();
         return SDS_ERR_MQTT_CONNECT_FAILED;
     }
@@ -229,7 +239,16 @@ void sds_loop(void) {
     /* Check MQTT connection */
     if (!sds_platform_mqtt_connected()) {
         SDS_LOG_W("MQTT disconnected, attempting reconnect...");
-        if (sds_platform_mqtt_connect(_mqtt_broker, _mqtt_port, _node_id)) {
+        
+        /* Rebuild LWT for reconnect */
+        char lwt_topic[SDS_TOPIC_BUFFER_SIZE];
+        char lwt_payload[128];
+        snprintf(lwt_topic, sizeof(lwt_topic), "sds/lwt/%s", _node_id);
+        snprintf(lwt_payload, sizeof(lwt_payload), "{\"online\":false,\"node\":\"%s\",\"ts\":0}", _node_id);
+        
+        if (sds_platform_mqtt_connect_with_lwt(
+                _mqtt_broker, _mqtt_port, _node_id,
+                lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true)) {
             _stats.reconnect_count++;
             for (int i = 0; i < SDS_MAX_TABLES; i++) {
                 if (_tables[i].active) {
@@ -262,6 +281,17 @@ void sds_loop(void) {
 void sds_shutdown(void) {
     if (!_initialized) {
         return;
+    }
+    
+    /* Publish graceful offline message (prevents broker from sending LWT) */
+    if (sds_platform_mqtt_connected()) {
+        char lwt_topic[SDS_TOPIC_BUFFER_SIZE];
+        char lwt_payload[128];
+        snprintf(lwt_topic, sizeof(lwt_topic), "sds/lwt/%s", _node_id);
+        snprintf(lwt_payload, sizeof(lwt_payload), "{\"online\":false,\"node\":\"%s\",\"ts\":%u}", 
+                 _node_id, sds_platform_millis());
+        sds_platform_mqtt_publish(lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true);
+        SDS_LOG_D("Published graceful offline message");
     }
     
     for (int i = 0; i < SDS_MAX_TABLES; i++) {
@@ -307,7 +337,9 @@ static SdsTableContext* alloc_table_slot(void* table, const char* table_type, Sd
     strncpy(ctx->table_type, table_type, SDS_MAX_TABLE_TYPE_LEN - 1);
     ctx->role = role;
     ctx->sync_interval_ms = options ? options->sync_interval_ms : SDS_DEFAULT_SYNC_INTERVAL_MS;
+    ctx->liveness_interval_ms = SDS_DEFAULT_LIVENESS_INTERVAL_MS;  /* Will be overridden from registry */
     ctx->last_sync_ms = sds_platform_millis();
+    ctx->last_publish_ms = sds_platform_millis();  /* Initialize to now */
     
     _table_count++;
     
@@ -343,7 +375,7 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
     
     /* Use registry metadata to call sds_register_table_ex */
     if (role == SDS_ROLE_DEVICE) {
-        return sds_register_table_ex(
+        SdsError err = sds_register_table_ex(
             table, table_type, role, options,
             meta->dev_config_offset, meta->dev_config_size,
             meta->dev_state_offset, meta->dev_state_size,
@@ -355,6 +387,16 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
             meta->serialize_status,       /* Device sends status */
             NULL                          /* Device doesn't receive status */
         );
+        
+        /* Set liveness interval from registry */
+        if (err == SDS_OK) {
+            SdsTableContext* ctx = find_table(table_type);
+            if (ctx) {
+                ctx->liveness_interval_ms = meta->liveness_interval_ms;
+            }
+        }
+        
+        return err;
     } else {
         /* OWNER role */
         SdsError err = sds_register_table_ex(
@@ -370,15 +412,18 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
             meta->deserialize_status      /* Owner receives status */
         );
         
-        /* Populate status slot metadata for owners */
-        if (err == SDS_OK && meta->own_status_slots_offset > 0) {
+        /* Populate status slot metadata and liveness for owners */
+        if (err == SDS_OK) {
             SdsTableContext* ctx = find_table(table_type);
             if (ctx) {
-                ctx->status_slots_offset = meta->own_status_slots_offset;
-                ctx->status_slot_size = meta->own_status_slot_size;
-                ctx->max_status_slots = meta->own_max_status_slots;
-                ctx->slot_status_offset = meta->slot_status_offset;
-                ctx->status_count_offset = meta->own_status_count_offset;
+                ctx->liveness_interval_ms = meta->liveness_interval_ms;
+                if (meta->own_status_slots_offset > 0) {
+                    ctx->status_slots_offset = meta->own_status_slots_offset;
+                    ctx->status_slot_size = meta->own_status_slot_size;
+                    ctx->max_status_slots = meta->own_max_status_slots;
+                    ctx->slot_status_offset = meta->slot_status_offset;
+                    ctx->status_count_offset = meta->own_status_count_offset;
+                }
             }
         }
         
@@ -630,6 +675,57 @@ void sds_foreach_node(const void* owner_table, const char* table_type, SdsNodeIt
     }
 }
 
+bool sds_is_device_online(const void* owner_table, const char* table_type, const char* node_id, uint32_t timeout_ms) {
+    if (!owner_table || !table_type || !node_id) return false;
+    
+    /* Find the table context */
+    SdsTableContext* ctx = find_table(table_type);
+    if (!ctx || ctx->role != SDS_ROLE_OWNER) return false;
+    if (ctx->status_slots_offset == 0 || ctx->max_status_slots == 0) return false;
+    
+    const uint8_t* slots_base = (const uint8_t*)owner_table + ctx->status_slots_offset;
+    
+    /* Find the slot for this node */
+    for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
+        const uint8_t* slot = slots_base + (i * ctx->status_slot_size);
+        const char* slot_node_id = (const char*)slot;
+        const bool* slot_valid = (const bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        
+        if (*slot_valid && strcmp(slot_node_id, node_id) == 0) {
+            /* Found the slot - check online flag and last_seen */
+            const bool* slot_online = (const bool*)(slot + SDS_MAX_NODE_ID_LEN + sizeof(bool));
+            const uint32_t* slot_last_seen = (const uint32_t*)(slot + SDS_MAX_NODE_ID_LEN + 2 * sizeof(bool));
+            
+            /* Check explicit online flag (false if LWT received) */
+            if (!*slot_online) return false;
+            
+            /* Check if last_seen is within timeout */
+            uint32_t now = sds_platform_millis();
+            uint32_t age = now - *slot_last_seen;
+            return (age < timeout_ms);
+        }
+    }
+    
+    return false;  /* Node not found */
+}
+
+uint32_t sds_get_liveness_interval(const char* table_type) {
+    if (!table_type) return 0;
+    
+    const SdsTableMeta* meta = sds_find_table_meta(table_type);
+    if (meta) {
+        return meta->liveness_interval_ms;
+    }
+    
+    /* Also check registered tables (might be manually registered) */
+    SdsTableContext* ctx = find_table(table_type);
+    if (ctx) {
+        return ctx->liveness_interval_ms;
+    }
+    
+    return 0;
+}
+
 /* ============== Internal Functions ============== */
 
 static SdsTableContext* find_table(const char* table_type) {
@@ -679,6 +775,8 @@ static void sync_table(SdsTableContext* ctx) {
     char topic[SDS_TOPIC_BUFFER_SIZE];
     char buffer[SDS_MSG_BUFFER_SIZE];
     SdsJsonWriter w;
+    uint32_t now = sds_platform_millis();
+    bool published_something = false;
     
     if (ctx->role == SDS_ROLE_OWNER) {
         /* Owner publishes config */
@@ -689,7 +787,7 @@ static void sync_table(SdsTableContext* ctx) {
             if (memcmp(config_ptr, ctx->shadow_config, ctx->config_size) != 0) {
                 sds_json_writer_init(&w, buffer, sizeof(buffer));
                 sds_json_start_object(&w);
-                sds_json_add_uint(&w, "ts", sds_platform_millis());
+                sds_json_add_uint(&w, "ts", now);
                 sds_json_add_string(&w, "from", _node_id);
                 ctx->serialize_config(config_ptr, &w);  /* Pass section pointer */
                 sds_json_end_object(&w);
@@ -702,6 +800,7 @@ static void sync_table(SdsTableContext* ctx) {
                     
                     memcpy(ctx->shadow_config, config_ptr, ctx->config_size);
                     _stats.messages_sent++;
+                    published_something = true;
                     SDS_LOG_D("Published config: %s", ctx->table_type);
                 }
             }
@@ -716,7 +815,7 @@ static void sync_table(SdsTableContext* ctx) {
         if (memcmp(state_ptr, ctx->shadow_state, ctx->state_size) != 0) {
             sds_json_writer_init(&w, buffer, sizeof(buffer));
             sds_json_start_object(&w);
-            sds_json_add_uint(&w, "ts", sds_platform_millis());
+            sds_json_add_uint(&w, "ts", now);
             sds_json_add_string(&w, "node", _node_id);
             ctx->serialize_state(state_ptr, &w);  /* Pass section pointer */
             sds_json_end_object(&w);
@@ -729,6 +828,7 @@ static void sync_table(SdsTableContext* ctx) {
                 
                 memcpy(ctx->shadow_state, state_ptr, ctx->state_size);
                 _stats.messages_sent++;
+                published_something = true;
                 SDS_LOG_D("Published state: %s", ctx->table_type);
             }
         }
@@ -738,11 +838,16 @@ static void sync_table(SdsTableContext* ctx) {
     if (ctx->role == SDS_ROLE_DEVICE && ctx->serialize_status && ctx->status_size > 0) {
         void* status_ptr = (uint8_t*)ctx->table + ctx->status_offset;
         
-        /* Check if status changed */
-        if (memcmp(status_ptr, ctx->shadow_status, ctx->status_size) != 0) {
+        /* Check if status changed OR liveness timer expired */
+        bool status_changed = (memcmp(status_ptr, ctx->shadow_status, ctx->status_size) != 0);
+        bool liveness_expired = (ctx->liveness_interval_ms > 0) && 
+                                (now - ctx->last_publish_ms >= ctx->liveness_interval_ms);
+        
+        if (status_changed || liveness_expired) {
             sds_json_writer_init(&w, buffer, sizeof(buffer));
             sds_json_start_object(&w);
-            sds_json_add_uint(&w, "ts", sds_platform_millis());
+            sds_json_add_uint(&w, "ts", now);
+            sds_json_add_bool(&w, "online", true);  /* Always include online=true for heartbeat */
             ctx->serialize_status(status_ptr, &w);  /* Pass section pointer */
             sds_json_end_object(&w);
             
@@ -754,9 +859,20 @@ static void sync_table(SdsTableContext* ctx) {
                 
                 memcpy(ctx->shadow_status, status_ptr, ctx->status_size);
                 _stats.messages_sent++;
-                SDS_LOG_D("Published status: %s", ctx->table_type);
+                published_something = true;
+                
+                if (liveness_expired && !status_changed) {
+                    SDS_LOG_D("Published heartbeat: %s", ctx->table_type);
+                } else {
+                    SDS_LOG_D("Published status: %s", ctx->table_type);
+                }
             }
         }
+    }
+    
+    /* Update last publish time if we sent anything */
+    if (published_something) {
+        ctx->last_publish_ms = now;
     }
 }
 
@@ -845,6 +961,14 @@ static void* find_or_alloc_status_slot(SdsTableContext* ctx, const char* node_id
             ((char*)slot)[SDS_MAX_NODE_ID_LEN - 1] = '\0';
             *slot_valid = true;
             
+            /* Initialize online flag to true (will be updated when status received) */
+            bool* slot_online = (bool*)(slot + SDS_MAX_NODE_ID_LEN + sizeof(bool));
+            *slot_online = true;
+            
+            /* Initialize last_seen to now */
+            uint32_t* last_seen = (uint32_t*)(slot + SDS_MAX_NODE_ID_LEN + 2 * sizeof(bool));
+            *last_seen = sds_platform_millis();
+            
             /* Increment status_count in owner table */
             if (ctx->status_count_offset > 0) {
                 uint8_t* count_ptr = (uint8_t*)ctx->table + ctx->status_count_offset;
@@ -876,19 +1000,34 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
         return;
     }
     
-    /* Update last_seen timestamp (field after node_id and valid) */
-    uint32_t* last_seen = (uint32_t*)((uint8_t*)slot + SDS_MAX_NODE_ID_LEN + sizeof(bool));
-    *last_seen = sds_platform_millis();
-    
-    /* Get pointer to status data within the slot */
-    void* status_ptr = (uint8_t*)slot + ctx->slot_status_offset;
-    
-    /* Deserialize status into the slot */
+    /* Parse JSON to get the online field first */
     SdsJsonReader r;
     sds_json_reader_init(&r, (const char*)payload, len);
-    ctx->deserialize_status(status_ptr, &r);
     
-    SDS_LOG_D("Status updated from %s: %s", from_node, ctx->table_type);
+    /* Parse "online" field (defaults to true - if we got a message, device is online) */
+    bool online = true;
+    sds_json_get_bool_field(&r, "online", &online);
+    
+    /* Slot structure: node_id[32], valid(bool), online(bool), last_seen_ms(uint32_t), status */
+    bool* slot_online = (bool*)((uint8_t*)slot + SDS_MAX_NODE_ID_LEN + sizeof(bool));
+    uint32_t* last_seen = (uint32_t*)((uint8_t*)slot + SDS_MAX_NODE_ID_LEN + 2 * sizeof(bool));
+    
+    *slot_online = online;
+    *last_seen = sds_platform_millis();
+    
+    /* Only deserialize status data if device is online */
+    if (online) {
+        /* Get pointer to status data within the slot */
+        void* status_ptr = (uint8_t*)slot + ctx->slot_status_offset;
+        
+        /* Re-init reader and deserialize status */
+        sds_json_reader_init(&r, (const char*)payload, len);
+        ctx->deserialize_status(status_ptr, &r);
+        
+        SDS_LOG_D("Status updated from %s: %s", from_node, ctx->table_type);
+    } else {
+        SDS_LOG_I("Device %s went offline: %s", from_node, ctx->table_type);
+    }
     
     if (ctx->status_callback) {
         ctx->status_callback(ctx->table_type, from_node);

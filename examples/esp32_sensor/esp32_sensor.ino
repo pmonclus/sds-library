@@ -1,7 +1,7 @@
 /*
  * esp32_sensor.ino - SDS ESP32/ESP8266 Sensor Example
  * 
- * Demonstrates a SensorNode device that:
+ * Demonstrates a SensorData device that:
  *   - Receives config from the owner
  *   - Publishes temperature/humidity state
  *   - Publishes device status
@@ -36,7 +36,7 @@ void on_config_update(const char* table_type);
 /* ============== SDS Client and Tables ============== */
 
 SDSClient sds;
-SensorNodeTable sensor_table;
+SensorDataTable sensor_table;
 
 /* ============== Setup ============== */
 
@@ -77,18 +77,18 @@ void setup() {
     sensor_table.status.battery_percent = 100;
     
     /* Register as DEVICE using simple API */
-    SdsTableOptions opts = { .sync_interval_ms = SDS_SENSOR_NODE_SYNC_INTERVAL_MS };
-    SdsError err = sds_register_table(&sensor_table, "SensorNode", SDS_ROLE_DEVICE, &opts);
+    SdsTableOptions opts = { .sync_interval_ms = SDS_SENSOR_DATA_SYNC_INTERVAL_MS };
+    SdsError err = sds_register_table(&sensor_table, "SensorData", SDS_ROLE_DEVICE, &opts);
     
     if (err != SDS_OK) {
-        Serial.printf("Failed to register SensorNode: %s\n", SDSClient::errorString(err));
+        Serial.printf("Failed to register SensorData: %s\n", SDSClient::errorString(err));
         return;
     }
     
     /* Set up callbacks */
-    sds_on_config_update("SensorNode", on_config_update);
+    sds_on_config_update("SensorData", on_config_update);
     
-    Serial.println("\nSensorNode registered as DEVICE");
+    Serial.println("\nSensorData registered as DEVICE");
     Serial.println("Waiting for config from owner...\n");
     
     #if STATUS_LED_PIN >= 0
