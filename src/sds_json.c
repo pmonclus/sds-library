@@ -183,6 +183,10 @@ static void skip_whitespace(const char** p, const char* end) {
 }
 
 const char* sds_json_find_field(SdsJsonReader* r, const char* key) {
+    if (!r->json || r->len == 0 || !key) {
+        return NULL;
+    }
+    
     const char* p = r->json;
     const char* end = r->json + r->len;
     size_t key_len = strlen(key);
@@ -229,6 +233,11 @@ const char* sds_json_find_field(SdsJsonReader* r, const char* key) {
 static bool parse_string_bounded(const char* value, size_t max_len, char* out, size_t out_size) {
     if (!value || max_len < 2 || *value != '"') return false;
     
+    /* Handle zero-size buffer gracefully */
+    if (out_size == 0) {
+        return false;
+    }
+    
     value++;  /* Skip opening quote */
     max_len--;
     size_t i = 0;
@@ -247,6 +256,11 @@ static bool parse_string_bounded(const char* value, size_t max_len, char* out, s
 bool sds_json_parse_string(const char* value, char* out, size_t out_size) {
     /* Legacy API - assume null-terminated string (less safe) */
     if (!value || *value != '"') return false;
+    
+    /* Handle zero-size buffer gracefully */
+    if (out_size == 0) {
+        return false;
+    }
     
     value++;  /* Skip opening quote */
     size_t i = 0;

@@ -711,10 +711,9 @@ TEST(reader_zero_length_buffer) {
     char out[1] = {0};
     bool result = sds_json_get_string_field(&r, "name", out, 0);
     
-    /* Behavior with zero-size buffer: returns true but writes nothing */
-    /* This is acceptable - no crash, no buffer overflow */
-    (void)result;  /* Accept either true or false */
-    /* Key: no crash occurred */
+    /* Zero-size buffer should return false to indicate error */
+    ASSERT(result == false);
+    /* Key: no crash, no buffer overflow */
 }
 
 TEST(reader_garbage_input) {

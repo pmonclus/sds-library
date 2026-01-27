@@ -1,0 +1,288 @@
+name: Memory Sanitizers
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  asan:
+    name: AddressSanitizer
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang
+      
+      - name: Build with AddressSanitizer
+        run: |
+          clang -fsanitize=address -fno-omit-frame-pointer -g -O1 \
+            -I include -I tests \
+            -o test_unit_asan \
+            tests/test_unit_core.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          clang -fsanitize=address -fno-omit-frame-pointer -g -O1 \
+            -I include -I tests \
+            -o test_reconnection_asan \
+            tests/test_reconnection.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          clang -fsanitize=address -fno-omit-frame-pointer -g -O1 \
+            -I include -I tests \
+            -o test_buffer_asan \
+            tests/test_buffer_overflow.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          clang -fsanitize=address -fno-omit-frame-pointer -g -O1 \
+            -I include \
+            -o test_json_asan \
+            tests/test_json.c \
+            src/sds_json.c \
+            -lm
+      
+      - name: Run unit tests with ASan
+        env:
+          ASAN_OPTIONS: "detect_leaks=1:halt_on_error=1"
+        run: ./test_unit_asan
+      
+      - name: Run reconnection tests with ASan
+        env:
+          ASAN_OPTIONS: "detect_leaks=1:halt_on_error=1"
+        run: ./test_reconnection_asan
+      
+      - name: Run buffer overflow tests with ASan
+        env:
+          ASAN_OPTIONS: "detect_leaks=1:halt_on_error=1"
+        run: ./test_buffer_asan
+      
+      - name: Run JSON tests with ASan
+        env:
+          ASAN_OPTIONS: "detect_leaks=1:halt_on_error=1"
+        run: ./test_json_asan
+
+  ubsan:
+    name: UndefinedBehaviorSanitizer
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang
+      
+      - name: Build with UBSan
+        run: |
+          clang -fsanitize=undefined -fno-omit-frame-pointer -g -O1 \
+            -I include -I tests \
+            -o test_unit_ubsan \
+            tests/test_unit_core.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          clang -fsanitize=undefined -fno-omit-frame-pointer -g -O1 \
+            -I include -I tests \
+            -o test_reconnection_ubsan \
+            tests/test_reconnection.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          clang -fsanitize=undefined -fno-omit-frame-pointer -g -O1 \
+            -I include -I tests \
+            -o test_buffer_ubsan \
+            tests/test_buffer_overflow.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          clang -fsanitize=undefined -fno-omit-frame-pointer -g -O1 \
+            -I include \
+            -o test_json_ubsan \
+            tests/test_json.c \
+            src/sds_json.c \
+            -lm
+      
+      - name: Run unit tests with UBSan
+        env:
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+        run: ./test_unit_ubsan
+      
+      - name: Run reconnection tests with UBSan
+        env:
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+        run: ./test_reconnection_ubsan
+      
+      - name: Run buffer overflow tests with UBSan
+        env:
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+        run: ./test_buffer_ubsan
+      
+      - name: Run JSON tests with UBSan
+        env:
+          UBSAN_OPTIONS: "halt_on_error=1:print_stacktrace=1"
+        run: ./test_json_ubsan
+
+  valgrind:
+    name: Valgrind Memory Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc valgrind
+      
+      - name: Build for Valgrind
+        run: |
+          gcc -g -O0 \
+            -I include -I tests \
+            -o test_unit_valgrind \
+            tests/test_unit_core.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          gcc -g -O0 \
+            -I include -I tests \
+            -o test_reconnection_valgrind \
+            tests/test_reconnection.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          gcc -g -O0 \
+            -I include -I tests \
+            -o test_buffer_valgrind \
+            tests/test_buffer_overflow.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          gcc -g -O0 \
+            -I include \
+            -o test_json_valgrind \
+            tests/test_json.c \
+            src/sds_json.c \
+            -lm
+      
+      - name: Run unit tests with Valgrind
+        run: |
+          valgrind --leak-check=full \
+                   --show-leak-kinds=all \
+                   --error-exitcode=1 \
+                   --track-origins=yes \
+                   ./test_unit_valgrind
+      
+      - name: Run reconnection tests with Valgrind
+        run: |
+          valgrind --leak-check=full \
+                   --show-leak-kinds=all \
+                   --error-exitcode=1 \
+                   --track-origins=yes \
+                   ./test_reconnection_valgrind
+      
+      - name: Run buffer overflow tests with Valgrind
+        run: |
+          valgrind --leak-check=full \
+                   --show-leak-kinds=all \
+                   --error-exitcode=1 \
+                   --track-origins=yes \
+                   ./test_buffer_valgrind
+      
+      - name: Run JSON tests with Valgrind
+        run: |
+          valgrind --leak-check=full \
+                   --show-leak-kinds=all \
+                   --error-exitcode=1 \
+                   --track-origins=yes \
+                   ./test_json_valgrind
+
+  unit-tests:
+    name: Unit Tests (No MQTT)
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc
+      
+      - name: Build unit tests
+        run: |
+          gcc -Wall -Wextra -g -O2 \
+            -I include -I tests \
+            -o test_unit \
+            tests/test_unit_core.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          gcc -Wall -Wextra -g -O2 \
+            -I include -I tests \
+            -o test_reconnection \
+            tests/test_reconnection.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          gcc -Wall -Wextra -g -O2 \
+            -I include -I tests \
+            -o test_buffer \
+            tests/test_buffer_overflow.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+          
+          gcc -Wall -Wextra -g -O2 \
+            -I include \
+            -o test_json \
+            tests/test_json.c \
+            src/sds_json.c \
+            -lm
+      
+      - name: Run unit tests
+        run: ./test_unit
+      
+      - name: Run reconnection tests
+        run: ./test_reconnection
+      
+      - name: Run buffer overflow tests
+        run: ./test_buffer
+      
+      - name: Run JSON tests
+        run: ./test_json

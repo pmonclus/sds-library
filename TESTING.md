@@ -1,209 +1,171 @@
 # SDS Library - Testing Guide
 
-This document describes the test suite for the SDS library, including test descriptions, what each test validates, and how to run them.
+This document describes the comprehensive test suite for the SDS library.
 
-## Prerequisites
+## Test Suite Overview
 
-1. **MQTT Broker**: All tests require a running MQTT broker (e.g., Mosquitto) on `localhost:1883`
-   ```bash
-   # macOS
-   brew install mosquitto
-   brew services start mosquitto
-   
-   # Linux
-   sudo apt install mosquitto
-   sudo systemctl start mosquitto
-   ```
+The library has **167 unit tests** achieving **~84% code coverage**.
 
-2. **Build the project**:
-   ```bash
-   mkdir -p build && cd build
-   cmake .. && make
-   ```
+| Category | Tests | MQTT Broker | Runtime |
+|----------|-------|-------------|---------|
+| Unit Tests (Mock) | 167 | No | ~0.5s |
+| Integration Tests | ~6 suites | Yes | ~60s |
+| Scale Tests | 1 | Yes | configurable |
+| Fuzz Tests | 2 targets | No | configurable |
 
-## Test Overview
-
-| Test | Type | Duration | Description |
-|------|------|----------|-------------|
-| `test_json` | Unit | <1s | JSON serialization/parsing |
-| `test_errors` | Unit | <1s | Error handling paths |
-| `test_sds_basic` | Unit | ~7s | Core API functionality |
-| `test_simple_api` | Unit | ~5s | Simple registration API |
-| `test_generated` | Integration | ~15s | Multi-node with generated types |
-| `test_multi_node` | Integration | ~15s | Multi-node communication patterns |
-| `test_liveness` | Integration | ~14s | Liveness/heartbeat detection |
-
-## Running All Tests
-
-Use the automated test runner:
+## Quick Start
 
 ```bash
-./run_tests.sh
+# Build
+mkdir -p build && cd build
+cmake .. && make
+
+# Run all unit tests (no MQTT required)
+./test_unit_core && ./test_json && ./test_utilities && \
+./test_reconnection && ./test_buffer_overflow && ./test_concurrent
 ```
-
-### Options
-
-```bash
-./run_tests.sh --quick      # Skip multi-node integration tests
-./run_tests.sh --verbose    # Show full test output
-./run_tests.sh --valgrind   # Run with valgrind memory checking
-```
-
-Or run individual tests manually (see below).
 
 ---
 
-## Test Descriptions
+## Unit Tests (Mock-Based)
 
-### 1. `test_sds_basic`
+These tests use a **mock platform layer** that simulates MQTT without a real broker. They run in ~0.5 seconds and are ideal for CI/CD.
 
-**Purpose**: Validates core SDS library functionality with generated types.
+### `test_unit_core` (45 tests)
 
-**What it tests**:
-- ✅ Platform initialization
-- ✅ MQTT broker connection
-- ✅ `sds_init()` / `sds_shutdown()` lifecycle
-- ✅ `sds_is_ready()` connection state
-- ✅ Node ID assignment and retrieval
-- ✅ Double initialization rejection
-- ✅ Device table registration (`SDS_ROLE_DEVICE`)
-- ✅ Owner table registration (`SDS_ROLE_OWNER`)
-- ✅ Duplicate registration rejection
-- ✅ Table count tracking
-- ✅ Callback registration (config/state/status)
-- ✅ Main loop execution with message flow
-- ✅ Table unregistration
-- ✅ Graceful shutdown
+Core SDS library functionality.
 
-**Run manually**:
+| Category | Tests |
+|----------|-------|
+| Initialization | init, shutdown, double init, ready state |
+| Table Registration | device/owner roles, multiple tables, unregister |
+| State Sync | state changes, dirty detection, publish |
+| Config Handling | config receive, callbacks |
+| Status Updates | status publish, owner tracking |
+| Reconnection | disconnect detection, auto-reconnect |
+| Statistics | message counters, error tracking |
+
+```bash
+./build/test_unit_core
+```
+
+### `test_json` (65 tests)
+
+JSON serialization and parsing.
+
+| Category | Tests |
+|----------|-------|
+| Writer | strings, integers, floats, booleans, nested objects |
+| Reader | field extraction, type parsing, error handling |
+| Edge Cases | escaping, unicode, buffer limits, malformed input |
+| Round-trip | serialize then deserialize validation |
+
+```bash
+./build/test_json
+```
+
+### `test_utilities` (23 tests)
+
+Utility functions and APIs.
+
+| Category | Tests |
+|----------|-------|
+| Error Strings | all error codes, unknown codes |
+| Log Levels | get/set, all levels |
+| Schema Version | get/set, NULL handling |
+| Table Registry | find, set, NULL params |
+| Simple Register API | registry lookup, not found |
+| Node Status | find, iterate, online check |
+| Liveness | interval queries |
+
+```bash
+./build/test_utilities
+```
+
+### `test_reconnection` (11 tests)
+
+MQTT reconnection scenarios.
+
+| Category | Tests |
+|----------|-------|
+| Connection Loss | detect disconnect, state tracking |
+| Auto-Reconnect | reconnect success, failure handling |
+| Message Recovery | publish after reconnect |
+| Callbacks | error callbacks during disconnect |
+
+```bash
+./build/test_reconnection
+```
+
+### `test_buffer_overflow` (16 tests)
+
+Buffer limits and overflow handling.
+
+| Category | Tests |
+|----------|-------|
+| JSON Writer | small buffers, exact fit, overflow flag |
+| JSON Reader | truncation, zero-size buffer |
+| Shadow Buffer | large state, serialization limits |
+| Status Slots | max slots, slot overflow |
+
+```bash
+./build/test_buffer_overflow
+```
+
+### `test_concurrent` (7 tests)
+
+Thread safety and race conditions.
+
+| Category | Tests |
+|----------|-------|
+| Baseline | single-threaded operation |
+| Concurrent Access | loop + modify, loop + message inject |
+| Multi-threaded | multiple modifiers, stats races |
+| Edge Cases | message during shutdown |
+
+> **Note**: Run with ThreadSanitizer to detect races:
+> ```bash
+> clang -fsanitize=thread ... -o test_concurrent_tsan
+> ./test_concurrent_tsan
+> ```
+
+```bash
+./build/test_concurrent
+```
+
+---
+
+## Integration Tests (Real MQTT)
+
+These tests require a running MQTT broker on `localhost:1883`.
+
+### Prerequisites
+
+```bash
+# macOS
+brew install mosquitto
+brew services start mosquitto
+
+# Linux
+sudo apt install mosquitto
+sudo systemctl start mosquitto
+
+# Docker
+docker run -p 1883:1883 eclipse-mosquitto
+```
+
+### `test_sds_basic`
+
+Core API with real MQTT. Tests initialization, registration, message flow.
+
 ```bash
 ./build/test_sds_basic [broker_ip]
 ```
 
-**Expected output**: `Results: 16 passed, 0 failed`
+### `test_multi_node`
 
----
+Multi-node communication with 3 processes.
 
-### 2. `test_simple_api`
-
-**Purpose**: Validates the simplified `sds_register_table()` API that uses the generated type registry.
-
-**What it tests**:
-- ✅ Auto-registration of type registry via constructor
-- ✅ Simple table registration by type name string
-- ✅ Device role registration
-- ✅ Owner role registration
-- ✅ Unknown table type rejection
-- ✅ Double registration rejection
-- ✅ Message publishing during sync loop
-- ✅ Correct table count after operations
-
-**Run manually**:
-```bash
-./build/test_simple_api [broker_ip]
-```
-
-**Expected output**: `Results: 1/1 tests passed`
-
----
-
-### 3. `test_errors`
-
-**Purpose**: Validates error handling paths, invalid inputs, and boundary conditions.
-
-**What it tests**:
-- ✅ NULL config handling
-- ✅ NULL broker handling
-- ✅ Broker string too long
-- ✅ Node ID too long
-- ✅ Double initialization rejection
-- ✅ Registration before init
-- ✅ NULL table registration
-- ✅ NULL type registration
-- ✅ Unknown table type rejection
-- ✅ Invalid role handling
-- ✅ Duplicate registration rejection
-- ✅ Error string mappings
-- ✅ API state when not initialized
-- ✅ Error callback registration
-- ✅ Max tables limit
-- ✅ Stats after init
-
-**Run manually**:
-```bash
-./build/test_errors [broker_ip]
-```
-
-**Expected output**: `Results: X passed, 0 failed`
-
----
-
-### 4. `test_generated`
-
-**Purpose**: Integration test validating multi-node communication using generated types from `sds_types.h`.
-
-**What it tests**:
-- ✅ Three nodes with different role configurations
-- ✅ SensorNode and ActuatorNode table types
-- ✅ Config propagation from Owner to Devices
-- ✅ State updates from Devices to Owner
-- ✅ Status updates from Devices to Owner
-- ✅ Retained message delivery on subscribe
-- ✅ Real-time data synchronization
-- ✅ Concurrent MQTT operations
-
-**Node configurations**:
-| Node | SensorNode Role | ActuatorNode Role |
-|------|-----------------|-------------------|
-| node1 | OWNER | DEVICE |
-| node2 | DEVICE | OWNER |
-| node3 | DEVICE | DEVICE |
-
-**Run manually** (requires 3 terminals or background processes):
-```bash
-# Terminal 1
-./build/test_generated node1
-
-# Terminal 2
-./build/test_generated node2
-
-# Terminal 3
-./build/test_generated node3
-```
-
-Or run all at once:
-```bash
-./build/test_generated node1 &
-./build/test_generated node2 &
-./build/test_generated node3 &
-wait
-```
-
-**Expected output**: Each node prints `Overall: PASSED`
-
----
-
-### 5. `test_multi_node`
-
-**Purpose**: Integration test with TableA/TableB schema validating complex multi-node scenarios.
-
-**What it tests**:
-- ✅ Different table types (TableA, TableB)
-- ✅ Cross-table role assignments
-- ✅ Config delivery timing and reliability
-- ✅ State update frequency and ordering
-- ✅ Status update aggregation at owner
-- ✅ Message statistics tracking
-- ✅ Reconnection handling
-
-**Node configurations**:
-| Node | TableA Role | TableB Role |
-|------|-------------|-------------|
-| node1 | OWNER | DEVICE |
-| node2 | DEVICE | OWNER |
-| node3 | DEVICE | DEVICE |
-
-**Run manually**:
 ```bash
 ./build/test_multi_node node1 &
 ./build/test_multi_node node2 &
@@ -211,117 +173,253 @@ wait
 wait
 ```
 
-**Expected output**: Each node prints `Overall: PASSED`
+### `test_liveness`
 
----
-
-### 6. `test_liveness`
-
-**Purpose**: Validates the liveness/heartbeat detection mechanism between owner and device nodes.
-
-**What it tests**:
-- ✅ Device sends periodic heartbeats even when data is unchanged
-- ✅ Owner tracks `last_seen_ms` timestamp for each device
-- ✅ `sds_is_device_online()` API returns correct status
-- ✅ Heartbeat interval matches `@liveness` configuration
-- ✅ Uptime tracking across heartbeats
-- ✅ Graceful shutdown with explicit offline message
-
-**Node configurations**:
-| Node | Role | Description |
-|------|------|-------------|
-| node1 | OWNER | Receives heartbeats, tracks device liveness |
-| node2 | DEVICE | Sends periodic heartbeats (1000ms interval) |
-
-**Run manually** (requires 2 terminals):
-```bash
-# Terminal 1 - Start owner first
-./build/test_liveness node1
-
-# Terminal 2 - Start device
-./build/test_liveness node2
-```
-
-**Expected output**: Each node prints `✓ <node>: PASSED`
-
-**Test validation**:
-- Owner verifies it received sufficient heartbeats (min ~6 over 8 seconds)
-- Owner verifies `sds_is_device_online()` returns true
-- Owner verifies device uptime is incrementing
-
----
-
-## Test Runner Script
-
-The `run_tests.sh` script automates running all tests:
+Heartbeat and liveness detection.
 
 ```bash
-./run_tests.sh           # Run all tests
-./run_tests.sh --quick   # Skip multi-node tests
-./run_tests.sh --verbose # Show full output
+./build/test_liveness node1 &  # Owner
+./build/test_liveness node2 &  # Device
+wait
 ```
 
-### Exit Codes
+### Running All Integration Tests
 
-| Code | Meaning |
-|------|---------|
-| 0 | All tests passed |
-| 1 | One or more tests failed |
-| 2 | Build failed |
-| 3 | MQTT broker not running |
-
----
-
-## Troubleshooting
-
-### "Connection refused" errors
-The MQTT broker is not running. Start it with:
 ```bash
-brew services start mosquitto  # macOS
-sudo systemctl start mosquitto # Linux
+./run_tests.sh              # All tests
+./run_tests.sh --quick      # Skip multi-node
+./run_tests.sh --verbose    # Show output
 ```
-
-### "Table type not found in registry"
-The test is not including `sds_types.h`. Ensure the generated types header is included and the constructor runs before `main()`.
-
-### Multi-node tests hang
-Ensure all three node processes are running. The tests wait for messages from other nodes.
-
-### Flaky test results
-MQTT message ordering is not guaranteed. If tests occasionally fail, increase timeouts or add retry logic.
 
 ---
 
-## Adding New Tests
+## Scale Tests
 
-1. Create a new test file in `tests/`
-2. Include `sds.h` and `sds_types.h`
-3. Add the test to `CMakeLists.txt`:
-   ```cmake
-   add_executable(test_new tests/test_new.c)
-   target_link_libraries(test_new sds ${PAHO_MQTT_LIBS})
-   ```
-4. Update `run_tests.sh` to include the new test
-5. Update this document
+Test with multiple concurrent devices.
+
+### Usage
+
+```bash
+# Default: 25 devices, 30 seconds
+./tests/scale/run_scale_test.sh
+
+# Custom: 50 devices, 60 seconds, remote broker
+./tests/scale/run_scale_test.sh 50 60 192.168.1.100
+```
+
+### What It Tests
+
+- 1 owner process tracking multiple devices
+- 25+ device processes publishing state/status
+- Message throughput under load
+- Status slot management at scale
+
+### Sample Output
+
+```
+══════════════════════════════════════════════════════════════
+  SCALE TEST COMPLETE
+══════════════════════════════════════════════════════════════
+  Total unique devices seen: 25
+  Max concurrent devices: 25
+  Messages received: 588
+  Total errors: 0
+══════════════════════════════════════════════════════════════
+```
+
+---
+
+## Sanitizers
+
+### AddressSanitizer (ASan)
+
+Detects memory errors (buffer overflows, use-after-free).
+
+```bash
+./scripts/run_sanitizers.sh asan
+```
+
+### UndefinedBehaviorSanitizer (UBSan)
+
+Detects undefined behavior (null deref, misaligned access).
+
+```bash
+./scripts/run_sanitizers.sh ubsan
+```
+
+### Valgrind
+
+Memory leak detection (Linux only).
+
+```bash
+./scripts/run_sanitizers.sh valgrind
+```
+
+### Run All Sanitizers
+
+```bash
+./scripts/run_sanitizers.sh all
+```
+
+---
+
+## Fuzzing
+
+Fuzz testing with AFL++ or libFuzzer.
+
+### Build Fuzz Targets
+
+```bash
+# With libFuzzer (Linux)
+./scripts/run_fuzz.sh build
+
+# Run for 60 seconds
+./scripts/run_fuzz.sh all 60
+```
+
+### Fuzz Targets
+
+| Target | What It Tests |
+|--------|---------------|
+| `fuzz_json` | JSON parser with malformed input |
+| `fuzz_mqtt` | MQTT message handler with adversarial payloads |
+
+### Corpus
+
+Seed inputs are in `tests/fuzz/corpus/`:
+- `corpus/json/` - Valid and edge-case JSON
+- `corpus/mqtt/` - Valid and malformed MQTT payloads
+
+---
+
+## Code Coverage
+
+### Generate Coverage Report
+
+```bash
+# Build with coverage
+mkdir -p build_coverage && cd build_coverage
+cmake -DCMAKE_C_FLAGS="--coverage" ..
+make
+
+# Run tests
+./test_unit_core && ./test_json && ./test_utilities && \
+./test_reconnection && ./test_buffer_overflow && ./test_concurrent
+
+# Generate report
+cd CMakeFiles/sds_mock.dir/src
+gcov sds_core.c.gcda sds_json.c.gcda
+```
+
+### Current Coverage
+
+| File | Coverage |
+|------|----------|
+| `sds_core.c` | ~81% |
+| `sds_json.c` | ~94% |
+| **Overall** | **~84%** |
 
 ---
 
 ## CI/CD Integration
 
-For automated CI pipelines:
+### GitHub Actions Example
 
 ```yaml
-# Example GitHub Actions
-- name: Start MQTT broker
-  run: |
-    sudo apt-get install -y mosquitto
-    sudo systemctl start mosquitto
+name: Tests
 
-- name: Build and test
-  run: |
-    mkdir build && cd build
-    cmake .. && make
-    cd ..
-    ./run_tests.sh
+on: [push, pull_request]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build
+        run: |
+          mkdir build && cd build
+          cmake .. && make
+      
+      - name: Run unit tests
+        run: |
+          cd build
+          ./test_unit_core
+          ./test_json
+          ./test_utilities
+          ./test_reconnection
+          ./test_buffer_overflow
+          ./test_concurrent
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      mosquitto:
+        image: eclipse-mosquitto
+        ports:
+          - 1883:1883
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build and test
+        run: |
+          mkdir build && cd build
+          cmake .. && make
+          cd ..
+          ./run_tests.sh
+
+  sanitizers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run sanitizers
+        run: ./scripts/run_sanitizers.sh all
 ```
 
+---
+
+## Adding New Tests
+
+1. Create test file in `tests/`
+2. Add to `CMakeLists.txt`:
+   ```cmake
+   add_executable(test_new tests/test_new.c)
+   target_link_libraries(test_new sds_mock m)
+   target_include_directories(test_new PRIVATE include tests)
+   ```
+3. Update this document
+4. Add to CI workflow if needed
+
+---
+
+## Troubleshooting
+
+### "Connection refused"
+
+MQTT broker not running:
+```bash
+brew services start mosquitto  # macOS
+sudo systemctl start mosquitto # Linux
+```
+
+### Unit tests fail to build
+
+Missing mock library:
+```bash
+cd build && cmake .. && make sds_mock
+```
+
+### Scale test hangs
+
+Check broker connectivity:
+```bash
+nc -z localhost 1883
+```
+
+### Coverage not generated
+
+Ensure `--coverage` flag is set:
+```bash
+cmake -DCMAKE_C_FLAGS="--coverage" ..
+```

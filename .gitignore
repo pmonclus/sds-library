@@ -1,8 +1,19 @@
 # Build artifacts
 build/
+build_*/
 *.a
 *.o
 *.d
+
+# Coverage artifacts
+*.gcov
+*.gcda
+*.gcno
+
+# Fuzz artifacts
+fuzz_out*/
+crash-*
+leak-*
 
 # Python cache
 __pycache__/

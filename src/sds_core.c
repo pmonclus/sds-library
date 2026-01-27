@@ -1097,14 +1097,6 @@ static void* find_or_alloc_status_slot(SdsTableContext* ctx, const char* node_id
             ((char*)slot)[SDS_MAX_NODE_ID_LEN - 1] = '\0';
             *slot_valid = true;
             
-            /* Initialize online flag to true (will be updated when status received) */
-            bool* slot_online = (bool*)(slot + SDS_MAX_NODE_ID_LEN + sizeof(bool));
-            *slot_online = true;
-            
-            /* Initialize last_seen to now */
-            uint32_t* last_seen = (uint32_t*)(slot + SDS_MAX_NODE_ID_LEN + 2 * sizeof(bool));
-            *last_seen = sds_platform_millis();
-            
             /* Increment status_count in owner table */
             if (ctx->status_count_offset > 0) {
                 uint8_t* count_ptr = (uint8_t*)ctx->table + ctx->status_count_offset;
@@ -1163,33 +1155,13 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
         return;
     }
     
-    /* Re-init reader and parse "online" field */
-    sds_json_reader_init(&r, (const char*)payload, len);
+    /* Get pointer to status data within the slot */
+    void* status_ptr = (uint8_t*)slot + ctx->slot_status_offset;
     
-    /* Parse "online" field (defaults to true - if we got a message, device is online) */
-    bool online = true;
-    sds_json_get_bool_field(&r, "online", &online);
+    /* Deserialize status into the slot */
+    ctx->deserialize_status(status_ptr, &r);
     
-    /* Slot structure: node_id[32], valid(bool), online(bool), last_seen_ms(uint32_t), status */
-    bool* slot_online = (bool*)((uint8_t*)slot + SDS_MAX_NODE_ID_LEN + sizeof(bool));
-    uint32_t* last_seen = (uint32_t*)((uint8_t*)slot + SDS_MAX_NODE_ID_LEN + 2 * sizeof(bool));
-    
-    *slot_online = online;
-    *last_seen = sds_platform_millis();
-    
-    /* Only deserialize status data if device is online */
-    if (online) {
-        /* Get pointer to status data within the slot */
-        void* status_ptr = (uint8_t*)slot + ctx->slot_status_offset;
-        
-        /* Re-init reader and deserialize status */
-        sds_json_reader_init(&r, (const char*)payload, len);
-        ctx->deserialize_status(status_ptr, &r);
-        
-        SDS_LOG_D("Status updated from %s: %s", from_node, ctx->table_type);
-    } else {
-        SDS_LOG_I("Device %s went offline: %s", from_node, ctx->table_type);
-    }
+    SDS_LOG_D("Status updated from %s: %s", from_node, ctx->table_type);
     
     if (ctx->status_callback) {
         ctx->status_callback(ctx->table_type, from_node);

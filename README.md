@@ -126,22 +126,34 @@ pio run
 ```
 
 ### Running Tests
+
 ```bash
-# Requires MQTT broker (mosquitto) running locally
+# Unit tests (no MQTT broker required) - runs in ~0.5s
+cd build && cmake .. && make
+./test_unit_core && ./test_json && ./test_utilities
+
+# Integration tests (requires MQTT broker)
+brew services start mosquitto  # or: sudo systemctl start mosquitto
 ./run_tests.sh
+
+# Scale test (25 devices + 1 owner)
+./tests/scale/run_scale_test.sh 25 30
 ```
 
 ## Testing
 
-The library includes comprehensive tests:
+The library includes **167 unit tests** with **~84% code coverage**.
 
-| Test | Description |
-|------|-------------|
-| `test_json` | JSON serialization (65 test cases) |
-| `test_sds_basic` | Core API functionality |
-| `test_errors` | Error handling paths |
-| `test_multi_node` | Multi-node communication |
-| `test_liveness` | Heartbeat detection |
+| Test Suite | Tests | MQTT Required | Description |
+|------------|-------|---------------|-------------|
+| `test_unit_core` | 45 | No | Core SDS functionality |
+| `test_json` | 65 | No | JSON serialization/parsing |
+| `test_utilities` | 23 | No | Utility functions |
+| `test_reconnection` | 11 | No | Reconnection scenarios |
+| `test_buffer_overflow` | 16 | No | Buffer limits |
+| `test_concurrent` | 7 | No | Thread safety |
+| `test_sds_basic` | - | Yes | Integration tests |
+| `test_scale_*` | - | Yes | Scale testing (25+ devices) |
 
 See [TESTING.md](TESTING.md) for details.
 

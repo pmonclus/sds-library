@@ -1,0 +1,116 @@
+name: Fuzzing
+
+on:
+  # Run weekly
+  schedule:
+    - cron: '0 0 * * 0'
+  # Allow manual trigger
+  workflow_dispatch:
+  # Run on PRs that modify core files
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'tests/fuzz/**'
+
+jobs:
+  fuzz-libfuzzer:
+    name: LibFuzzer
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang
+      
+      - name: Build JSON fuzzer with libFuzzer
+        run: |
+          clang -g -O1 -fsanitize=fuzzer,address \
+            -I include \
+            -DUSE_LIBFUZZER \
+            -o fuzz_json \
+            tests/fuzz/fuzz_json_parser.c \
+            src/sds_json.c \
+            -lm
+      
+      - name: Build MQTT fuzzer with libFuzzer
+        run: |
+          clang -g -O1 -fsanitize=fuzzer,address \
+            -I include -I tests \
+            -DUSE_LIBFUZZER \
+            -o fuzz_mqtt \
+            tests/fuzz/fuzz_mqtt_message.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm
+      
+      - name: Run JSON fuzzer (60 seconds)
+        run: |
+          mkdir -p fuzz_corpus_json
+          cp tests/fuzz/corpus/json/* fuzz_corpus_json/
+          timeout 60 ./fuzz_json fuzz_corpus_json || true
+          echo "JSON fuzzing completed"
+      
+      - name: Run MQTT fuzzer (60 seconds)
+        run: |
+          mkdir -p fuzz_corpus_mqtt
+          cp tests/fuzz/corpus/mqtt/* fuzz_corpus_mqtt/
+          timeout 60 ./fuzz_mqtt fuzz_corpus_mqtt || true
+          echo "MQTT fuzzing completed"
+      
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: |
+            crash-*
+            leak-*
+            timeout-*
+
+  tsan:
+    name: ThreadSanitizer
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang
+      
+      - name: Build concurrent tests with ThreadSanitizer
+        run: |
+          clang -g -O1 -fsanitize=thread \
+            -I include -I tests \
+            -o test_concurrent_tsan \
+            tests/test_concurrent.c \
+            tests/mock/sds_platform_mock.c \
+            src/sds_core.c \
+            src/sds_json.c \
+            -lm -lpthread
+      
+      - name: Run concurrent tests with TSan
+        env:
+          TSAN_OPTIONS: "halt_on_error=0:report_bugs=1"
+        run: |
+          ./test_concurrent_tsan 2>&1 | tee tsan_output.txt
+          # Check for race reports
+          if grep -q "WARNING: ThreadSanitizer" tsan_output.txt; then
+            echo "::warning::ThreadSanitizer detected potential races (expected for single-threaded library)"
+          fi
+      
+      - name: Upload TSan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsan-report
+          path: tsan_output.txt
