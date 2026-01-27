@@ -924,6 +924,142 @@ TEST(roundtrip_complex) {
 }
 
 /* ============================================================================
+ * JSON ESCAPE SEQUENCE TESTS (Fix #2 and #3)
+ * ============================================================================ */
+
+TEST(reader_unescape_quote) {
+    /* Test that \" is properly unescaped to " */
+    const char* json = "{\"text\":\"say \\\"hello\\\"\"}";
+    SdsJsonReader r;
+    sds_json_reader_init(&r, json, strlen(json));
+    
+    char out[64];
+    ASSERT(sds_json_get_string_field(&r, "text", out, sizeof(out)));
+    ASSERT_STR_EQ(out, "say \"hello\"");
+}
+
+TEST(reader_unescape_backslash) {
+    /* Test that \\ is properly unescaped to \ */
+    const char* json = "{\"path\":\"C:\\\\Users\\\\test\"}";
+    SdsJsonReader r;
+    sds_json_reader_init(&r, json, strlen(json));
+    
+    char out[64];
+    ASSERT(sds_json_get_string_field(&r, "path", out, sizeof(out)));
+    ASSERT_STR_EQ(out, "C:\\Users\\test");
+}
+
+TEST(reader_unescape_newline_tab) {
+    /* Test that \n and \t are properly unescaped */
+    const char* json = "{\"text\":\"line1\\nline2\\ttab\"}";
+    SdsJsonReader r;
+    sds_json_reader_init(&r, json, strlen(json));
+    
+    char out[64];
+    ASSERT(sds_json_get_string_field(&r, "text", out, sizeof(out)));
+    ASSERT_STR_EQ(out, "line1\nline2\ttab");
+}
+
+TEST(reader_unescape_unicode_ascii) {
+    /* Test that \u00XX for ASCII range is properly decoded */
+    const char* json = "{\"text\":\"\\u0041\\u0042\\u0043\"}";  /* ABC */
+    SdsJsonReader r;
+    sds_json_reader_init(&r, json, strlen(json));
+    
+    char out[64];
+    ASSERT(sds_json_get_string_field(&r, "text", out, sizeof(out)));
+    ASSERT_STR_EQ(out, "ABC");
+}
+
+TEST(writer_escape_control_char) {
+    /* Test that control characters are escaped as \u00XX */
+    char buf[128];
+    SdsJsonWriter w;
+    sds_json_writer_init(&w, buf, sizeof(buf));
+    
+    /* Note: Use string concatenation to prevent \x03e being parsed as one hex escape */
+    sds_json_start_object(&w);
+    sds_json_add_string(&w, "ctrl", "test\x01\x02\x03" "end");  /* Contains control chars */
+    sds_json_end_object(&w);
+    
+    ASSERT(!sds_json_has_error(&w));
+    
+    /* Verify the output contains escaped control characters */
+    const char* output = sds_json_get_string(&w);
+    ASSERT(strstr(output, "\\u0001") != NULL);
+    ASSERT(strstr(output, "\\u0002") != NULL);
+    ASSERT(strstr(output, "\\u0003") != NULL);
+}
+
+TEST(roundtrip_escape_sequences) {
+    /* Write escaped content, then read it back */
+    char buf[256];
+    SdsJsonWriter w;
+    sds_json_writer_init(&w, buf, sizeof(buf));
+    
+    sds_json_start_object(&w);
+    sds_json_add_string(&w, "text", "hello \"world\"\nline2");
+    sds_json_end_object(&w);
+    
+    ASSERT(!sds_json_has_error(&w));
+    
+    SdsJsonReader r;
+    sds_json_reader_init(&r, buf, sds_json_get_length(&w));
+    
+    char out[64];
+    ASSERT(sds_json_get_string_field(&r, "text", out, sizeof(out)));
+    ASSERT_STR_EQ(out, "hello \"world\"\nline2");
+}
+
+/* ============================================================================
+ * INTEGER OVERFLOW VALIDATION TESTS (Fix #4)
+ * ============================================================================ */
+
+TEST(reader_int32_overflow) {
+    /* Test that values beyond int32 range are rejected */
+    const char* json = "{\"big\":9999999999999999999}";  /* > INT64_MAX */
+    SdsJsonReader r;
+    sds_json_reader_init(&r, json, strlen(json));
+    
+    int32_t out = 0;
+    ASSERT(!sds_json_get_int_field(&r, "big", &out));
+    ASSERT(out == 0);  /* Should not be modified on failure */
+}
+
+TEST(reader_uint32_overflow) {
+    /* Test that values beyond uint32 range are rejected */
+    const char* json = "{\"big\":9999999999999999999}";  /* > UINT64_MAX after overflow */
+    SdsJsonReader r;
+    sds_json_reader_init(&r, json, strlen(json));
+    
+    uint32_t out = 0;
+    ASSERT(!sds_json_get_uint_field(&r, "big", &out));
+    ASSERT(out == 0);  /* Should not be modified on failure */
+}
+
+TEST(reader_uint8_overflow) {
+    /* Test that values > 255 are rejected for uint8 */
+    const char* json = "{\"val\":256}";
+    SdsJsonReader r;
+    sds_json_reader_init(&r, json, strlen(json));
+    
+    uint8_t out = 0;
+    ASSERT(!sds_json_get_uint8_field(&r, "val", &out));
+    ASSERT(out == 0);  /* Should not be modified on failure */
+}
+
+TEST(reader_uint8_max_valid) {
+    /* Test that 255 is accepted for uint8 */
+    const char* json = "{\"val\":255}";
+    SdsJsonReader r;
+    sds_json_reader_init(&r, json, strlen(json));
+    
+    uint8_t out = 0;
+    ASSERT(sds_json_get_uint8_field(&r, "val", &out));
+    ASSERT(out == 255);
+}
+
+/* ============================================================================
  * MAIN
  * ============================================================================ */
 
@@ -1011,6 +1147,20 @@ int main(void) {
     RUN_TEST(roundtrip_float);
     RUN_TEST(roundtrip_escaped_string);
     RUN_TEST(roundtrip_complex);
+    
+    printf("\n─── Escape Sequence Tests (Fixes #2, #3) ───\n");
+    RUN_TEST(reader_unescape_quote);
+    RUN_TEST(reader_unescape_backslash);
+    RUN_TEST(reader_unescape_newline_tab);
+    RUN_TEST(reader_unescape_unicode_ascii);
+    RUN_TEST(writer_escape_control_char);
+    RUN_TEST(roundtrip_escape_sequences);
+    
+    printf("\n─── Integer Overflow Tests (Fix #4) ───\n");
+    RUN_TEST(reader_int32_overflow);
+    RUN_TEST(reader_uint32_overflow);
+    RUN_TEST(reader_uint8_overflow);
+    RUN_TEST(reader_uint8_max_valid);
     
     printf("\n");
     printf("══════════════════════════════════════════════════════════\n");

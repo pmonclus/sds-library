@@ -69,6 +69,9 @@ typedef struct {
     size_t status_slots_offset;  /* Offset to status array in owner table */
     size_t status_slot_size;     /* Size of each status slot */
     uint8_t max_status_slots;
+    size_t slot_valid_offset;       /* Offset to valid flag within a slot */
+    size_t slot_online_offset;      /* Offset to online flag within a slot */
+    size_t slot_last_seen_offset;   /* Offset to last_seen_ms within a slot */
     size_t slot_status_offset;      /* Offset to status within a slot */
     size_t status_count_offset;     /* Offset to status_count in owner table */
 } SdsTableContext;
@@ -536,6 +539,9 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
                     ctx->status_slots_offset = meta->own_status_slots_offset;
                     ctx->status_slot_size = meta->own_status_slot_size;
                     ctx->max_status_slots = meta->own_max_status_slots;
+                    ctx->slot_valid_offset = meta->slot_valid_offset;
+                    ctx->slot_online_offset = meta->slot_online_offset;
+                    ctx->slot_last_seen_offset = meta->slot_last_seen_offset;
                     ctx->slot_status_offset = meta->slot_status_offset;
                     ctx->status_count_offset = meta->own_status_count_offset;
                 }
@@ -772,11 +778,14 @@ const void* sds_find_node_status(const void* owner_table, const char* table_type
     
     const uint8_t* slots_base = (const uint8_t*)owner_table + ctx->status_slots_offset;
     
+    /* Use configured offset or fallback to standard layout */
+    size_t valid_offset = ctx->slot_valid_offset ? ctx->slot_valid_offset : SDS_MAX_NODE_ID_LEN;
+    
     /* Search for the node */
     for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
         const uint8_t* slot = slots_base + (i * ctx->status_slot_size);
         const char* slot_node_id = (const char*)slot;
-        const bool* slot_valid = (const bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        const bool* slot_valid = (const bool*)(slot + valid_offset);
         
         if (*slot_valid && strcmp(slot_node_id, node_id) == 0) {
             /* Return pointer to status within the slot */
@@ -797,11 +806,14 @@ void sds_foreach_node(const void* owner_table, const char* table_type, SdsNodeIt
     
     const uint8_t* slots_base = (const uint8_t*)owner_table + ctx->status_slots_offset;
     
+    /* Use configured offset or fallback to standard layout */
+    size_t valid_offset = ctx->slot_valid_offset ? ctx->slot_valid_offset : SDS_MAX_NODE_ID_LEN;
+    
     /* Iterate over all valid slots */
     for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
         const uint8_t* slot = slots_base + (i * ctx->status_slot_size);
         const char* slot_node_id = (const char*)slot;
-        const bool* slot_valid = (const bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        const bool* slot_valid = (const bool*)(slot + valid_offset);
         
         if (*slot_valid) {
             const void* status = slot + ctx->slot_status_offset;
@@ -818,18 +830,27 @@ bool sds_is_device_online(const void* owner_table, const char* table_type, const
     if (!ctx || ctx->role != SDS_ROLE_OWNER) return false;
     if (ctx->status_slots_offset == 0 || ctx->max_status_slots == 0) return false;
     
+    /* Require proper slot offsets for online detection */
+    if (ctx->slot_online_offset == 0 || ctx->slot_last_seen_offset == 0) {
+        SDS_LOG_W("sds_is_device_online: slot offsets not configured for %s", table_type);
+        return false;
+    }
+    
     const uint8_t* slots_base = (const uint8_t*)owner_table + ctx->status_slots_offset;
+    
+    /* Use configured offset or fallback to standard layout */
+    size_t valid_offset = ctx->slot_valid_offset ? ctx->slot_valid_offset : SDS_MAX_NODE_ID_LEN;
     
     /* Find the slot for this node */
     for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
         const uint8_t* slot = slots_base + (i * ctx->status_slot_size);
         const char* slot_node_id = (const char*)slot;
-        const bool* slot_valid = (const bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        const bool* slot_valid = (const bool*)(slot + valid_offset);
         
         if (*slot_valid && strcmp(slot_node_id, node_id) == 0) {
-            /* Found the slot - check online flag and last_seen */
-            const bool* slot_online = (const bool*)(slot + SDS_MAX_NODE_ID_LEN + sizeof(bool));
-            const uint32_t* slot_last_seen = (const uint32_t*)(slot + SDS_MAX_NODE_ID_LEN + 2 * sizeof(bool));
+            /* Found the slot - use proper offsets for online and last_seen */
+            const bool* slot_online = (const bool*)(slot + ctx->slot_online_offset);
+            const uint32_t* slot_last_seen = (const uint32_t*)(slot + ctx->slot_last_seen_offset);
             
             /* Check explicit online flag (false if LWT received) */
             if (!*slot_online) return false;
@@ -1075,11 +1096,14 @@ static void* find_or_alloc_status_slot(SdsTableContext* ctx, const char* node_id
     
     uint8_t* slots_base = (uint8_t*)ctx->table + ctx->status_slots_offset;
     
+    /* Use configured offset or fallback to standard layout */
+    size_t valid_offset = ctx->slot_valid_offset ? ctx->slot_valid_offset : SDS_MAX_NODE_ID_LEN;
+    
     /* Search for existing slot with this node_id */
     for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
         uint8_t* slot = slots_base + (i * ctx->status_slot_size);
         char* slot_node_id = (char*)slot;  /* node_id is first field */
-        bool* slot_valid = (bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        bool* slot_valid = (bool*)(slot + valid_offset);
         
         if (*slot_valid && strcmp(slot_node_id, node_id) == 0) {
             return slot;  /* Found existing slot */
@@ -1089,13 +1113,25 @@ static void* find_or_alloc_status_slot(SdsTableContext* ctx, const char* node_id
     /* Find first empty slot */
     for (uint8_t i = 0; i < ctx->max_status_slots; i++) {
         uint8_t* slot = slots_base + (i * ctx->status_slot_size);
-        bool* slot_valid = (bool*)(slot + SDS_MAX_NODE_ID_LEN);
+        bool* slot_valid = (bool*)(slot + valid_offset);
         
         if (!*slot_valid) {
             /* Initialize new slot */
             strncpy((char*)slot, node_id, SDS_MAX_NODE_ID_LEN - 1);
             ((char*)slot)[SDS_MAX_NODE_ID_LEN - 1] = '\0';
             *slot_valid = true;
+            
+            /* Initialize online flag if offset is configured */
+            if (ctx->slot_online_offset > 0) {
+                bool* slot_online = (bool*)(slot + ctx->slot_online_offset);
+                *slot_online = true;  /* Assume online until LWT says otherwise */
+            }
+            
+            /* Initialize last_seen_ms if offset is configured */
+            if (ctx->slot_last_seen_offset > 0) {
+                uint32_t* slot_last_seen = (uint32_t*)(slot + ctx->slot_last_seen_offset);
+                *slot_last_seen = sds_platform_millis();
+            }
             
             /* Increment status_count in owner table */
             if (ctx->status_count_offset > 0) {
@@ -1153,6 +1189,20 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
             ctx->status_callback(ctx->table_type, from_node);
         }
         return;
+    }
+    
+    /* Update last_seen_ms on every status message */
+    if (ctx->slot_last_seen_offset > 0) {
+        uint32_t* slot_last_seen = (uint32_t*)((uint8_t*)slot + ctx->slot_last_seen_offset);
+        *slot_last_seen = sds_platform_millis();
+    }
+    
+    /* Update online flag from the message (devices send online=true) */
+    if (ctx->slot_online_offset > 0) {
+        bool* slot_online = (bool*)((uint8_t*)slot + ctx->slot_online_offset);
+        bool msg_online = true;  /* Default to true */
+        sds_json_get_bool_field(&r, "online", &msg_online);
+        *slot_online = msg_online;
     }
     
     /* Get pointer to status data within the slot */

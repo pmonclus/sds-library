@@ -57,11 +57,14 @@ var searchData=
   ['serialize_5fstate_54',['serialize_state',['../struct_sds_table_meta.html#a3c57577f6ce36eead1176dff90504ebe',1,'SdsTableMeta']]],
   ['serialize_5fstatus_55',['serialize_status',['../struct_sds_table_meta.html#a53315a09941cb615ab2a1cbf444a2923',1,'SdsTableMeta']]],
   ['simple_20dds_56',['SDS (Simple DDS)',['../index.html',1,'']]],
-  ['slot_5fstatus_5foffset_57',['slot_status_offset',['../struct_sds_table_meta.html#a47f47505f0848b84fe4fa5afcde2609d',1,'SdsTableMeta']]],
-  ['specific_20considerations_58',['Platform-Specific Considerations',['../index.html#autotoc_md9',1,'']]],
-  ['stack_20usage_20per_20sync_20cycle_59',['Stack Usage (per sync cycle)',['../index.html#autotoc_md8',1,'']]],
-  ['start_60',['Quick Start',['../index.html#autotoc_md2',1,'']]],
-  ['static_20ram_20usage_61',['Static RAM Usage',['../index.html#autotoc_md6',1,'']]],
-  ['sync_20cycle_62',['Stack Usage (per sync cycle)',['../index.html#autotoc_md8',1,'']]],
-  ['sync_5finterval_5fms_63',['sync_interval_ms',['../struct_sds_table_options.html#a4fcaf0375bba4187a1a50223d698c9d7',1,'SdsTableOptions::sync_interval_ms'],['../struct_sds_table_meta.html#a511a03d5619a64e6480bd5d9a37818e8',1,'SdsTableMeta::sync_interval_ms']]]
+  ['slot_5flast_5fseen_5foffset_57',['slot_last_seen_offset',['../struct_sds_table_meta.html#a0e9a7af9946435d4b8dafbd7a71ad084',1,'SdsTableMeta']]],
+  ['slot_5fonline_5foffset_58',['slot_online_offset',['../struct_sds_table_meta.html#acdadc28382bb588cc098b5cd05408d93',1,'SdsTableMeta']]],
+  ['slot_5fstatus_5foffset_59',['slot_status_offset',['../struct_sds_table_meta.html#a47f47505f0848b84fe4fa5afcde2609d',1,'SdsTableMeta']]],
+  ['slot_5fvalid_5foffset_60',['slot_valid_offset',['../struct_sds_table_meta.html#a7929d08dd5a355f66d85e904fba1d32f',1,'SdsTableMeta']]],
+  ['specific_20considerations_61',['Platform-Specific Considerations',['../index.html#autotoc_md9',1,'']]],
+  ['stack_20usage_20per_20sync_20cycle_62',['Stack Usage (per sync cycle)',['../index.html#autotoc_md8',1,'']]],
+  ['start_63',['Quick Start',['../index.html#autotoc_md2',1,'']]],
+  ['static_20ram_20usage_64',['Static RAM Usage',['../index.html#autotoc_md6',1,'']]],
+  ['sync_20cycle_65',['Stack Usage (per sync cycle)',['../index.html#autotoc_md8',1,'']]],
+  ['sync_5finterval_5fms_66',['sync_interval_ms',['../struct_sds_table_options.html#a4fcaf0375bba4187a1a50223d698c9d7',1,'SdsTableOptions::sync_interval_ms'],['../struct_sds_table_meta.html#a511a03d5619a64e6480bd5d9a37818e8',1,'SdsTableMeta::sync_interval_ms']]]
 ];

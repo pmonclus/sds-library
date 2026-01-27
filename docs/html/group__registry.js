@@ -24,7 +24,10 @@ var group__registry =
       [ "serialize_config", "struct_sds_table_meta.html#afc7ea21149fa91ea837ba29d23ff51f3", null ],
       [ "serialize_state", "struct_sds_table_meta.html#a3c57577f6ce36eead1176dff90504ebe", null ],
       [ "serialize_status", "struct_sds_table_meta.html#a53315a09941cb615ab2a1cbf444a2923", null ],
+      [ "slot_last_seen_offset", "struct_sds_table_meta.html#a0e9a7af9946435d4b8dafbd7a71ad084", null ],
+      [ "slot_online_offset", "struct_sds_table_meta.html#acdadc28382bb588cc098b5cd05408d93", null ],
       [ "slot_status_offset", "struct_sds_table_meta.html#a47f47505f0848b84fe4fa5afcde2609d", null ],
+      [ "slot_valid_offset", "struct_sds_table_meta.html#a7929d08dd5a355f66d85e904fba1d32f", null ],
       [ "sync_interval_ms", "struct_sds_table_meta.html#a511a03d5619a64e6480bd5d9a37818e8", null ],
       [ "table_type", "struct_sds_table_meta.html#a9d6ad0dfd153b57e9432588cb3732ac9", null ]
     ] ],

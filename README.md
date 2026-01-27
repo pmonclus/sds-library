@@ -142,12 +142,12 @@ brew services start mosquitto  # or: sudo systemctl start mosquitto
 
 ## Testing
 
-The library includes **167 unit tests** with **~84% code coverage**.
+The library includes **177 unit tests** with **~84% code coverage**.
 
 | Test Suite | Tests | MQTT Required | Description |
 |------------|-------|---------------|-------------|
 | `test_unit_core` | 45 | No | Core SDS functionality |
-| `test_json` | 65 | No | JSON serialization/parsing |
+| `test_json` | 75 | No | JSON serialization/parsing |
 | `test_utilities` | 23 | No | Utility functions |
 | `test_reconnection` | 11 | No | Reconnection scenarios |
 | `test_buffer_overflow` | 16 | No | Buffer limits |

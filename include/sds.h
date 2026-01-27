@@ -317,6 +317,9 @@ typedef struct {
     size_t own_status_slots_offset;     /**< offsetof(OwnerTable, status_slots) */
     size_t own_status_slot_size;        /**< sizeof(StatusSlot) */
     size_t own_status_count_offset;     /**< offsetof(OwnerTable, status_count) */
+    size_t slot_valid_offset;           /**< offsetof(StatusSlot, valid) */
+    size_t slot_online_offset;          /**< offsetof(StatusSlot, online) */
+    size_t slot_last_seen_offset;       /**< offsetof(StatusSlot, last_seen_ms) */
     size_t slot_status_offset;          /**< offsetof(StatusSlot, status) */
     uint8_t own_max_status_slots;       /**< Maximum device slots (SDS_GENERATED_MAX_NODES) */
     

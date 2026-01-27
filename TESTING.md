@@ -4,11 +4,11 @@ This document describes the comprehensive test suite for the SDS library.
 
 ## Test Suite Overview
 
-The library has **167 unit tests** achieving **~84% code coverage**.
+The library has **177 unit tests** achieving **~84% code coverage**.
 
 | Category | Tests | MQTT Broker | Runtime |
 |----------|-------|-------------|---------|
-| Unit Tests (Mock) | 167 | No | ~0.5s |
+| Unit Tests (Mock) | 177 | No | ~0.5s |
 | Integration Tests | ~6 suites | Yes | ~60s |
 | Scale Tests | 1 | Yes | configurable |
 | Fuzz Tests | 2 targets | No | configurable |
@@ -49,7 +49,7 @@ Core SDS library functionality.
 ./build/test_unit_core
 ```
 
-### `test_json` (65 tests)
+### `test_json` (75 tests)
 
 JSON serialization and parsing.
 
@@ -58,6 +58,8 @@ JSON serialization and parsing.
 | Writer | strings, integers, floats, booleans, nested objects |
 | Reader | field extraction, type parsing, error handling |
 | Edge Cases | escaping, unicode, buffer limits, malformed input |
+| Escape Sequences | unescape quotes/backslash/newlines, control char escaping |
+| Integer Overflow | int32/uint32/uint8 range validation |
 | Round-trip | serialize then deserialize validation |
 
 ```bash

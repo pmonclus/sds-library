@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
+#include <errno.h>
 
 /* ============== JSON Writer ============== */
 
@@ -47,33 +49,54 @@ static void json_append_char(SdsJsonWriter* w, char c) {
 }
 
 /**
+ * Append a hex digit character.
+ */
+static char hex_digit(int n) {
+    return (n < 10) ? ('0' + n) : ('a' + n - 10);
+}
+
+/**
  * Append a string with JSON escaping for special characters.
- * Escapes: " \ newline tab carriage-return
+ * Escapes: " \ / backspace formfeed newline carriage-return tab
+ * Control characters (0x00-0x1F) are escaped as \uXXXX.
  */
 static void json_append_escaped(SdsJsonWriter* w, const char* str) {
     if (w->error || !str) return;
     
     while (*str) {
-        char c = *str++;
+        unsigned char c = (unsigned char)*str++;
         
         /* Check if we need to escape this character */
         const char* escape_seq = NULL;
         switch (c) {
             case '"':  escape_seq = "\\\""; break;
             case '\\': escape_seq = "\\\\"; break;
+            case '\b': escape_seq = "\\b";  break;
+            case '\f': escape_seq = "\\f";  break;
             case '\n': escape_seq = "\\n";  break;
             case '\r': escape_seq = "\\r";  break;
             case '\t': escape_seq = "\\t";  break;
             default:
-                /* Control characters (0x00-0x1F) should be escaped, but we'll 
-                 * skip them for simplicity in embedded systems */
-                if (c >= 0x20) {
+                if (c < 0x20) {
+                    /* Control characters: escape as \u00XX */
+                    if (w->pos + 6 >= w->size) {
+                        w->error = true;
+                        return;
+                    }
+                    w->buffer[w->pos++] = '\\';
+                    w->buffer[w->pos++] = 'u';
+                    w->buffer[w->pos++] = '0';
+                    w->buffer[w->pos++] = '0';
+                    w->buffer[w->pos++] = hex_digit((c >> 4) & 0xF);
+                    w->buffer[w->pos++] = hex_digit(c & 0xF);
+                    w->buffer[w->pos] = '\0';
+                } else {
                     json_append_char(w, c);
                 }
                 continue;
         }
         
-        /* Append the escape sequence */
+        /* Append the 2-char escape sequence */
         if (escape_seq) {
             /* Check we have room for 2 chars */
             if (w->pos + 2 >= w->size) {
@@ -222,7 +245,48 @@ const char* sds_json_find_field(SdsJsonReader* r, const char* key) {
 }
 
 /**
- * Parse a JSON string value with bounds checking.
+ * Decode a JSON escape sequence.
+ * 
+ * @param src Pointer to character after backslash
+ * @param out Output character
+ * @return Number of source characters consumed (1 for simple escapes), or 0 on error
+ */
+static size_t decode_escape(const char* src, char* out) {
+    switch (*src) {
+        case '"':  *out = '"';  return 1;
+        case '\\': *out = '\\'; return 1;
+        case '/':  *out = '/';  return 1;
+        case 'b':  *out = '\b'; return 1;
+        case 'f':  *out = '\f'; return 1;
+        case 'n':  *out = '\n'; return 1;
+        case 'r':  *out = '\r'; return 1;
+        case 't':  *out = '\t'; return 1;
+        case 'u':
+            /* \uXXXX - for embedded systems, we skip full unicode support
+             * and just pass through as '?' for non-ASCII values */
+            if (src[1] && src[2] && src[3] && src[4]) {
+                /* Parse 4 hex digits */
+                unsigned int codepoint = 0;
+                for (int j = 1; j <= 4; j++) {
+                    char c = src[j];
+                    codepoint <<= 4;
+                    if (c >= '0' && c <= '9') codepoint |= (c - '0');
+                    else if (c >= 'a' && c <= 'f') codepoint |= (c - 'a' + 10);
+                    else if (c >= 'A' && c <= 'F') codepoint |= (c - 'A' + 10);
+                    else return 0;  /* Invalid hex digit */
+                }
+                /* For ASCII range, output directly; otherwise use '?' */
+                *out = (codepoint < 128) ? (char)codepoint : '?';
+                return 5;  /* u + 4 hex digits */
+            }
+            return 0;  /* Incomplete \uXXXX */
+        default:
+            return 0;  /* Unknown escape */
+    }
+}
+
+/**
+ * Parse a JSON string value with bounds checking and escape sequence handling.
  * 
  * @param value Pointer to opening quote of the string value
  * @param max_len Maximum bytes to read from value (remaining in buffer)
@@ -244,8 +308,23 @@ static bool parse_string_bounded(const char* value, size_t max_len, char* out, s
     
     /* Read until closing quote, respecting both max_len and out_size */
     while (max_len > 0 && *value != '"' && *value != '\0' && i < out_size - 1) {
-        out[i++] = *value++;
-        max_len--;
+        if (*value == '\\' && max_len > 1) {
+            /* Handle escape sequence */
+            char decoded;
+            size_t consumed = decode_escape(value + 1, &decoded);
+            if (consumed > 0 && consumed < max_len) {
+                out[i++] = decoded;
+                value += 1 + consumed;  /* Skip backslash + escape chars */
+                max_len -= 1 + consumed;
+            } else {
+                /* Invalid escape - copy literally */
+                out[i++] = *value++;
+                max_len--;
+            }
+        } else {
+            out[i++] = *value++;
+            max_len--;
+        }
     }
     out[i] = '\0';
     
@@ -266,7 +345,20 @@ bool sds_json_parse_string(const char* value, char* out, size_t out_size) {
     size_t i = 0;
     
     while (*value && *value != '"' && i < out_size - 1) {
-        out[i++] = *value++;
+        if (*value == '\\' && value[1]) {
+            /* Handle escape sequence */
+            char decoded;
+            size_t consumed = decode_escape(value + 1, &decoded);
+            if (consumed > 0) {
+                out[i++] = decoded;
+                value += 1 + consumed;  /* Skip backslash + escape chars */
+            } else {
+                /* Invalid escape - copy literally */
+                out[i++] = *value++;
+            }
+        } else {
+            out[i++] = *value++;
+        }
     }
     out[i] = '\0';
     
@@ -276,9 +368,18 @@ bool sds_json_parse_string(const char* value, char* out, size_t out_size) {
 bool sds_json_parse_int(const char* value, int32_t* out) {
     if (!value) return false;
     
+    errno = 0;
     char* endptr;
     long val = strtol(value, &endptr, 10);
+    
+    /* Check for parse error */
     if (endptr == value) return false;
+    
+    /* Check for overflow/underflow */
+    if (errno == ERANGE) return false;
+    
+    /* Check if value fits in int32_t (important on 64-bit systems where long > 32 bits) */
+    if (val < INT32_MIN || val > INT32_MAX) return false;
     
     *out = (int32_t)val;
     return true;
@@ -287,9 +388,22 @@ bool sds_json_parse_int(const char* value, int32_t* out) {
 bool sds_json_parse_uint(const char* value, uint32_t* out) {
     if (!value) return false;
     
+    /* Check for negative sign - strtoul accepts negative numbers */
+    while (isspace((unsigned char)*value)) value++;
+    if (*value == '-') return false;
+    
+    errno = 0;
     char* endptr;
     unsigned long val = strtoul(value, &endptr, 10);
+    
+    /* Check for parse error */
     if (endptr == value) return false;
+    
+    /* Check for overflow */
+    if (errno == ERANGE) return false;
+    
+    /* Check if value fits in uint32_t (important on 64-bit systems where long > 32 bits) */
+    if (val > UINT32_MAX) return false;
     
     *out = (uint32_t)val;
     return true;
@@ -356,6 +470,10 @@ bool sds_json_get_bool_field(SdsJsonReader* r, const char* key, bool* out) {
 bool sds_json_get_uint8_field(SdsJsonReader* r, const char* key, uint8_t* out) {
     uint32_t val;
     if (!sds_json_get_uint_field(r, key, &val)) return false;
+    
+    /* Check if value fits in uint8_t */
+    if (val > 255) return false;
+    
     *out = (uint8_t)val;
     return true;
 }
