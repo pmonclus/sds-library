@@ -54,12 +54,14 @@ The SDS library is a **lightweight, well-designed state synchronization library*
 
 ### 🔴 Missing Features for Enterprise
 
-| Feature | Priority | Effort |
-|---------|----------|--------|
-| Last Will & Testament (LWT) | Medium | Low |
-| Message persistence/queuing | Low | High |
-| Multi-broker failover | Low | Medium |
-| Schema versioning/migration | Medium | Medium |
+| Feature | Priority | Effort | Status |
+|---------|----------|--------|--------|
+| Last Will & Testament (LWT) | Medium | Low | ✅ **Implemented** |
+| Message persistence/queuing | Low | High | ❌ Not implemented |
+| Multi-broker failover | Low | Medium | ❌ Not implemented |
+| Schema versioning/migration | Medium | Medium | ✅ **Implemented** |
+
+> **Note:** LWT is fully implemented - the library publishes an offline message on graceful shutdown and configures the broker to send LWT on unexpected disconnects. Schema versioning is also implemented via `sds_get_schema_version()` and `sds_on_version_mismatch()`.
 
 ---
 
