@@ -1,9 +1,10 @@
 var searchData=
 [
-  ['actuatordataconfig_0',['ActuatorDataConfig',['../struct_actuator_data_config.html',1,'']]],
-  ['actuatordataownertable_1',['ActuatorDataOwnerTable',['../struct_actuator_data_owner_table.html',1,'']]],
-  ['actuatordatastate_2',['ActuatorDataState',['../struct_actuator_data_state.html',1,'']]],
-  ['actuatordatastatus_3',['ActuatorDataStatus',['../struct_actuator_data_status.html',1,'']]],
-  ['actuatordatastatusslot_4',['ActuatorDataStatusSlot',['../struct_actuator_data_status_slot.html',1,'']]],
-  ['actuatordatatable_5',['ActuatorDataTable',['../struct_actuator_data_table.html',1,'']]]
+  ['sdsclient_0',['SDSClient',['../class_s_d_s_client.html',1,'']]],
+  ['sdsconfig_1',['SdsConfig',['../struct_sds_config.html',1,'']]],
+  ['sdsjsonreader_2',['SdsJsonReader',['../struct_sds_json_reader.html',1,'']]],
+  ['sdsjsonwriter_3',['SdsJsonWriter',['../struct_sds_json_writer.html',1,'']]],
+  ['sdsstats_4',['SdsStats',['../struct_sds_stats.html',1,'']]],
+  ['sdstablemeta_5',['SdsTableMeta',['../struct_sds_table_meta.html',1,'']]],
+  ['sdstableoptions_6',['SdsTableOptions',['../struct_sds_table_options.html',1,'']]]
 ];

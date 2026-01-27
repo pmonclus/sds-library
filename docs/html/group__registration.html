@@ -160,14 +160,13 @@ Functions</h2></td></tr>
 
 <p>Register a table using the metadata registry. </p>
 <p>This is the simple, user-friendly registration API. It looks up the table type in the generated metadata registry and automatically provides all serialization callbacks.</p>
-<div class="fragment"><div class="line"><a class="code hl_struct" href="struct_sensor_data_table.html">SensorDataTable</a> sensor_table = {0};</div>
+<div class="fragment"><div class="line">SensorDataTable sensor_table = {0};</div>
 <div class="line">SdsError err = <a class="code hl_function" href="#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a>(&amp;sensor_table, <span class="stringliteral">&quot;SensorData&quot;</span>, <a class="code hl_enumvalue" href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a>, NULL);</div>
 <div class="line"><span class="keywordflow">if</span> (err != SDS_OK) {</div>
 <div class="line">    printf(<span class="stringliteral">&quot;Failed: %s\n&quot;</span>, sds_error_string(err));</div>
 <div class="line">}</div>
 <div class="ttc" id="agroup__registration_html_ga0ecdb264b6ba8215cd48675e50dcbbe4"><div class="ttname"><a href="#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a></div><div class="ttdeci">SdsError sds_register_table(void *table, const char *table_type, SdsRole role, const SdsTableOptions *options)</div><div class="ttdoc">Register a table using the metadata registry.</div></div>
 <div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:106</div></div>
-<div class="ttc" id="astruct_sensor_data_table_html"><div class="ttname"><a href="struct_sensor_data_table.html">SensorDataTable</a></div><div class="ttdef"><b>Definition</b> sds_types.h:46</div></div>
 </div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">table</td><td>Pointer to table structure (DeviceTable or OwnerTable) </td></tr>

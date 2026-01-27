@@ -233,7 +233,7 @@ Basic Usage</h1>
 <div class="line">};</div>
 <div class="line"> </div>
 <div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a>(&amp;config) == SDS_OK) {</div>
-<div class="line">    <a class="code hl_struct" href="struct_sensor_data_table.html">SensorDataTable</a> table = {0};</div>
+<div class="line">    SensorDataTable table = {0};</div>
 <div class="line">    <a class="code hl_function" href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a>(&amp;table, <span class="stringliteral">&quot;SensorData&quot;</span>, <a class="code hl_enumvalue" href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a>, NULL);</div>
 <div class="line">    </div>
 <div class="line">    <span class="keywordflow">while</span> (running) {</div>
@@ -250,7 +250,6 @@ Basic Usage</h1>
 <div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:106</div></div>
 <div class="ttc" id="asds_8h_html"><div class="ttname"><a href="sds_8h.html">sds.h</a></div><div class="ttdoc">SDS (Simple DDS) Core API Header.</div></div>
 <div class="ttc" id="astruct_sds_config_html"><div class="ttname"><a href="struct_sds_config.html">SdsConfig</a></div><div class="ttdoc">Configuration for SDS initialization.</div><div class="ttdef"><b>Definition</b> sds.h:117</div></div>
-<div class="ttc" id="astruct_sensor_data_table_html"><div class="ttname"><a href="struct_sensor_data_table.html">SensorDataTable</a></div><div class="ttdef"><b>Definition</b> sds_types.h:46</div></div>
 </div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="roles"></a>
 Device vs Owner Roles</h1>
 <ul>

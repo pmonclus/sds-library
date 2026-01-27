@@ -33,6 +33,10 @@ FILE_PATTERNS          = *.h *.md
 RECURSIVE              = NO
 USE_MDFILE_AS_MAINPAGE = README.md
 
+# Exclude generated example types (SensorData, ActuatorData)
+# These are schema-generated examples, not core library API
+EXCLUDE                = include/sds_types.h
+
 #---------------------------------------------------------------------------
 # Source browsing related options
 #---------------------------------------------------------------------------
