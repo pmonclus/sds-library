@@ -93,6 +93,13 @@ static size_t _table_registry_count = 0;
 /* Error callback for async error notifications */
 static SdsErrorCallback _error_callback = NULL;
 
+/* Reconnection backoff state */
+static uint32_t _reconnect_backoff_ms = 0;
+static uint32_t _last_reconnect_attempt_ms = 0;
+#define SDS_RECONNECT_INITIAL_MS   1000   /* Start with 1 second */
+#define SDS_RECONNECT_MAX_MS       60000  /* Max 60 seconds */
+#define SDS_RECONNECT_MULTIPLIER   2      /* Double each time */
+
 /* ============== Forward Declarations ============== */
 
 static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t payload_len);
@@ -203,6 +210,10 @@ SdsError sds_init(const SdsConfig* config) {
     _table_count = 0;
     memset(&_stats, 0, sizeof(_stats));
     
+    /* Reset reconnect backoff */
+    _reconnect_backoff_ms = 0;
+    _last_reconnect_attempt_ms = 0;
+    
     /* Set MQTT callback */
     sds_platform_mqtt_set_callback(on_mqtt_message);
     
@@ -238,7 +249,29 @@ void sds_loop(void) {
     
     /* Check MQTT connection */
     if (!sds_platform_mqtt_connected()) {
-        SDS_LOG_W("MQTT disconnected, attempting reconnect...");
+        uint32_t now = sds_platform_millis();
+        
+        /* Apply exponential backoff */
+        if (_reconnect_backoff_ms > 0) {
+            uint32_t elapsed = now - _last_reconnect_attempt_ms;
+            if (elapsed < _reconnect_backoff_ms) {
+                /* Not yet time to retry */
+                return;
+            }
+        }
+        
+        /* Initialize or increase backoff */
+        if (_reconnect_backoff_ms == 0) {
+            _reconnect_backoff_ms = SDS_RECONNECT_INITIAL_MS;
+        } else {
+            _reconnect_backoff_ms *= SDS_RECONNECT_MULTIPLIER;
+            if (_reconnect_backoff_ms > SDS_RECONNECT_MAX_MS) {
+                _reconnect_backoff_ms = SDS_RECONNECT_MAX_MS;
+            }
+        }
+        
+        _last_reconnect_attempt_ms = now;
+        SDS_LOG_W("MQTT disconnected, attempting reconnect (backoff: %u ms)...", _reconnect_backoff_ms);
         
         /* Rebuild LWT for reconnect */
         char lwt_topic[SDS_TOPIC_BUFFER_SIZE];
@@ -250,6 +283,12 @@ void sds_loop(void) {
                 _mqtt_broker, _mqtt_port, _node_id,
                 lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true)) {
             _stats.reconnect_count++;
+            SDS_LOG_I("MQTT reconnected successfully");
+            
+            /* Reset backoff on success */
+            _reconnect_backoff_ms = 0;
+            
+            /* Re-subscribe to all tables */
             for (int i = 0; i < SDS_MAX_TABLES; i++) {
                 if (_tables[i].active) {
                     subscribe_table_topics(&_tables[i]);
@@ -257,6 +296,7 @@ void sds_loop(void) {
             }
         } else {
             notify_error(SDS_ERR_MQTT_DISCONNECTED, "Reconnect failed");
+            SDS_LOG_W("Reconnect failed, next attempt in %u ms", _reconnect_backoff_ms);
         }
         return;
     }
@@ -312,6 +352,9 @@ bool sds_is_ready(void) {
 }
 
 const char* sds_get_node_id(void) {
+    if (!_initialized) {
+        return NULL;
+    }
     return _node_id;
 }
 

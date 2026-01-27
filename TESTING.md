@@ -26,6 +26,7 @@ This document describes the test suite for the SDS library, including test descr
 | Test | Type | Duration | Description |
 |------|------|----------|-------------|
 | `test_json` | Unit | <1s | JSON serialization/parsing |
+| `test_errors` | Unit | <1s | Error handling paths |
 | `test_sds_basic` | Unit | ~7s | Core API functionality |
 | `test_simple_api` | Unit | ~5s | Simple registration API |
 | `test_generated` | Integration | ~15s | Multi-node with generated types |
@@ -38,6 +39,14 @@ Use the automated test runner:
 
 ```bash
 ./run_tests.sh
+```
+
+### Options
+
+```bash
+./run_tests.sh --quick      # Skip multi-node integration tests
+./run_tests.sh --verbose    # Show full test output
+./run_tests.sh --valgrind   # Run with valgrind memory checking
 ```
 
 Or run individual tests manually (see below).
@@ -98,7 +107,38 @@ Or run individual tests manually (see below).
 
 ---
 
-### 3. `test_generated`
+### 3. `test_errors`
+
+**Purpose**: Validates error handling paths, invalid inputs, and boundary conditions.
+
+**What it tests**:
+- ✅ NULL config handling
+- ✅ NULL broker handling
+- ✅ Broker string too long
+- ✅ Node ID too long
+- ✅ Double initialization rejection
+- ✅ Registration before init
+- ✅ NULL table registration
+- ✅ NULL type registration
+- ✅ Unknown table type rejection
+- ✅ Invalid role handling
+- ✅ Duplicate registration rejection
+- ✅ Error string mappings
+- ✅ API state when not initialized
+- ✅ Error callback registration
+- ✅ Max tables limit
+- ✅ Stats after init
+
+**Run manually**:
+```bash
+./build/test_errors [broker_ip]
+```
+
+**Expected output**: `Results: X passed, 0 failed`
+
+---
+
+### 4. `test_generated`
 
 **Purpose**: Integration test validating multi-node communication using generated types from `sds_types.h`.
 
@@ -143,7 +183,7 @@ wait
 
 ---
 
-### 4. `test_multi_node`
+### 5. `test_multi_node`
 
 **Purpose**: Integration test with TableA/TableB schema validating complex multi-node scenarios.
 
@@ -175,7 +215,7 @@ wait
 
 ---
 
-### 5. `test_liveness`
+### 6. `test_liveness`
 
 **Purpose**: Validates the liveness/heartbeat detection mechanism between owner and device nodes.
 

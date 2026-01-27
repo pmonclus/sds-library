@@ -27,6 +27,7 @@ MULTI_NODE_DURATION=16  # seconds to wait for multi-node tests
 # Options
 QUICK_MODE=false
 VERBOSE=false
+VALGRIND=false
 
 # Test results
 TESTS_PASSED=0
@@ -44,6 +45,10 @@ for arg in "$@"; do
             VERBOSE=true
             shift
             ;;
+        --valgrind)
+            VALGRIND=true
+            shift
+            ;;
         --help|-h)
             echo "SDS Library Test Runner"
             echo ""
@@ -52,6 +57,7 @@ for arg in "$@"; do
             echo "Options:"
             echo "  --quick, -q     Skip multi-node integration tests"
             echo "  --verbose, -v   Show full test output"
+            echo "  --valgrind      Run tests under valgrind for memory checking"
             echo "  --help, -h      Show this help message"
             echo ""
             echo "Exit codes:"
@@ -132,12 +138,28 @@ run_single_test() {
     
     local output
     local exit_code
+    local cmd="$BUILD_DIR/$test_binary"
     
-    output=$("$BUILD_DIR/$test_binary" "$BROKER_HOST" 2>&1) || exit_code=$?
+    if $VALGRIND; then
+        cmd="valgrind --leak-check=full --error-exitcode=99 --quiet $cmd"
+        echo "  (running with valgrind)"
+    fi
+    
+    output=$($cmd "$BROKER_HOST" 2>&1) || exit_code=$?
     exit_code=${exit_code:-0}
     
     if $VERBOSE; then
         echo "$output"
+    fi
+    
+    # Check for valgrind memory errors
+    if $VALGRIND && [ $exit_code -eq 99 ]; then
+        echo -e "${RED}  Valgrind detected memory errors!${NC}"
+        if ! $VERBOSE; then
+            echo "$output" | grep -A5 "LEAK SUMMARY\|ERROR SUMMARY" || true
+        fi
+        print_fail "$test_name (memory errors)"
+        return 1
     fi
     
     if [ $exit_code -eq 0 ]; then
@@ -345,6 +367,7 @@ echo "  Build directory: $BUILD_DIR"
 echo "  MQTT broker: $BROKER_HOST:$BROKER_PORT"
 echo "  Quick mode: $QUICK_MODE"
 echo "  Verbose: $VERBOSE"
+echo "  Valgrind: $VALGRIND"
 
 # Pre-flight checks
 check_mqtt_broker
@@ -356,6 +379,7 @@ build_project
 print_header "Unit Tests"
 
 run_single_test "test_json" "test_json" "JSON serialization/parsing" || true
+run_single_test "test_errors" "test_errors" "Error handling paths" || true
 run_single_test "test_sds_basic" "test_sds_basic" "Core API functionality" || true
 run_single_test "test_simple_api" "test_simple_api" "Simple registration API" || true
 

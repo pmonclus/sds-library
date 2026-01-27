@@ -71,6 +71,10 @@ if(SDS_BUILD_TESTS)
     target_link_libraries(test_liveness sds ${PAHO_MQTT_LIB})
     target_include_directories(test_liveness PRIVATE ${PAHO_MQTT_INCLUDE})
     
+    add_executable(test_errors tests/test_errors.c)
+    target_link_libraries(test_errors sds ${PAHO_MQTT_LIB})
+    target_include_directories(test_errors PRIVATE ${PAHO_MQTT_INCLUDE})
+    
     # JSON-only test (no MQTT dependency)
     add_executable(test_json tests/test_json.c src/sds_json.c)
     target_include_directories(test_json PRIVATE include)
@@ -82,6 +86,7 @@ if(SDS_BUILD_TESTS)
         target_include_directories(test_generated PRIVATE /opt/homebrew/include /usr/local/include)
         target_include_directories(test_simple_api PRIVATE /opt/homebrew/include /usr/local/include)
         target_include_directories(test_liveness PRIVATE /opt/homebrew/include /usr/local/include)
+        target_include_directories(test_errors PRIVATE /opt/homebrew/include /usr/local/include)
     endif()
 endif()
 

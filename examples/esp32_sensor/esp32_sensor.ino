@@ -16,7 +16,7 @@
  */
 
 #include "config.h"
-#include <SDS.h>
+#include "sds.h"        /* SDS library header */
 #include "sds_types.h"  /* Generated from schema.sds */
 
 /* WiFi library - auto-selected based on platform */
