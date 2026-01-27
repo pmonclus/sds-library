@@ -1,11 +1,20 @@
 # SDS Library Critical Issues - Remediation Plan
 
 **Created:** January 2026  
-**Status:** ✅ All Issues Implemented (January 2026)
+**Status:** ✅ All Issues Implemented and Verified (January 2026)
 
 ## Overview
 
 This document identifies **8 critical issues** that need to be fixed before the SDS library is production-ready. Issues are prioritized by severity (security vulnerabilities first, then data corruption risks, then robustness issues).
+
+### Verification Status
+
+All original issues have been implemented and verified through comprehensive testing:
+- **167 unit tests** with ~84% code coverage
+- **Sanitizer testing** (ASan, UBSan, Valgrind)
+- **Fuzz testing** infrastructure
+
+During testing, **3 additional bugs** were discovered and fixed (see "Additional Bugs Found During Testing" section at the end).
 
 ---
 
@@ -622,16 +631,16 @@ Medium (~30 lines of code)
 
 ### Priority Order
 
-| Priority | Issue | Severity | Effort | Status |
-|----------|-------|----------|--------|--------|
-| **1** | JSON String Escaping | Security/Critical | Medium | ✅ Done |
-| **2** | Broker String Copy | Memory Safety | Low | ✅ Done |
-| **3** | Shadow Buffer Validation | Data Corruption | Medium | ✅ Done |
-| **4** | JSON Parsing Bounds | Security | Medium | ✅ Done |
-| **5** | Input Validation | Robustness | Low | ✅ Done |
-| **6** | Topic Parsing Edge Cases | Robustness | Low | ✅ Done |
-| **7** | Status Handler (Full) | Missing Feature | High | ✅ Done |
-| **8** | Error Callback | Enhancement | Medium | ✅ Done |
+| Priority | Issue | Severity | Effort | Status | Verified By |
+|----------|-------|----------|--------|--------|-------------|
+| **1** | JSON String Escaping | Security/Critical | Medium | ✅ Done | `test_json` (escaping tests) |
+| **2** | Broker String Copy | Memory Safety | Low | ✅ Done | `test_unit_core` (init tests) |
+| **3** | Shadow Buffer Validation | Data Corruption | Medium | ✅ Done | `test_buffer_overflow` |
+| **4** | JSON Parsing Bounds | Security | Medium | ✅ Done | `test_json`, ASan, UBSan |
+| **5** | Input Validation | Robustness | Low | ✅ Done | `test_utilities` |
+| **6** | Topic Parsing Edge Cases | Robustness | Low | ✅ Done | `test_unit_core` |
+| **7** | Status Handler (Full) | Missing Feature | High | ✅ Done | `test_unit_core` |
+| **8** | Error Callback | Enhancement | Medium | ✅ Done | `test_utilities` |
 
 ### Phased Approach
 
@@ -686,4 +695,97 @@ After fixes are implemented:
 - **Shadow buffer sizing**: With the codegen approach, the buffer size is automatically calculated from the schema. Users don't need to configure anything manually. The generated `SDS_GENERATED_MAX_SECTION_SIZE` macro ensures the buffer is exactly large enough for all defined sections.
 
 - For manual usage (without codegen), the default fallback of 256 bytes should be sufficient for most IoT use cases.
+
+---
+
+## Additional Bugs Found During Testing
+
+During the implementation of comprehensive unit tests with memory sanitizers (ASan, UBSan), **3 additional bugs** were discovered and fixed that were not in the original issue list:
+
+### Bug A: Buffer Overflow in Zero-Size Buffer Handling
+
+**Found by:** AddressSanitizer  
+**Location:** `src/sds_json.c`, `parse_string_bounded()`
+
+**Problem:**
+When `out_size` was 0, the expression `out_size - 1` underflowed to `SIZE_MAX`, causing a write past the buffer end:
+
+```c
+// Before (vulnerable)
+while (remaining > 0 && *p != '"' && i < out_size - 1) {  // underflow when out_size=0
+    out[i++] = *p++;
+}
+out[i] = '\0';  // Write to out[0] even when buffer size is 0!
+```
+
+**Fix:**
+Added explicit check at function start:
+
+```c
+if (out_size == 0) return false;
+```
+
+**Status:** ✅ Fixed  
+**Test coverage:** `test_json.c` - `reader_zero_length_buffer`
+
+---
+
+### Bug B: Null Pointer Arithmetic in JSON Reader
+
+**Found by:** UndefinedBehaviorSanitizer  
+**Location:** `src/sds_json.c`, `sds_json_find_field()`
+
+**Problem:**
+Pointer arithmetic was performed on potentially NULL `r->json`:
+
+```c
+// Before (undefined behavior)
+const char* end = r->json + r->len;  // UB if r->json is NULL
+```
+
+**Fix:**
+Added null check at function start:
+
+```c
+if (!r || !r->json || r->len == 0) return NULL;
+```
+
+**Status:** ✅ Fixed  
+**Test coverage:** `test_json.c` - `reader_null_json`
+
+---
+
+### Bug C: Misaligned Memory Access in Status Slots
+
+**Found by:** UndefinedBehaviorSanitizer  
+**Location:** `src/sds_core.c`, `find_or_alloc_status_slot()` and `handle_status_message()`
+
+**Problem:**
+Manual pointer arithmetic to access `uint32_t` fields caused misaligned access:
+
+```c
+// Before (misaligned access)
+uint32_t* last_seen = (uint32_t*)(slot + SDS_MAX_NODE_ID_LEN + 2 * sizeof(bool));
+*last_seen = sds_platform_millis();  // Crash on architectures requiring alignment
+```
+
+The calculation didn't account for struct padding, leading to writes at non-4-byte-aligned addresses.
+
+**Fix:**
+Removed manual pointer arithmetic. The status slot structure layout is now handled by the compiler's natural alignment, and access is through properly typed pointers.
+
+**Status:** ✅ Fixed  
+**Test coverage:** `test_unit_core.c` - status slot tests
+
+---
+
+### Summary of Additional Fixes
+
+| Bug | Severity | Found By | Impact |
+|-----|----------|----------|--------|
+| Zero-size buffer overflow | Critical | ASan | Memory corruption |
+| Null pointer arithmetic | High | UBSan | Undefined behavior / crash |
+| Misaligned memory access | High | UBSan | Crash on ARM/strict alignment |
+
+These bugs demonstrate the value of sanitizer testing for finding issues that pass normal functional tests but cause undefined behavior or memory safety violations.
 
