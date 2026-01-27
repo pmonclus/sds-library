@@ -266,6 +266,7 @@ __attribute__((constructor))
 #endif
 static void _sds_auto_register_types(void) {
     sds_set_table_registry(SDS_TABLE_REGISTRY, SDS_TABLE_REGISTRY_COUNT);
+    sds_set_schema_version(SDS_SCHEMA_VERSION);
 }
 
 #endif /* SDS_TYPES_H */

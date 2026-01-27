@@ -10,6 +10,9 @@ A lightweight MQTT-based state synchronization library for embedded systems.
 - **Cross-platform**: ESP32/ESP8266/Arduino + macOS/Linux
 - **Liveness detection**: Automatic heartbeats with configurable intervals
 - **LWT support**: Broker notifies on unexpected disconnects
+- **MQTT authentication**: Optional username/password support
+- **Schema versioning**: Detect and handle version mismatches between nodes
+- **Runtime log level**: Adjust logging verbosity without recompiling
 
 ## Quick Start
 
@@ -23,7 +26,9 @@ void setup() {
     SdsConfig config = {
         .node_id = "sensor_A",
         .mqtt_broker = "192.168.1.100",
-        .mqtt_port = 1883
+        .mqtt_port = 1883,
+        .mqtt_username = NULL,  // Optional: set for authentication
+        .mqtt_password = NULL
     };
     
     sds_init(&config);
@@ -41,7 +46,22 @@ void loop() {
 
 ## Documentation
 
-See [DESIGN.md](DESIGN.md) for the full design specification.
+- **[DESIGN.md](DESIGN.md)** - Full design specification
+- **[API Reference](docs/html/index.html)** - Doxygen-generated API docs
+
+### Generating API Documentation
+
+```bash
+# Install Doxygen (if not installed)
+brew install doxygen  # macOS
+# apt-get install doxygen  # Ubuntu
+
+# Generate HTML documentation
+doxygen Doxyfile
+
+# Open in browser
+open docs/html/index.html
+```
 
 ## Memory Requirements
 

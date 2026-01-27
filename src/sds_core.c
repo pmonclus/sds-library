@@ -73,6 +73,18 @@ typedef struct {
     size_t status_count_offset;     /* Offset to status_count in owner table */
 } SdsTableContext;
 
+/* ============== Log Level ============== */
+
+static SdsLogLevel _log_level = SDS_LOG_INFO;  /* Default to INFO level */
+
+void sds_set_log_level(SdsLogLevel level) {
+    _log_level = level;
+}
+
+SdsLogLevel sds_get_log_level(void) {
+    return _log_level;
+}
+
 /* ============== Internal State ============== */
 
 static bool _initialized = false;
@@ -82,9 +94,13 @@ static uint8_t _table_count = 0;
 static SdsStats _stats = {0};
 
 #define SDS_MAX_BROKER_LEN 128
+#define SDS_MAX_CREDENTIAL_LEN 64
 static char _mqtt_broker_buf[SDS_MAX_BROKER_LEN] = "";
 static const char* _mqtt_broker = NULL;
 static uint16_t _mqtt_port = SDS_DEFAULT_MQTT_PORT;
+static char _mqtt_username_buf[SDS_MAX_CREDENTIAL_LEN] = "";
+static char _mqtt_password_buf[SDS_MAX_CREDENTIAL_LEN] = "";
+static bool _mqtt_auth_enabled = false;
 
 /* Table metadata registry (set by generated code) */
 static const SdsTableMeta* _table_registry = NULL;
@@ -92,6 +108,13 @@ static size_t _table_registry_count = 0;
 
 /* Error callback for async error notifications */
 static SdsErrorCallback _error_callback = NULL;
+
+/* Version mismatch callback */
+static SdsVersionMismatchCallback _version_mismatch_callback = NULL;
+
+/* Schema version (set from generated code via sds_set_table_registry) */
+#define SDS_MAX_VERSION_LEN 32
+static char _schema_version[SDS_MAX_VERSION_LEN] = "unknown";
 
 /* Reconnection backoff state */
 static uint32_t _reconnect_backoff_ms = 0;
@@ -205,6 +228,34 @@ SdsError sds_init(const SdsConfig* config) {
         SDS_LOG_D("Using default MQTT port: %u", _mqtt_port);
     }
     
+    /* Store authentication credentials if provided */
+    _mqtt_auth_enabled = false;
+    _mqtt_username_buf[0] = '\0';
+    _mqtt_password_buf[0] = '\0';
+    if (config->mqtt_username && config->mqtt_username[0] != '\0') {
+        size_t username_len = strlen(config->mqtt_username);
+        if (username_len >= SDS_MAX_CREDENTIAL_LEN) {
+            SDS_LOG_E("MQTT username too long (%zu chars, max %d)", username_len, SDS_MAX_CREDENTIAL_LEN - 1);
+            sds_platform_shutdown();
+            return SDS_ERR_INVALID_CONFIG;
+        }
+        strncpy(_mqtt_username_buf, config->mqtt_username, SDS_MAX_CREDENTIAL_LEN - 1);
+        _mqtt_username_buf[SDS_MAX_CREDENTIAL_LEN - 1] = '\0';
+        
+        if (config->mqtt_password) {
+            size_t password_len = strlen(config->mqtt_password);
+            if (password_len >= SDS_MAX_CREDENTIAL_LEN) {
+                SDS_LOG_E("MQTT password too long (%zu chars, max %d)", password_len, SDS_MAX_CREDENTIAL_LEN - 1);
+                sds_platform_shutdown();
+                return SDS_ERR_INVALID_CONFIG;
+            }
+            strncpy(_mqtt_password_buf, config->mqtt_password, SDS_MAX_CREDENTIAL_LEN - 1);
+            _mqtt_password_buf[SDS_MAX_CREDENTIAL_LEN - 1] = '\0';
+        }
+        _mqtt_auth_enabled = true;
+        SDS_LOG_D("MQTT authentication enabled for user: %s", _mqtt_username_buf);
+    }
+    
     /* Initialize tables */
     memset(_tables, 0, sizeof(_tables));
     _table_count = 0;
@@ -223,10 +274,20 @@ SdsError sds_init(const SdsConfig* config) {
     snprintf(lwt_topic, sizeof(lwt_topic), "sds/lwt/%s", _node_id);
     snprintf(lwt_payload, sizeof(lwt_payload), "{\"online\":false,\"node\":\"%s\",\"ts\":0}", _node_id);
     
-    /* Connect to MQTT with LWT */
-    if (!sds_platform_mqtt_connect_with_lwt(
+    /* Connect to MQTT with LWT (and auth if configured) */
+    bool connect_success;
+    if (_mqtt_auth_enabled) {
+        connect_success = sds_platform_mqtt_connect_with_auth(
             _mqtt_broker, _mqtt_port, _node_id,
-            lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true)) {
+            _mqtt_username_buf, _mqtt_password_buf,
+            lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true);
+    } else {
+        connect_success = sds_platform_mqtt_connect_with_lwt(
+            _mqtt_broker, _mqtt_port, _node_id,
+            lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true);
+    }
+    
+    if (!connect_success) {
         sds_platform_shutdown();
         return SDS_ERR_MQTT_CONNECT_FAILED;
     }
@@ -279,9 +340,20 @@ void sds_loop(void) {
         snprintf(lwt_topic, sizeof(lwt_topic), "sds/lwt/%s", _node_id);
         snprintf(lwt_payload, sizeof(lwt_payload), "{\"online\":false,\"node\":\"%s\",\"ts\":0}", _node_id);
         
-        if (sds_platform_mqtt_connect_with_lwt(
+        /* Reconnect with auth if configured */
+        bool reconnect_success;
+        if (_mqtt_auth_enabled) {
+            reconnect_success = sds_platform_mqtt_connect_with_auth(
                 _mqtt_broker, _mqtt_port, _node_id,
-                lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true)) {
+                _mqtt_username_buf, _mqtt_password_buf,
+                lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true);
+        } else {
+            reconnect_success = sds_platform_mqtt_connect_with_lwt(
+                _mqtt_broker, _mqtt_port, _node_id,
+                lwt_topic, (uint8_t*)lwt_payload, strlen(lwt_payload), true);
+        }
+        
+        if (reconnect_success) {
             _stats.reconnect_count++;
             SDS_LOG_I("MQTT reconnected successfully");
             
@@ -627,6 +699,26 @@ void sds_on_error(SdsErrorCallback callback) {
     _error_callback = callback;
 }
 
+void sds_on_version_mismatch(SdsVersionMismatchCallback callback) {
+    _version_mismatch_callback = callback;
+}
+
+const char* sds_get_schema_version(void) {
+    return _schema_version;
+}
+
+/**
+ * Set the schema version (called from generated code or manually).
+ * 
+ * @param version Schema version string
+ */
+void sds_set_schema_version(const char* version) {
+    if (version) {
+        strncpy(_schema_version, version, SDS_MAX_VERSION_LEN - 1);
+        _schema_version[SDS_MAX_VERSION_LEN - 1] = '\0';
+    }
+}
+
 void sds_set_owner_status_slots(
     const char* table_type,
     size_t slots_offset,
@@ -891,6 +983,7 @@ static void sync_table(SdsTableContext* ctx) {
             sds_json_start_object(&w);
             sds_json_add_uint(&w, "ts", now);
             sds_json_add_bool(&w, "online", true);  /* Always include online=true for heartbeat */
+            sds_json_add_string(&w, "sv", _schema_version);  /* Schema version */
             ctx->serialize_status(status_ptr, &w);  /* Pass section pointer */
             sds_json_end_object(&w);
             
@@ -1032,6 +1125,33 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
     if (ctx->role != SDS_ROLE_OWNER) return;
     if (!ctx->deserialize_status) return;
     
+    /* Parse JSON to check schema version first */
+    SdsJsonReader r;
+    sds_json_reader_init(&r, (const char*)payload, len);
+    
+    /* Check schema version */
+    char remote_version[SDS_MAX_VERSION_LEN] = "";
+    sds_json_get_string_field(&r, "sv", remote_version, sizeof(remote_version));
+    
+    if (remote_version[0] != '\0' && strcmp(remote_version, _schema_version) != 0) {
+        /* Version mismatch detected */
+        if (_version_mismatch_callback) {
+            bool accept = _version_mismatch_callback(
+                ctx->table_type, from_node, _schema_version, remote_version);
+            if (!accept) {
+                SDS_LOG_W("Schema mismatch rejected: local=%s remote=%s from=%s",
+                          _schema_version, remote_version, from_node);
+                return;  /* Reject message */
+            }
+            SDS_LOG_D("Schema mismatch accepted: local=%s remote=%s from=%s",
+                      _schema_version, remote_version, from_node);
+        } else {
+            /* No callback - log warning and accept (backward compatible) */
+            SDS_LOG_W("Schema version mismatch: local=%s remote=%s from=%s (accepting)",
+                      _schema_version, remote_version, from_node);
+        }
+    }
+    
     /* Find or allocate a slot for this device */
     void* slot = find_or_alloc_status_slot(ctx, from_node);
     if (!slot) {
@@ -1043,8 +1163,7 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
         return;
     }
     
-    /* Parse JSON to get the online field first */
-    SdsJsonReader r;
+    /* Re-init reader and parse "online" field */
     sds_json_reader_init(&r, (const char*)payload, len);
     
     /* Parse "online" field (defaults to true - if we got a message, device is online) */

@@ -27,3 +27,4 @@ Thumbs.db
 
 # User config with credentials
 examples/*/config.h
+docs/

@@ -1,0 +1,99 @@
+# Doxyfile for SDS Library Documentation
+# 
+# Generate HTML documentation with: doxygen Doxyfile
+# Output is written to docs/html/
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+
+PROJECT_NAME           = "SDS Library"
+PROJECT_NUMBER         = "1.0.0"
+PROJECT_BRIEF          = "Simple DDS - Lightweight IoT State Synchronization"
+PROJECT_LOGO           = 
+OUTPUT_DIRECTORY       = docs
+CREATE_SUBDIRS         = NO
+
+#---------------------------------------------------------------------------
+# Build related configuration options
+#---------------------------------------------------------------------------
+
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+
+#---------------------------------------------------------------------------
+# Input related options
+#---------------------------------------------------------------------------
+
+INPUT                  = include README.md
+INPUT_ENCODING         = UTF-8
+FILE_PATTERNS          = *.h *.md
+RECURSIVE              = NO
+USE_MDFILE_AS_MAINPAGE = README.md
+
+#---------------------------------------------------------------------------
+# Source browsing related options
+#---------------------------------------------------------------------------
+
+SOURCE_BROWSER         = NO
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = YES
+
+#---------------------------------------------------------------------------
+# Alphabetical index related options
+#---------------------------------------------------------------------------
+
+ALPHABETICAL_INDEX     = YES
+
+#---------------------------------------------------------------------------
+# HTML output options
+#---------------------------------------------------------------------------
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_COLORSTYLE        = LIGHT
+GENERATE_TREEVIEW      = YES
+TREEVIEW_WIDTH         = 250
+
+#---------------------------------------------------------------------------
+# LaTeX/PDF output (disabled)
+#---------------------------------------------------------------------------
+
+GENERATE_LATEX         = NO
+
+#---------------------------------------------------------------------------
+# Preprocessor options
+#---------------------------------------------------------------------------
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+PREDEFINED             = __cplusplus
+
+#---------------------------------------------------------------------------
+# Dot/Graph options (disabled for simplicity)
+#---------------------------------------------------------------------------
+
+HAVE_DOT               = NO
+
+#---------------------------------------------------------------------------
+# Warnings and messages
+#---------------------------------------------------------------------------
+
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+
+#---------------------------------------------------------------------------
+# Other options
+#---------------------------------------------------------------------------
+
+OPTIMIZE_OUTPUT_FOR_C  = YES
+TYPEDEF_HIDES_STRUCT   = YES
+SHOW_INCLUDE_FILES     = YES
+SORT_MEMBER_DOCS       = YES
+SORT_BRIEF_DOCS        = NO

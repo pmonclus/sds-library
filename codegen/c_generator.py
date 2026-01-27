@@ -451,6 +451,7 @@ def _generate_table_registry(output: TextIO, schema: Schema):
     output.write("#endif\n")
     output.write("static void _sds_auto_register_types(void) {\n")
     output.write("    sds_set_table_registry(SDS_TABLE_REGISTRY, SDS_TABLE_REGISTRY_COUNT);\n")
+    output.write("    sds_set_schema_version(SDS_SCHEMA_VERSION);\n")
     output.write("}\n\n")
 
 

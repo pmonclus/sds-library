@@ -221,6 +221,91 @@ bool sds_platform_mqtt_connect_with_lwt(
     return true;
 }
 
+bool sds_platform_mqtt_connect_with_auth(
+    const char* broker,
+    uint16_t port,
+    const char* client_id,
+    const char* username,
+    const char* password,
+    const char* will_topic,
+    const uint8_t* will_payload,
+    size_t will_payload_len,
+    bool will_retain
+) {
+    if (!_initialized) {
+        SDS_LOG_E("Platform not initialized");
+        return false;
+    }
+    
+    if (_mqtt_client) {
+        sds_platform_mqtt_disconnect();
+        MQTTClient_destroy(&_mqtt_client);
+        _mqtt_client = NULL;
+    }
+    
+    /* Build connection string: tcp://host:port */
+    char address[256];
+    snprintf(address, sizeof(address), "tcp://%s:%u", broker, port);
+    
+    /* Create client */
+    int rc = MQTTClient_create(
+        &_mqtt_client,
+        address,
+        client_id,
+        MQTTCLIENT_PERSISTENCE_NONE,
+        NULL
+    );
+    
+    if (rc != MQTTCLIENT_SUCCESS) {
+        SDS_LOG_E("Failed to create MQTT client: %d", rc);
+        return false;
+    }
+    
+    /* Set callbacks */
+    rc = MQTTClient_setCallbacks(_mqtt_client, NULL, mqtt_connection_lost, mqtt_message_arrived, NULL);
+    if (rc != MQTTCLIENT_SUCCESS) {
+        SDS_LOG_E("Failed to set MQTT callbacks: %d", rc);
+        MQTTClient_destroy(&_mqtt_client);
+        _mqtt_client = NULL;
+        return false;
+    }
+    
+    /* Connect with LWT and authentication */
+    MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
+    conn_opts.keepAliveInterval = MQTT_KEEPALIVE_SEC;
+    conn_opts.cleansession = 1;
+    
+    /* Configure authentication if provided */
+    if (username && username[0] != '\0') {
+        conn_opts.username = username;
+        conn_opts.password = password;
+        SDS_LOG_D("MQTT auth configured for user: %s", username);
+    }
+    
+    /* Configure LWT if topic is provided */
+    MQTTClient_willOptions will_opts = MQTTClient_willOptions_initializer;
+    if (will_topic && will_payload && will_payload_len > 0) {
+        will_opts.topicName = will_topic;
+        will_opts.message = (const char*)will_payload;
+        will_opts.retained = will_retain ? 1 : 0;
+        will_opts.qos = 1;  /* Use QoS 1 for LWT to ensure delivery */
+        conn_opts.will = &will_opts;
+        SDS_LOG_D("LWT configured: topic=%s", will_topic);
+    }
+    
+    rc = MQTTClient_connect(_mqtt_client, &conn_opts);
+    if (rc != MQTTCLIENT_SUCCESS) {
+        SDS_LOG_E("Failed to connect to MQTT broker %s: %d", address, rc);
+        MQTTClient_destroy(&_mqtt_client);
+        _mqtt_client = NULL;
+        return false;
+    }
+    
+    _connected = true;
+    SDS_LOG_I("Connected to MQTT broker: %s (with auth + LWT)", address);
+    return true;
+}
+
 void sds_platform_mqtt_disconnect(void) {
     if (_mqtt_client && _connected) {
         MQTTClient_disconnect(_mqtt_client, MQTT_TIMEOUT_MS);
