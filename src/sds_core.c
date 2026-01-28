@@ -62,8 +62,11 @@ typedef struct {
     
     /* User callbacks */
     SdsConfigCallback config_callback;
+    void* config_user_data;
     SdsStateCallback state_callback;
+    void* state_user_data;
     SdsStatusCallback status_callback;
+    void* status_user_data;
     
     /* For owner: status slot management */
     size_t status_slots_offset;  /* Offset to status array in owner table */
@@ -680,24 +683,27 @@ SdsError sds_register_table_ex(
 
 /* ============== Callbacks ============== */
 
-void sds_on_config_update(const char* table_type, SdsConfigCallback callback) {
+void sds_on_config_update(const char* table_type, SdsConfigCallback callback, void* user_data) {
     SdsTableContext* ctx = find_table(table_type);
     if (ctx) {
         ctx->config_callback = callback;
+        ctx->config_user_data = user_data;
     }
 }
 
-void sds_on_state_update(const char* table_type, SdsStateCallback callback) {
+void sds_on_state_update(const char* table_type, SdsStateCallback callback, void* user_data) {
     SdsTableContext* ctx = find_table(table_type);
     if (ctx) {
         ctx->state_callback = callback;
+        ctx->state_user_data = user_data;
     }
 }
 
-void sds_on_status_update(const char* table_type, SdsStatusCallback callback) {
+void sds_on_status_update(const char* table_type, SdsStatusCallback callback, void* user_data) {
     SdsTableContext* ctx = find_table(table_type);
     if (ctx) {
         ctx->status_callback = callback;
+        ctx->status_user_data = user_data;
     }
 }
 
@@ -1052,7 +1058,7 @@ static void handle_config_message(SdsTableContext* ctx, const uint8_t* payload, 
     SDS_LOG_I("Config applied: %s", ctx->table_type);
     
     if (ctx->config_callback) {
-        ctx->config_callback(ctx->table_type);
+        ctx->config_callback(ctx->table_type, ctx->config_user_data);
     }
 }
 
@@ -1078,7 +1084,7 @@ static void handle_state_message(SdsTableContext* ctx, const char* from_node, co
     SDS_LOG_I("State received from %s: %s", from_node, ctx->table_type);
     
     if (ctx->state_callback) {
-        ctx->state_callback(ctx->table_type, from_node);
+        ctx->state_callback(ctx->table_type, from_node, ctx->state_user_data);
     }
 }
 
@@ -1186,7 +1192,7 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
         /* Log and invoke callback anyway - slot might not be configured */
         SDS_LOG_D("Status from %s (no slot available): %s", from_node, ctx->table_type);
         if (ctx->status_callback) {
-            ctx->status_callback(ctx->table_type, from_node);
+            ctx->status_callback(ctx->table_type, from_node, ctx->status_user_data);
         }
         return;
     }
@@ -1214,7 +1220,7 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
     SDS_LOG_D("Status updated from %s: %s", from_node, ctx->table_type);
     
     if (ctx->status_callback) {
-        ctx->status_callback(ctx->table_type, from_node);
+        ctx->status_callback(ctx->table_type, from_node, ctx->status_user_data);
     }
 }
 

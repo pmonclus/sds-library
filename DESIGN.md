@@ -211,18 +211,21 @@ typedef enum {
 
 ### 5.5 Callbacks
 
+All callbacks receive a `user_data` pointer that was passed during registration,
+allowing access to the table without global variables.
+
 ```c
-// Config updated (device receives from owner, or owner's own write)
-typedef void (*SdsConfigCallback)(const char* table_type);
-void sds_on_config_update(const char* table_type, SdsConfigCallback cb);
+// Config updated (device receives from owner)
+typedef void (*SdsConfigCallback)(const char* table_type, void* user_data);
+void sds_on_config_update(const char* table_type, SdsConfigCallback cb, void* user_data);
 
 // State updated (owner only - receives merged state)
-typedef void (*SdsStateCallback)(const char* table_type, const char* from_node_id);
-void sds_on_state_update(const char* table_type, SdsStateCallback cb);
+typedef void (*SdsStateCallback)(const char* table_type, const char* from_node_id, void* user_data);
+void sds_on_state_update(const char* table_type, SdsStateCallback cb, void* user_data);
 
 // Status updated (owner only - receives per-device status)
-typedef void (*SdsStatusCallback)(const char* table_type, const char* from_node_id);
-void sds_on_status_update(const char* table_type, SdsStatusCallback cb);
+typedef void (*SdsStatusCallback)(const char* table_type, const char* from_node_id, void* user_data);
+void sds_on_status_update(const char* table_type, SdsStatusCallback cb, void* user_data);
 
 // Error callback for async operations (e.g., reconnection failures)
 typedef void (*SdsErrorCallback)(SdsError error, const char* context);
@@ -237,6 +240,22 @@ typedef bool (*SdsVersionMismatchCallback)(
     const char* remote_version
 );
 void sds_on_version_mismatch(SdsVersionMismatchCallback cb);
+```
+
+**Example usage:**
+
+```c
+void on_config_update(const char* table_type, void* user_data) {
+    SensorDataTable* table = (SensorDataTable*)user_data;
+    printf("Config received: threshold=%.1f\n", table->config.threshold);
+}
+
+int main() {
+    SensorDataTable table = {0};
+    sds_register_table(&table, "SensorData", SDS_ROLE_DEVICE, NULL);
+    sds_on_config_update("SensorData", on_config_update, &table);  // Pass table pointer
+    // ...
+}
 ```
 
 ### 5.6 Extended Registration (with Serialization)

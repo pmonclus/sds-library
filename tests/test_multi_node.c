@@ -275,8 +275,9 @@ static void signal_handler(int sig) {
 
 /* ============== Callbacks ============== */
 
-static void on_tableA_config(const char* table_type) {
+static void on_tableA_config(const char* table_type, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_config_updates_received++;
     
     if (g_node_type == NODE_2 || g_node_type == NODE_3) {
@@ -291,8 +292,9 @@ static void on_tableA_config(const char* table_type) {
     }
 }
 
-static void on_tableA_state(const char* table_type, const char* from_node) {
+static void on_tableA_state(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_state_updates_received++;
     
     if (g_node_type == NODE_1) {
@@ -302,8 +304,9 @@ static void on_tableA_state(const char* table_type, const char* from_node) {
     }
 }
 
-static void on_tableA_status(const char* table_type, const char* from_node) {
+static void on_tableA_status(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_status_updates_received++;
     
     if (g_node_type == NODE_1) {
@@ -340,8 +343,9 @@ static void on_tableA_status(const char* table_type, const char* from_node) {
     }
 }
 
-static void on_tableB_config(const char* table_type) {
+static void on_tableB_config(const char* table_type, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_config_updates_received++;
     
     if (g_node_type == NODE_1 || g_node_type == NODE_3) {
@@ -356,8 +360,9 @@ static void on_tableB_config(const char* table_type) {
     }
 }
 
-static void on_tableB_state(const char* table_type, const char* from_node) {
+static void on_tableB_state(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_state_updates_received++;
     
     if (g_node_type == NODE_2) {
@@ -367,8 +372,9 @@ static void on_tableB_state(const char* table_type, const char* from_node) {
     }
 }
 
-static void on_tableB_status(const char* table_type, const char* from_node) {
+static void on_tableB_status(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_status_updates_received++;
     
     if (g_node_type == NODE_2) {
@@ -435,8 +441,8 @@ static SdsError setup_node1(void) {
         MAX_NODES
     );
     
-    sds_on_state_update("TableA", on_tableA_state);
-    sds_on_status_update("TableA", on_tableA_status);
+    sds_on_state_update("TableA", on_tableA_state, NULL);
+    sds_on_status_update("TableA", on_tableA_status, NULL);
     
     /* TableB as DEVICE */
     memset(&g_tableB.device, 0, sizeof(g_tableB.device));
@@ -456,7 +462,7 @@ static SdsError setup_node1(void) {
     );
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("TableB", on_tableB_config);
+    sds_on_config_update("TableB", on_tableB_config, NULL);
     
     g_expected_tableB_position = 75;
     g_expected_tableB_enabled = 1;
@@ -492,7 +498,7 @@ static SdsError setup_node2(void) {
     );
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("TableA", on_tableA_config);
+    sds_on_config_update("TableA", on_tableA_config, NULL);
     
     g_expected_tableA_mode = 2;
     g_expected_tableA_threshold = 25.5f;
@@ -524,8 +530,8 @@ static SdsError setup_node2(void) {
         MAX_NODES
     );
     
-    sds_on_state_update("TableB", on_tableB_state);
-    sds_on_status_update("TableB", on_tableB_status);
+    sds_on_state_update("TableB", on_tableB_state, NULL);
+    sds_on_status_update("TableB", on_tableB_status, NULL);
     
     printf("[%s] Registered: TableA=DEVICE, TableB=OWNER\n", g_node_id);
     printf("[%s] Publishing TableB config: pos=%d enabled=%d\n", 
@@ -558,7 +564,7 @@ static SdsError setup_node3(void) {
     );
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("TableA", on_tableA_config);
+    sds_on_config_update("TableA", on_tableA_config, NULL);
     g_expected_tableA_mode = 2;
     g_expected_tableA_threshold = 25.5f;
     
@@ -580,7 +586,7 @@ static SdsError setup_node3(void) {
     );
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("TableB", on_tableB_config);
+    sds_on_config_update("TableB", on_tableB_config, NULL);
     g_expected_tableB_position = 75;
     g_expected_tableB_enabled = 1;
     

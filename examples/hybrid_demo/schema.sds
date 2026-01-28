@@ -1,0 +1,33 @@
+// schema.sds - Hybrid Demo Schema
+// 
+// Demonstrates Python owner + C/ESP32 devices communication.
+// Run generate.sh to create demo_types.h and demo_types.py
+
+@version = "1.0.0"
+
+table DeviceDemo {
+    @sync_interval = 1000   // Sync every 1 second
+    @liveness = 3000        // Heartbeat every 3 seconds
+    
+    // Config: Owner -> All Devices
+    // - led_control: Owner can turn device LEDs on/off
+    // - active_device: Only this device is allowed to publish state
+    config {
+        uint8 led_control;              // 0=off, 1=on
+        string[32] active_device;       // Node ID of "active" device
+    }
+    
+    // State: Devices -> Owner (shared, Last Writer Wins)
+    // Only the "active_device" should publish to avoid conflicts
+    state {
+        float temperature;              // Simulated temperature reading
+        float humidity;                 // Simulated humidity reading
+    }
+    
+    // Status: Each Device -> Owner (per-device tracking)
+    // All devices publish their own status
+    status {
+        float power_consumption;        // Simulated power usage in watts
+        string[64] latest_log;          // Rotating log messages
+    }
+}

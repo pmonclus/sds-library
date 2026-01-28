@@ -118,16 +118,18 @@ static void signal_handler(int sig) {
 
 /* ============== Callbacks ============== */
 
-static void on_state_change(const char* table_name, const char* node_id) {
+static void on_state_change(const char* table_name, const char* node_id, void* user_data) {
     g_messages_received++;
     (void)table_name;
     (void)node_id;
+    (void)user_data;
 }
 
-static void on_status_change(const char* table_name, const char* node_id) {
+static void on_status_change(const char* table_name, const char* node_id, void* user_data) {
     g_messages_received++;
     (void)table_name;
     (void)node_id;
+    (void)user_data;
 }
 
 static void on_error(SdsError err, const char* msg) {
@@ -224,8 +226,8 @@ int main(int argc, char** argv) {
     );
     
     /* Set callbacks for state/status updates */
-    sds_on_state_update("ScaleTest", on_state_change);
-    sds_on_status_update("ScaleTest", on_status_change);
+    sds_on_state_update("ScaleTest", on_state_change, NULL);
+    sds_on_status_update("ScaleTest", on_status_change, NULL);
     
     /* Wait for connection */
     printf("Connecting to broker...\n");

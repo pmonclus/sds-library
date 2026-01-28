@@ -1,0 +1,27 @@
+/**
+ * config.h - ESP32 Device Configuration
+ * 
+ * Copy this file to config.h and edit with your settings.
+ * DO NOT commit config.h to version control (contains credentials).
+ */
+
+#ifndef CONFIG_H
+#define CONFIG_H
+
+// ============== WiFi Configuration ==============
+#define WIFI_SSID     "your_wifi_ssid"
+#define WIFI_PASSWORD "your_wifi_password"
+
+// ============== MQTT Configuration ==============
+#define MQTT_BROKER   "192.168.1.100"  // Your MQTT broker IP
+#define MQTT_PORT     1883
+
+// Leave empty strings if no authentication required
+#define MQTT_USERNAME ""
+#define MQTT_PASSWORD ""
+
+// ============== Device Configuration ==============
+// Unique identifier for this device
+#define NODE_ID       "esp32_dev_01"
+
+#endif /* CONFIG_H */

@@ -649,21 +649,24 @@ static int g_state_callback_count = 0;
 static int g_status_callback_count = 0;
 static char g_last_callback_from_node[64] = "";
 
-static void test_config_callback(const char* table_type) {
+static void test_config_callback(const char* table_type, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_config_callback_count++;
 }
 
-static void test_state_callback(const char* table_type, const char* from_node) {
+static void test_state_callback(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_state_callback_count++;
     if (from_node) {
         strncpy(g_last_callback_from_node, from_node, sizeof(g_last_callback_from_node) - 1);
     }
 }
 
-static void test_status_callback(const char* table_type, const char* from_node) {
+static void test_status_callback(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_status_callback_count++;
     if (from_node) {
         strncpy(g_last_callback_from_node, from_node, sizeof(g_last_callback_from_node) - 1);
@@ -677,7 +680,7 @@ TEST(config_callback_invoked) {
     
     TestDeviceTable table = {0};
     register_device_table(&table, "TestTable");
-    sds_on_config_update("TestTable", test_config_callback);
+    sds_on_config_update("TestTable", test_config_callback, NULL);
     
     sds_mock_inject_message_str(
         "sds/TestTable/config",
@@ -695,7 +698,7 @@ TEST(state_callback_invoked_with_node) {
     
     TestOwnerTable table = {0};
     register_owner_table(&table, "TestTable");
-    sds_on_state_update("TestTable", test_state_callback);
+    sds_on_state_update("TestTable", test_state_callback, NULL);
     
     sds_mock_inject_message_str(
         "sds/TestTable/state",
@@ -714,7 +717,7 @@ TEST(status_callback_invoked_with_node) {
     
     TestOwnerTable table = {0};
     register_owner_table(&table, "TestTable");
-    sds_on_status_update("TestTable", test_status_callback);
+    sds_on_status_update("TestTable", test_status_callback, NULL);
     
     sds_mock_inject_message_str(
         "sds/TestTable/status/sensor_42",

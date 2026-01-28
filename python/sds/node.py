@@ -459,7 +459,7 @@ class SdsNode:
     def _setup_config_callback(self, table_type: str) -> None:
         """Set up the C-level config callback."""
         @ffi.callback("SdsConfigCallback")
-        def c_callback(c_table_type):
+        def c_callback(c_table_type, user_data):
             try:
                 ttype = decode_string(c_table_type)
                 if ttype and ttype in self._config_callbacks:
@@ -471,12 +471,12 @@ class SdsNode:
         
         # Keep callback alive
         self._c_callbacks[f"config_{table_type}"] = c_callback
-        lib.sds_on_config_update(table_type.encode("utf-8"), c_callback)
+        lib.sds_on_config_update(table_type.encode("utf-8"), c_callback, ffi.NULL)
     
     def _setup_state_callback(self, table_type: str) -> None:
         """Set up the C-level state callback."""
         @ffi.callback("SdsStateCallback")
-        def c_callback(c_table_type, c_from_node):
+        def c_callback(c_table_type, c_from_node, user_data):
             try:
                 ttype = decode_string(c_table_type)
                 from_node = decode_string(c_from_node)
@@ -489,12 +489,12 @@ class SdsNode:
         
         # Keep callback alive
         self._c_callbacks[f"state_{table_type}"] = c_callback
-        lib.sds_on_state_update(table_type.encode("utf-8"), c_callback)
+        lib.sds_on_state_update(table_type.encode("utf-8"), c_callback, ffi.NULL)
     
     def _setup_status_callback(self, table_type: str) -> None:
         """Set up the C-level status callback."""
         @ffi.callback("SdsStatusCallback")
-        def c_callback(c_table_type, c_from_node):
+        def c_callback(c_table_type, c_from_node, user_data):
             try:
                 ttype = decode_string(c_table_type)
                 from_node = decode_string(c_from_node)
@@ -507,7 +507,7 @@ class SdsNode:
         
         # Keep callback alive
         self._c_callbacks[f"status_{table_type}"] = c_callback
-        lib.sds_on_status_update(table_type.encode("utf-8"), c_callback)
+        lib.sds_on_status_update(table_type.encode("utf-8"), c_callback, ffi.NULL)
     
     def on_error(self, callback: ErrorCallback) -> ErrorCallback:
         """

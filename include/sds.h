@@ -161,10 +161,11 @@ typedef struct {
  * when this callback is invoked.
  * 
  * @param table_type Name of the table that received the update
+ * @param user_data User-provided context from sds_on_config_update()
  * 
  * @see sds_on_config_update
  */
-typedef void (*SdsConfigCallback)(const char* table_type);
+typedef void (*SdsConfigCallback)(const char* table_type, void* user_data);
 
 /**
  * @brief Callback for state updates (owner role only).
@@ -173,10 +174,11 @@ typedef void (*SdsConfigCallback)(const char* table_type);
  * 
  * @param table_type Name of the table that received the update
  * @param from_node Node ID of the device that sent the state
+ * @param user_data User-provided context from sds_on_state_update()
  * 
  * @see sds_on_state_update
  */
-typedef void (*SdsStateCallback)(const char* table_type, const char* from_node);
+typedef void (*SdsStateCallback)(const char* table_type, const char* from_node, void* user_data);
 
 /**
  * @brief Callback for status updates (owner role only).
@@ -186,10 +188,11 @@ typedef void (*SdsStateCallback)(const char* table_type, const char* from_node);
  * 
  * @param table_type Name of the table that received the update
  * @param from_node Node ID of the device that sent the status
+ * @param user_data User-provided context from sds_on_status_update()
  * 
  * @see sds_on_status_update, sds_find_node_status
  */
-typedef void (*SdsStatusCallback)(const char* table_type, const char* from_node);
+typedef void (*SdsStatusCallback)(const char* table_type, const char* from_node, void* user_data);
 
 /**
  * @brief Iterator callback for sds_foreach_node().
@@ -550,10 +553,11 @@ uint8_t sds_get_table_count(void);
  * 
  * @param table_type Table type to monitor
  * @param callback Function to call on config change (NULL to disable)
+ * @param user_data User context passed to callback (can be NULL)
  * 
  * @see SdsConfigCallback
  */
-void sds_on_config_update(const char* table_type, SdsConfigCallback callback);
+void sds_on_config_update(const char* table_type, SdsConfigCallback callback, void* user_data);
 
 /**
  * @brief Set callback for state updates (owner role only).
@@ -562,10 +566,11 @@ void sds_on_config_update(const char* table_type, SdsConfigCallback callback);
  * 
  * @param table_type Table type to monitor
  * @param callback Function to call on state change (NULL to disable)
+ * @param user_data User context passed to callback (can be NULL)
  * 
  * @see SdsStateCallback
  */
-void sds_on_state_update(const char* table_type, SdsStateCallback callback);
+void sds_on_state_update(const char* table_type, SdsStateCallback callback, void* user_data);
 
 /**
  * @brief Set callback for status updates (owner role only).
@@ -574,10 +579,11 @@ void sds_on_state_update(const char* table_type, SdsStateCallback callback);
  * 
  * @param table_type Table type to monitor
  * @param callback Function to call on status change (NULL to disable)
+ * @param user_data User context passed to callback (can be NULL)
  * 
  * @see SdsStatusCallback, sds_find_node_status
  */
-void sds_on_status_update(const char* table_type, SdsStatusCallback callback);
+void sds_on_status_update(const char* table_type, SdsStatusCallback callback, void* user_data);
 
 /**
  * @brief Set callback for async error notifications.

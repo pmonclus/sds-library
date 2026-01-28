@@ -50,43 +50,49 @@ static void signal_handler(int sig) {
 
 /* ============== Callbacks ============== */
 
-static void on_sensor_config(const char* table_type) {
+static void on_sensor_config(const char* table_type, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_config_rx++;
     printf("[%s] SensorData config received: command=%d threshold=%.1f\n",
            g_node_id, g_sensor.device.config.command, g_sensor.device.config.threshold);
 }
 
-static void on_sensor_state(const char* table_type, const char* from_node) {
+static void on_sensor_state(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_state_rx++;
     printf("[%s] SensorData state from %s: temp=%.1f humidity=%.1f\n",
            g_node_id, from_node, g_sensor.owner.state.temperature, g_sensor.owner.state.humidity);
 }
 
-static void on_sensor_status(const char* table_type, const char* from_node) {
+static void on_sensor_status(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_status_rx++;
     printf("[%s] SensorData status from %s: error=%d battery=%d%%\n",
            g_node_id, from_node, 0, 0);  /* Status slots not fully implemented yet */
 }
 
-static void on_actuator_config(const char* table_type) {
+static void on_actuator_config(const char* table_type, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_config_rx++;
     printf("[%s] ActuatorData config received: pos=%d speed=%d\n",
            g_node_id, g_actuator.device.config.target_position, g_actuator.device.config.speed);
 }
 
-static void on_actuator_state(const char* table_type, const char* from_node) {
+static void on_actuator_state(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_state_rx++;
     printf("[%s] ActuatorData state from %s: pos=%d\n",
            g_node_id, from_node, g_actuator.owner.state.current_position);
 }
 
-static void on_actuator_status(const char* table_type, const char* from_node) {
+static void on_actuator_status(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     g_status_rx++;
     printf("[%s] ActuatorData status from %s\n", g_node_id, from_node);
 }
@@ -106,8 +112,8 @@ static SdsError setup_node1(void) {
     err = sds_register_table(&g_sensor.owner, "SensorData", SDS_ROLE_OWNER, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_state_update("SensorData", on_sensor_state);
-    sds_on_status_update("SensorData", on_sensor_status);
+    sds_on_state_update("SensorData", on_sensor_state, NULL);
+    sds_on_status_update("SensorData", on_sensor_status, NULL);
     
     /* ActuatorData as DEVICE */
     memset(&g_actuator.device, 0, sizeof(g_actuator.device));
@@ -118,7 +124,7 @@ static SdsError setup_node1(void) {
     err = sds_register_table(&g_actuator.device, "ActuatorData", SDS_ROLE_DEVICE, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("ActuatorData", on_actuator_config);
+    sds_on_config_update("ActuatorData", on_actuator_config, NULL);
     
     printf("[%s] Setup: SensorData=OWNER, ActuatorData=DEVICE\n", g_node_id);
     return SDS_OK;
@@ -138,7 +144,7 @@ static SdsError setup_node2(void) {
     err = sds_register_table(&g_sensor.device, "SensorData", SDS_ROLE_DEVICE, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("SensorData", on_sensor_config);
+    sds_on_config_update("SensorData", on_sensor_config, NULL);
     
     /* ActuatorData as OWNER */
     memset(&g_actuator.owner, 0, sizeof(g_actuator.owner));
@@ -149,8 +155,8 @@ static SdsError setup_node2(void) {
     err = sds_register_table(&g_actuator.owner, "ActuatorData", SDS_ROLE_OWNER, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_state_update("ActuatorData", on_actuator_state);
-    sds_on_status_update("ActuatorData", on_actuator_status);
+    sds_on_state_update("ActuatorData", on_actuator_state, NULL);
+    sds_on_status_update("ActuatorData", on_actuator_status, NULL);
     
     printf("[%s] Setup: SensorData=DEVICE, ActuatorData=OWNER\n", g_node_id);
     return SDS_OK;
@@ -170,7 +176,7 @@ static SdsError setup_node3(void) {
     err = sds_register_table(&g_sensor.device, "SensorData", SDS_ROLE_DEVICE, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("SensorData", on_sensor_config);
+    sds_on_config_update("SensorData", on_sensor_config, NULL);
     
     /* ActuatorData as DEVICE */
     memset(&g_actuator.device, 0, sizeof(g_actuator.device));
@@ -181,7 +187,7 @@ static SdsError setup_node3(void) {
     err = sds_register_table(&g_actuator.device, "ActuatorData", SDS_ROLE_DEVICE, &opts);
     if (err != SDS_OK) return err;
     
-    sds_on_config_update("ActuatorData", on_actuator_config);
+    sds_on_config_update("ActuatorData", on_actuator_config, NULL);
     
     printf("[%s] Setup: SensorData=DEVICE, ActuatorData=DEVICE\n", g_node_id);
     return SDS_OK;

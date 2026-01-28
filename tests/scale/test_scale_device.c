@@ -107,9 +107,10 @@ static void signal_handler(int sig) {
 
 /* ============== Callbacks ============== */
 
-static void on_config_change(const char* table_name) {
+static void on_config_change(const char* table_name, void* user_data) {
     g_config_updates++;
     (void)table_name;
+    (void)user_data;
 }
 
 static void on_error(SdsError err, const char* msg) {
@@ -164,7 +165,7 @@ int main(int argc, char** argv) {
     SdsError err = sds_init(&config);
     if (err == SDS_OK) {
         sds_on_error(on_error);
-        sds_on_config_update("ScaleTest", on_config_change);
+        sds_on_config_update("ScaleTest", on_config_change, NULL);
     }
     if (err != SDS_OK) {
         printf("[%s] Failed to initialize SDS: %d\n", g_device_id, err);

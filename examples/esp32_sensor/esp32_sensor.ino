@@ -31,7 +31,7 @@
 bool connect_wifi();
 float read_temperature();
 float read_humidity();
-void on_config_update(const char* table_type);
+void on_config_update(const char* table_type, void* user_data);
 
 /* ============== SDS Client and Tables ============== */
 
@@ -86,7 +86,7 @@ void setup() {
     }
     
     /* Set up callbacks */
-    sds_on_config_update("SensorData", on_config_update);
+    sds_on_config_update("SensorData", on_config_update, &sensor_table);
     
     Serial.println("\nSensorData registered as DEVICE");
     Serial.println("Waiting for config from owner...\n");
@@ -201,14 +201,15 @@ float read_humidity() {
 
 /* ============== Callbacks ============== */
 
-void on_config_update(const char* table_type) {
+void on_config_update(const char* table_type, void* user_data) {
+    SensorDataTable* table = (SensorDataTable*)user_data;
     Serial.printf("[APP] Config updated for %s\n", table_type);
     Serial.printf("      command=%d threshold=%.1f\n",
-                  sensor_table.config.command,
-                  sensor_table.config.threshold);
+                  table->config.command,
+                  table->config.threshold);
     
     /* React to config changes */
-    switch (sensor_table.config.command) {
+    switch (table->config.command) {
         case 0:
             Serial.println("      -> Sensor OFF");
             break;

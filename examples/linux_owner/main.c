@@ -34,15 +34,17 @@ static void signal_handler(int sig) {
 
 /* ============== Callbacks ============== */
 
-static void on_state_update(const char* table_type, const char* from_node) {
+static void on_state_update(const char* table_type, const char* from_node, void* user_data) {
+    SensorDataTable* table = (SensorDataTable*)user_data;
     printf("[State] %s from %s: temp=%.1f humidity=%.1f\n",
            table_type, from_node, 
-           g_sensor_table.state.temperature, g_sensor_table.state.humidity);
+           table->state.temperature, table->state.humidity);
 }
 
-static void on_status_update(const char* table_type, const char* from_node) {
+static void on_status_update(const char* table_type, const char* from_node, void* user_data) {
+    (void)user_data;
     printf("[Status] %s from %s\n", table_type, from_node);
-    /* Status slots would be in g_sensor_table.status_slots[] */
+    /* Status slots would be in table->status_slots[] */
 }
 
 /* ============== Main ============== */
@@ -93,8 +95,8 @@ int main(int argc, char* argv[]) {
     }
     
     /* Set up callbacks (these are still registered separately) */
-    sds_on_state_update("SensorData", on_state_update);
-    sds_on_status_update("SensorData", on_status_update);
+    sds_on_state_update("SensorData", on_state_update, &g_sensor_table);
+    sds_on_status_update("SensorData", on_status_update, &g_sensor_table);
     
     printf("Registered as OWNER for SensorData\n");
     printf("Config: command=%d threshold=%.1f\n\n", 

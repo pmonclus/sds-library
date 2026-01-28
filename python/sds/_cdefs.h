@@ -90,9 +90,9 @@ typedef struct {
 /* ============== Callback Types ============== */
 
 /* Note: We use "extern Python" callbacks for CFFI */
-typedef void (*SdsConfigCallback)(const char* table_type);
-typedef void (*SdsStateCallback)(const char* table_type, const char* from_node);
-typedef void (*SdsStatusCallback)(const char* table_type, const char* from_node);
+typedef void (*SdsConfigCallback)(const char* table_type, void* user_data);
+typedef void (*SdsStateCallback)(const char* table_type, const char* from_node, void* user_data);
+typedef void (*SdsStatusCallback)(const char* table_type, const char* from_node, void* user_data);
 typedef void (*SdsErrorCallback)(SdsError error, const char* context);
 typedef void (*SdsNodeIterator)(const char* node_id, const void* status, void* user_data);
 typedef bool (*SdsVersionMismatchCallback)(
@@ -203,9 +203,9 @@ uint8_t sds_get_table_count(void);
 
 /* ============== Event Callbacks ============== */
 
-void sds_on_config_update(const char* table_type, SdsConfigCallback callback);
-void sds_on_state_update(const char* table_type, SdsStateCallback callback);
-void sds_on_status_update(const char* table_type, SdsStatusCallback callback);
+void sds_on_config_update(const char* table_type, SdsConfigCallback callback, void* user_data);
+void sds_on_state_update(const char* table_type, SdsStateCallback callback, void* user_data);
+void sds_on_status_update(const char* table_type, SdsStatusCallback callback, void* user_data);
 void sds_on_error(SdsErrorCallback callback);
 void sds_on_version_mismatch(SdsVersionMismatchCallback callback);
 

@@ -133,8 +133,9 @@ static void signal_handler(int sig) {
 
 /* ============== Callbacks ============== */
 
-static void on_status_update(const char* table_type, const char* from_node) {
+static void on_status_update(const char* table_type, const char* from_node, void* user_data) {
     (void)table_type;
+    (void)user_data;
     
     g_heartbeats_received++;
     
@@ -152,8 +153,9 @@ static void on_status_update(const char* table_type, const char* from_node) {
     }
 }
 
-static void on_config_update(const char* table_type) {
+static void on_config_update(const char* table_type, void* user_data) {
     (void)table_type;
+    (void)user_data;
     printf("[DEVICE] Config received: enabled=%u\n", g_device_table.config.enabled);
 }
 
@@ -203,7 +205,7 @@ static void setup_owner(const char* broker) {
     );
     
     /* Set callback for status updates */
-    sds_on_status_update("LivenessTest", on_status_update);
+    sds_on_status_update("LivenessTest", on_status_update, NULL);
     
     /* Set initial config */
     g_owner_table.config.enabled = 1;
@@ -245,7 +247,7 @@ static void setup_device(const char* broker) {
     }
     
     /* Set config callback */
-    sds_on_config_update("LivenessTest", on_config_update);
+    sds_on_config_update("LivenessTest", on_config_update, NULL);
     
     /* Initialize status */
     g_device_table.status.health = 100;

@@ -50,15 +50,18 @@ static void signal_handler(int sig) {
 
 /* ============== Callbacks ============== */
 
-static void on_config_update(const char* table_type) {
+static void on_config_update(const char* table_type, void* user_data) {
+    (void)user_data;
     printf("  [Callback] Config update for: %s\n", table_type);
 }
 
-static void on_state_update(const char* table_type, const char* from_node) {
+static void on_state_update(const char* table_type, const char* from_node, void* user_data) {
+    (void)user_data;
     printf("  [Callback] State update for %s from: %s\n", table_type, from_node);
 }
 
-static void on_status_update(const char* table_type, const char* from_node) {
+static void on_status_update(const char* table_type, const char* from_node, void* user_data) {
+    (void)user_data;
     printf("  [Callback] Status update for %s from: %s\n", table_type, from_node);
 }
 
@@ -100,7 +103,7 @@ static void test_table_registration_device(void) {
     TEST_ASSERT(sds_get_table_count() == 1, "Table count is 1");
     
     /* Set up callbacks */
-    sds_on_config_update("SensorData", on_config_update);
+    sds_on_config_update("SensorData", on_config_update, NULL);
     
     /* Test duplicate registration */
     SensorDataTable dup_table = {0};
@@ -123,8 +126,8 @@ static void test_table_registration_owner(void) {
     TEST_ASSERT(sds_get_table_count() == 2, "Table count is 2");
     
     /* Set up callbacks */
-    sds_on_state_update("ActuatorData", on_state_update);
-    sds_on_status_update("ActuatorData", on_status_update);
+    sds_on_state_update("ActuatorData", on_state_update, NULL);
+    sds_on_status_update("ActuatorData", on_status_update, NULL);
 }
 
 static void test_loop(int iterations) {
