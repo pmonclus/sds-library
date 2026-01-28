@@ -1,0 +1,11 @@
+# Include C source files for building from source
+recursive-include ../src *.c
+recursive-include ../include *.h
+recursive-include ../platform *.c *.cpp
+
+# Include the CFFI definitions
+include sds/_cdefs.h
+
+# Include documentation
+include README.md
+include ../LICENSE

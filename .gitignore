@@ -20,6 +20,14 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Python CFFI generated files
+python/sds/_sds_cffi.c
+python/sds/*.so
+python/sds/*.pyd
+*.egg-info/
+dist/
+*.whl
+
 # IDE and editor files
 .vscode/
 .idea/

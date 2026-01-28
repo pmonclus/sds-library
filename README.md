@@ -7,14 +7,17 @@ A lightweight MQTT-based state synchronization library for embedded systems.
 - **Single table type** with config/state/status sections
 - **Two roles**: OWNER and DEVICE
 - **Fluid architecture**: Any node can be owner or device for any table
-- **Cross-platform**: ESP32/ESP8266/Arduino + macOS/Linux
+- **Cross-platform**: ESP32/ESP8266/Arduino + macOS/Linux + **Python**
 - **Liveness detection**: Automatic heartbeats with configurable intervals
 - **LWT support**: Broker notifies on unexpected disconnects
 - **MQTT authentication**: Optional username/password support
 - **Schema versioning**: Detect and handle version mismatches between nodes
 - **Runtime log level**: Adjust logging verbosity without recompiling
+- **Python bindings**: Native Python wrapper using CFFI
 
 ## Quick Start
+
+### C / Embedded
 
 ```c
 #include "sds.h"
@@ -44,10 +47,30 @@ void loop() {
 }
 ```
 
+### Python
+
+```python
+from sds import SdsNode, Role
+
+with SdsNode("sensor_01", "localhost") as node:
+    node.register_table("SensorData", Role.DEVICE)
+    
+    @node.on_config("SensorData")
+    def handle_config(table_type):
+        print(f"Config received for {table_type}")
+    
+    while True:
+        node.poll(timeout_ms=1000)
+```
+
+See [python/README.md](python/README.md) for full Python documentation.
+
 ## Documentation
 
 - **[DESIGN.md](DESIGN.md)** - Full design specification
-- **[API Reference](docs/html/index.html)** - Doxygen-generated API docs
+- **[API Reference](docs/html/index.html)** - Doxygen-generated C API docs
+- **[Python README](python/README.md)** - Python wrapper documentation
+- **[TESTING.md](TESTING.md)** - Test suite documentation
 
 ### Generating API Documentation
 
@@ -112,7 +135,7 @@ For constrained devices (ESP8266), add to your build:
 
 ## Building
 
-### macOS/Linux (for testing)
+### macOS/Linux (C library)
 ```bash
 mkdir build && cd build
 cmake ..
@@ -123,6 +146,20 @@ make
 ```bash
 cd examples/esp32_sensor
 pio run
+```
+
+### Python Wrapper
+```bash
+# Install dependencies
+brew install libpaho-mqtt  # macOS
+# apt-get install libpaho-mqtt-dev  # Ubuntu
+
+# Build and install
+cd python
+pip install -e .
+
+# Run tests
+pytest tests/
 ```
 
 ### Running Tests
