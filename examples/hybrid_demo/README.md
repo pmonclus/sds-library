@@ -1,9 +1,18 @@
-# Hybrid Demo: Python Owner + C/ESP32 Devices
+# Hybrid Demo: All Language Combinations
 
-A self-contained example demonstrating SDS communication between:
-- **1 Python Owner** - Controls devices and displays their data
-- **1 Linux C Device** - Simulated sensor on Linux
-- **1 ESP32 Device** - Simulated sensor on ESP32
+A self-contained example demonstrating SDS communication between owners and devices
+in any combination of C and Python.
+
+## Available Combinations
+
+| Owner | Device | Commands |
+|-------|--------|----------|
+| Python | C | `python_owner/owner.py` + `c_device/device` |
+| Python | Python | `python_owner/owner.py` + `python_device/device.py` |
+| C | C | `c_owner/owner` + `c_device/device` |
+| C | Python | `c_owner/owner` + `python_device/device.py` |
+
+ESP32 combinations also supported (see ESP32 section below).
 
 ## Table Schema
 
@@ -37,7 +46,7 @@ table DeviceDemo {
 ### Data Flows
 
 ```
-Owner (Python)                    Devices (C/ESP32)
+Owner (C or Python)               Devices (C, Python, or ESP32)
      │                                   │
      │──── config ──────────────────────►│  led_control, active_device
      │                                   │
@@ -59,11 +68,12 @@ Owner (Python)                    Devices (C/ESP32)
    sudo systemctl start mosquitto
    ```
 
-2. **Python 3.8+** with pip
+2. **Python 3.8+** with cffi
+   ```bash
+   pip install cffi
+   ```
 
-3. **For ESP32**: Arduino IDE or PlatformIO
-
-4. **For Linux device**: GCC and libpaho-mqtt
+3. **For C programs**: GCC and libpaho-mqtt
    ```bash
    # macOS
    brew install libpaho-mqtt
@@ -71,6 +81,8 @@ Owner (Python)                    Devices (C/ESP32)
    # Linux
    sudo apt install libpaho-mqtt-dev
    ```
+
+4. **For ESP32**: Arduino IDE or PlatformIO
 
 ## Quick Start
 
@@ -85,14 +97,71 @@ This script:
 1. Copies the SDS library files to `lib/` (making this example self-contained)
 2. Generates `lib/include/demo_types.h` (C types) and `python_owner/demo_types.py` (Python types)
 
-### Step 2: Build Linux Device
+### Step 2: Build C Programs
 
 ```bash
-cd linux_device
-make
+# Build C device
+cd c_device && make && cd ..
+
+# Build C owner
+cd c_owner && make && cd ..
 ```
 
-### Step 2b (Optional): Build ESP32 Device
+### Step 3: Run Any Combination
+
+**Example 1: Python Owner + C Device**
+```bash
+# Terminal 1 - Owner
+cd python_owner && python owner.py
+
+# Terminal 2 - Device
+cd c_device && ./device c_dev_01
+```
+
+**Example 2: C Owner + Python Device**
+```bash
+# Terminal 1 - Owner
+cd c_owner && ./owner
+
+# Terminal 2 - Device
+cd python_device && python device.py py_dev_01
+```
+
+**Example 3: Python Owner + Python Device**
+```bash
+# Terminal 1 - Owner
+cd python_owner && python owner.py
+
+# Terminal 2 - Device
+cd python_device && python device.py py_dev_01
+```
+
+**Example 4: C Owner + C Device**
+```bash
+# Terminal 1 - Owner
+cd c_owner && ./owner
+
+# Terminal 2 - Device
+cd c_device && ./device c_dev_01
+```
+
+### Step 4: Interact
+
+All owners support the same commands:
+
+| Command | Description |
+|---------|-------------|
+| `led on/off` | Toggle LED on all devices |
+| `active <id>` | Set which device publishes state |
+| `active none` | Disable state publishing |
+| `status` | Show all device statuses |
+| `verbose on/off` | Toggle live state/status messages |
+| `help` | Show available commands |
+| `quit` | Exit |
+
+## ESP32 Device
+
+### Build and Flash
 
 ```bash
 cd esp32_device
@@ -103,38 +172,7 @@ pio run -t upload    # Flash to ESP32
 pio device monitor   # View serial output
 ```
 
-### Step 3: Run the Demo
-
-Terminal 1 - Start the Python owner:
-```bash
-# First time: Install cffi if not already installed
-pip install cffi
-
-cd python_owner
-python owner.py
-```
-
-Terminal 2 - Start Linux device:
-```bash
-cd linux_device
-./device linux_dev_01
-```
-
-Terminal 3 (optional) - Start another Linux device or flash ESP32:
-```bash
-cd linux_device
-./device linux_dev_02
-```
-
-### Step 4: Interact
-
-In the owner terminal, use commands:
-- `led on` / `led off` - Toggle LED on all devices
-- `active <node_id>` - Set which device publishes state
-- `status` - Show all device statuses
-- `verbose on` / `verbose off` - Toggle live state/status messages
-- `help` - Show available commands
-- `quit` - Exit
+The ESP32 device works with any owner (Python or C).
 
 ## Folder Structure
 
@@ -147,15 +185,20 @@ hybrid_demo/
 │   ├── include/           # Headers + demo_types.h
 │   ├── src/               # Source files
 │   └── platform/          # Platform implementations
-├── linux_device/
-│   ├── main.c             # Linux device implementation
+├── c_owner/
+│   ├── main.c             # C owner with menu interface
 │   └── Makefile
-├── esp32_device/
-│   ├── esp32_device.ino   # ESP32 Arduino sketch
-│   └── config.h.example   # WiFi/MQTT configuration template
-└── python_owner/
-    ├── owner.py           # Python owner implementation
-    └── demo_types.py      # (generated) Python types
+├── c_device/
+│   ├── main.c             # C device implementation
+│   └── Makefile
+├── python_owner/
+│   ├── owner.py           # Python owner with menu interface
+│   └── demo_types.py      # (generated) Python types
+├── python_device/
+│   └── device.py          # Python device implementation
+└── esp32_device/
+    ├── esp32_device.ino   # ESP32 Arduino sketch
+    └── config.h.example   # WiFi/MQTT configuration template
 ```
 
 **Note:** `lib/` and `demo_types.py` are generated by `./generate.sh` and not committed to git.
@@ -173,7 +216,7 @@ This example demonstrates:
 
 ### C Callback Pattern
 
-The C devices use the `user_data` parameter to access the table in callbacks:
+The C programs use the `user_data` parameter to access the table in callbacks:
 
 ```c
 void on_config_update(const char* table_type, void* user_data) {
