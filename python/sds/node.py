@@ -272,13 +272,26 @@ class SdsNode:
         if not self._initialized:
             raise SdsError.from_code(ErrorCode.NOT_INITIALIZED)
         
-        # Look up table metadata
+        # Look up table metadata from C registry
         table_meta = lib.sds_find_table_meta(table_type.encode("utf-8"))
+        
+        # If not in C registry, try to use Python schemas directly
         if table_meta == ffi.NULL:
-            raise SdsError(
-                ErrorCode.TABLE_NOT_FOUND,
-                f"Table type '{table_type}' not found in registry. "
-                "Make sure the generated sds_types.h is compiled into the library."
+            if config_schema is None and state_schema is None and status_schema is None:
+                raise SdsError(
+                    ErrorCode.TABLE_NOT_FOUND,
+                    f"Table type '{table_type}' not found in registry. "
+                    "Provide schema parameter or ensure sds_types.h is compiled into the library."
+                )
+            
+            # Use Python schemas with sds_register_table_ex
+            return self._register_table_with_python_schema(
+                table_type=table_type,
+                role=role,
+                config_schema=config_schema,
+                state_schema=state_schema,
+                status_schema=status_schema,
+                sync_interval_ms=sync_interval_ms,
             )
         
         # Determine table size based on role
@@ -325,6 +338,207 @@ class SdsNode:
         }
         
         return sds_table
+    
+    def _register_table_with_python_schema(
+        self,
+        table_type: str,
+        role: Role,
+        config_schema: Optional[Type] = None,
+        state_schema: Optional[Type] = None,
+        status_schema: Optional[Type] = None,
+        sync_interval_ms: Optional[int] = None,
+    ) -> "SdsTable":
+        """
+        Register a table using Python-only schemas (no C registry).
+        
+        Uses sds_register_table_ex with CFFI callbacks for serialization.
+        """
+        from sds.tables import analyze_dataclass, TableSectionInfo
+        
+        # Analyze schemas to get sizes and offsets
+        config_info = analyze_dataclass(config_schema) if config_schema else None
+        state_info = analyze_dataclass(state_schema) if state_schema else None
+        status_info = analyze_dataclass(status_schema) if status_schema else None
+        
+        config_size = config_info.total_size if config_info else 0
+        state_size = state_info.total_size if state_info else 0
+        status_size = status_info.total_size if status_info else 0
+        
+        # For device: config + state + status
+        # For owner: config + state + status + status_slots (simplified: just basic sections)
+        # Calculate offsets (sections are placed sequentially)
+        config_offset = 0
+        state_offset = config_size
+        status_offset = config_size + state_size
+        table_size = config_size + state_size + status_size
+        
+        # For owner, add space for status_slots (simplified - 8 slots max)
+        if role == Role.OWNER:
+            # Add padding and slot storage (simplified)
+            table_size += 8 * (64 + status_size + 16)  # node_id + status + metadata per slot
+        
+        # Allocate table buffer
+        table_buffer = ffi.new(f"char[{table_size}]")
+        
+        # Create serialization/deserialization callbacks
+        # We use closures to capture the schema info
+        serializers = self._create_serializers(config_info, state_info, status_info, table_buffer)
+        
+        # Prepare options
+        options = ffi.NULL
+        if sync_interval_ms is not None:
+            options = ffi.new("SdsTableOptions*")
+            options.sync_interval_ms = sync_interval_ms
+        
+        # Register using extended API
+        result = lib.sds_register_table_ex(
+            table_buffer,
+            table_type.encode("utf-8"),
+            role.value,
+            options,
+            config_offset, config_size,
+            state_offset, state_size,
+            status_offset, status_size,
+            serializers["serialize_config"],
+            serializers["deserialize_config"],
+            serializers["serialize_state"],
+            serializers["deserialize_state"],
+            serializers["serialize_status"],
+            serializers["deserialize_status"],
+        )
+        check_error(result)
+        
+        # Create a fake table_meta for the SdsTable wrapper
+        # We'll store the info we need directly
+        fake_meta = {
+            "config_offset": config_offset,
+            "config_size": config_size,
+            "state_offset": state_offset,
+            "state_size": state_size,
+            "status_offset": status_offset,
+            "status_size": status_size,
+        }
+        
+        # Create table wrapper
+        sds_table = SdsTable(
+            table_type=table_type,
+            role=role,
+            buffer=table_buffer,
+            meta=None,  # No C meta
+            config_schema=config_schema,
+            state_schema=state_schema,
+            status_schema=status_schema,
+            python_meta=fake_meta,  # Use Python-calculated offsets
+        )
+        
+        # Store table info
+        self._tables[table_type] = {
+            "role": role,
+            "buffer": table_buffer,
+            "meta": None,
+            "table": sds_table,
+            "serializers": serializers,  # Keep alive
+        }
+        
+        return sds_table
+    
+    def _create_serializers(
+        self,
+        config_info: Optional["TableSectionInfo"],
+        state_info: Optional["TableSectionInfo"],
+        status_info: Optional["TableSectionInfo"],
+        table_buffer: Any,
+    ) -> Dict[str, Any]:
+        """Create CFFI callbacks for serialization."""
+        
+        def make_serialize(section_info: Optional["TableSectionInfo"]):
+            if section_info is None:
+                return ffi.NULL
+            
+            @ffi.callback("SdsSerializeFunc")
+            def serialize(section_ptr, writer_ptr):
+                try:
+                    # Read values from C buffer and write to JSON
+                    for field in section_info.fields:
+                        offset = field.offset
+                        ptr = ffi.cast("char*", section_ptr) + offset
+                        
+                        if field.field_type.value == "float32":
+                            val = ffi.cast("float*", ptr)[0]
+                            lib.sds_json_add_float(writer_ptr, field.name.encode(), val)
+                        elif field.field_type.value == "uint8":
+                            val = ffi.cast("uint8_t*", ptr)[0]
+                            lib.sds_json_add_uint(writer_ptr, field.name.encode(), int(val))
+                        elif field.field_type.value == "int32":
+                            val = ffi.cast("int32_t*", ptr)[0]
+                            lib.sds_json_add_int(writer_ptr, field.name.encode(), val)
+                        elif field.field_type.value == "uint32":
+                            val = ffi.cast("uint32_t*", ptr)[0]
+                            lib.sds_json_add_uint(writer_ptr, field.name.encode(), val)
+                        elif field.field_type.value == "bool":
+                            val = ffi.cast("bool*", ptr)[0]
+                            lib.sds_json_add_bool(writer_ptr, field.name.encode(), val)
+                        elif field.field_type.value == "string":
+                            val = ffi.string(ffi.cast("char*", ptr), field.string_len)
+                            lib.sds_json_add_string(writer_ptr, field.name.encode(), val)
+                except Exception as e:
+                    import sys
+                    print(f"Serialize error: {e}", file=sys.stderr)
+            
+            return serialize
+        
+        def make_deserialize(section_info: Optional["TableSectionInfo"]):
+            if section_info is None:
+                return ffi.NULL
+            
+            @ffi.callback("SdsDeserializeFunc")
+            def deserialize(section_ptr, reader_ptr):
+                try:
+                    for field in section_info.fields:
+                        offset = field.offset
+                        ptr = ffi.cast("char*", section_ptr) + offset
+                        
+                        if field.field_type.value == "float32":
+                            val = ffi.new("float*")
+                            if lib.sds_json_get_float_field(reader_ptr, field.name.encode(), val):
+                                ffi.cast("float*", ptr)[0] = val[0]
+                        elif field.field_type.value == "uint8":
+                            val = ffi.new("uint8_t*")
+                            if lib.sds_json_get_uint8_field(reader_ptr, field.name.encode(), val):
+                                ffi.cast("uint8_t*", ptr)[0] = val[0]
+                        elif field.field_type.value == "int32":
+                            val = ffi.new("int32_t*")
+                            if lib.sds_json_get_int_field(reader_ptr, field.name.encode(), val):
+                                ffi.cast("int32_t*", ptr)[0] = val[0]
+                        elif field.field_type.value == "uint32":
+                            val = ffi.new("uint32_t*")
+                            if lib.sds_json_get_uint_field(reader_ptr, field.name.encode(), val):
+                                ffi.cast("uint32_t*", ptr)[0] = val[0]
+                        elif field.field_type.value == "bool":
+                            val = ffi.new("bool*")
+                            if lib.sds_json_get_bool_field(reader_ptr, field.name.encode(), val):
+                                ffi.cast("bool*", ptr)[0] = val[0]
+                        elif field.field_type.value == "string":
+                            buf = ffi.new(f"char[{field.string_len}]")
+                            if lib.sds_json_get_string_field(reader_ptr, field.name.encode(), buf, field.string_len):
+                                ffi.memmove(ptr, buf, field.string_len)
+                except Exception as e:
+                    import sys
+                    print(f"Deserialize error: {e}", file=sys.stderr)
+            
+            return deserialize
+        
+        # Create and store callbacks (must keep references alive!)
+        callbacks = {
+            "serialize_config": make_serialize(config_info),
+            "deserialize_config": make_deserialize(config_info),
+            "serialize_state": make_serialize(state_info),
+            "deserialize_state": make_deserialize(state_info),
+            "serialize_status": make_serialize(status_info),
+            "deserialize_status": make_deserialize(status_info),
+        }
+        
+        return callbacks
     
     def unregister_table(self, table_type: str) -> None:
         """

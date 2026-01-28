@@ -281,6 +281,7 @@ class SdsTable:
         config_schema: Optional[Type] = None,
         state_schema: Optional[Type] = None,
         status_schema: Optional[Type] = None,
+        python_meta: Optional[Dict[str, int]] = None,
     ):
         """
         Initialize the table wrapper.
@@ -289,15 +290,17 @@ class SdsTable:
             table_type: The table type name
             role: SDS_ROLE_OWNER or SDS_ROLE_DEVICE
             buffer: CFFI buffer for the table
-            meta: Pointer to SdsTableMeta
+            meta: Pointer to SdsTableMeta (can be None if python_meta provided)
             config_schema: Optional dataclass for config section
             state_schema: Optional dataclass for state section
             status_schema: Optional dataclass for status section
+            python_meta: Optional dict with offsets (for Python-only schemas)
         """
         self._table_type = table_type
         self._role = role
         self._buffer = buffer
         self._meta = meta
+        self._python_meta = python_meta
         
         # Analyze schemas if provided
         self._config_info = analyze_dataclass(config_schema) if config_schema else None
@@ -320,27 +323,52 @@ class SdsTable:
         """Set up section proxy objects based on role."""
         buffer_ptr = ffi.cast("char*", self._buffer)
         
+        # Get offsets from C meta or Python meta
+        if self._python_meta:
+            # Using Python-calculated offsets
+            config_offset = self._python_meta.get("config_offset", 0)
+            state_offset = self._python_meta.get("state_offset", 0)
+            status_offset = self._python_meta.get("status_offset", 0)
+        elif self._meta:
+            # Using C metadata
+            if self._role == Role.DEVICE:
+                config_offset = self._meta.dev_config_offset
+                state_offset = self._meta.dev_state_offset
+                status_offset = self._meta.dev_status_offset
+            else:
+                config_offset = self._meta.own_config_offset
+                state_offset = self._meta.own_state_offset
+                status_offset = self._meta.own_status_offset
+        else:
+            # No metadata available
+            return
+        
         if self._role == Role.DEVICE:
             # Device role: can write state/status, read config
             if self._config_info:
-                config_ptr = buffer_ptr + self._meta.dev_config_offset
+                config_ptr = buffer_ptr + config_offset
                 self._config_proxy = SectionProxy(self._config_info, config_ptr, readonly=True)
             
             if self._state_info:
-                state_ptr = buffer_ptr + self._meta.dev_state_offset
+                state_ptr = buffer_ptr + state_offset
                 self._state_proxy = SectionProxy(self._state_info, state_ptr, readonly=False)
             
             if self._status_info:
-                status_ptr = buffer_ptr + self._meta.dev_status_offset
+                status_ptr = buffer_ptr + status_offset
                 self._status_proxy = SectionProxy(self._status_info, status_ptr, readonly=False)
         
         else:  # OWNER role
             # Owner role: can write config, read state (when devices send updates)
             if self._config_info:
-                config_ptr = buffer_ptr + self._meta.own_config_offset
+                config_ptr = buffer_ptr + config_offset
                 self._config_proxy = SectionProxy(self._config_info, config_ptr, readonly=False)
             
-            # Note: state proxy not used for owner - use get_device() instead
+            # For owner with Python schemas, also set up state proxy (for reading merged state)
+            if self._state_info and self._python_meta:
+                state_ptr = buffer_ptr + state_offset
+                self._state_proxy = SectionProxy(self._state_info, state_ptr, readonly=True)
+            
+            # Note: For C meta, state proxy not used for owner - use get_device() instead
     
     @property
     def table_type(self) -> str:
