@@ -365,17 +365,40 @@ class SdsNode:
         status_size = status_info.total_size if status_info else 0
         
         # For device: config + state + status
-        # For owner: config + state + status + status_slots (simplified: just basic sections)
+        # For owner: config + state + status + status_count + status_slots
         # Calculate offsets (sections are placed sequentially)
         config_offset = 0
         state_offset = config_size
         status_offset = config_size + state_size
         table_size = config_size + state_size + status_size
         
-        # For owner, add space for status_slots (simplified - 8 slots max)
+        # Status slot layout (matches C struct layout):
+        # - node_id: 32 bytes (SDS_MAX_NODE_ID_LEN)
+        # - valid: 1 byte
+        # - online: 1 byte
+        # - padding: 2 bytes (for uint32 alignment)
+        # - last_seen_ms: 4 bytes
+        # - status: status_size bytes
+        SDS_MAX_NODE_ID_LEN = 32
+        slot_node_id_offset = 0
+        slot_valid_offset = SDS_MAX_NODE_ID_LEN  # 32
+        slot_online_offset = SDS_MAX_NODE_ID_LEN + 1  # 33
+        slot_last_seen_offset = SDS_MAX_NODE_ID_LEN + 4  # 36 (aligned)
+        slot_status_offset = SDS_MAX_NODE_ID_LEN + 8  # 40
+        slot_size = SDS_MAX_NODE_ID_LEN + 8 + status_size  # 40 + status_size
+        max_slots = 8
+        
+        # For owner, add space for status_slots and count
+        status_slots_offset = 0
+        status_count_offset = 0
         if role == Role.OWNER:
-            # Add padding and slot storage (simplified)
-            table_size += 8 * (64 + status_size + 16)  # node_id + status + metadata per slot
+            status_count_offset = table_size
+            table_size += 1  # status_count (uint8)
+            # Align to 4 bytes for slots array
+            if table_size % 4 != 0:
+                table_size += 4 - (table_size % 4)
+            status_slots_offset = table_size
+            table_size += slot_size * max_slots
         
         # Allocate table buffer
         table_buffer = ffi.new(f"char[{table_size}]")
@@ -408,6 +431,23 @@ class SdsNode:
         )
         check_error(result)
         
+        # For owner, configure status slot tracking
+        if role == Role.OWNER:
+            lib.sds_set_owner_status_slots(
+                table_type.encode("utf-8"),
+                status_slots_offset,
+                slot_size,
+                slot_status_offset,
+                status_count_offset,
+                max_slots,
+            )
+            lib.sds_set_owner_slot_offsets(
+                table_type.encode("utf-8"),
+                slot_valid_offset,
+                slot_online_offset,
+                slot_last_seen_offset,
+            )
+        
         # Create a fake table_meta for the SdsTable wrapper
         # We'll store the info we need directly
         fake_meta = {
@@ -417,6 +457,14 @@ class SdsNode:
             "state_size": state_size,
             "status_offset": status_offset,
             "status_size": status_size,
+            "status_slots_offset": status_slots_offset,
+            "status_count_offset": status_count_offset,
+            "slot_size": slot_size,
+            "slot_valid_offset": slot_valid_offset,
+            "slot_online_offset": slot_online_offset,
+            "slot_last_seen_offset": slot_last_seen_offset,
+            "slot_status_offset": slot_status_offset,
+            "max_slots": max_slots,
         }
         
         # Create table wrapper

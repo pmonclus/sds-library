@@ -31,8 +31,9 @@ from sds import SdsNode, Role, SdsError, SdsMqttError, LogLevel, set_log_level
 from demo_types import DeviceDemo
 
 
-# Global flag for graceful shutdown
+# Global flags
 running = True
+verbose = False  # Control live state/status message printing
 
 
 def signal_handler(signum, frame):
@@ -49,6 +50,7 @@ def print_help():
     print("  active <id>     - Set active device (e.g., 'active linux_dev_01')")
     print("  active none     - Disable state publishing")
     print("  status          - Show all device statuses")
+    print("  verbose on/off  - Toggle live state/status messages")
     print("  help            - Show this help")
     print("  quit            - Exit")
     print()
@@ -102,21 +104,28 @@ def main():
                 nonlocal last_state_from, last_state_time
                 last_state_from = from_node
                 last_state_time = time.time()
-                # State is in the shared table.state
-                print(f"\n[STATE] from {from_node}: "
-                      f"temp={table.state.temperature:.1f}C, "
-                      f"humidity={table.state.humidity:.1f}%")
-                print("> ", end="", flush=True)
+                # Only print if verbose mode is on
+                if verbose:
+                    print(f"\n[STATE] from {from_node}: "
+                          f"temp={table.state.temperature:.1f}C, "
+                          f"humidity={table.state.humidity:.1f}%")
+                    print("> ", end="", flush=True)
             
             # Status callback
             @node.on_status("DeviceDemo")
             def handle_status(table_type, from_node):
+                # Only print if verbose mode is on
+                if not verbose:
+                    return
                 device = table.get_device(from_node)
                 if device and device.status:
                     status_str = "ONLINE" if device.online else "OFFLINE"
                     print(f"\n[STATUS] {from_node} ({status_str}): "
                           f"power={device.status.power_consumption:.1f}W, "
                           f"log=\"{device.status.latest_log}\"")
+                    print("> ", end="", flush=True)
+                else:
+                    print(f"\n[STATUS] Received status update from {from_node}")
                     print("> ", end="", flush=True)
             
             # Error callback
@@ -168,16 +177,20 @@ def main():
                             print(f"\n--- Device Status ---")
                             print(f"Config: LED={'ON' if table.config.led_control else 'OFF'}, "
                                   f"active='{table.config.active_device or 'none'}'")
-                            print(f"Known devices: {table.device_count}")
                             
-                            if table.device_count > 0:
+                            device_count = table.device_count
+                            if device_count > 0:
+                                print(f"Known devices: {device_count}")
                                 for dev_id, device in table.iter_devices():
                                     status_str = "ONLINE" if device.online else "OFFLINE"
                                     if device.status:
                                         print(f"  - {dev_id}: {status_str}, "
-                                              f"power={device.status.power_consumption:.1f}W")
+                                              f"power={device.status.power_consumption:.1f}W, "
+                                              f"log=\"{device.status.latest_log}\"")
                                     else:
                                         print(f"  - {dev_id}: {status_str}")
+                            else:
+                                print("No devices connected yet.")
                             
                             if last_state_from:
                                 age = time.time() - last_state_time
@@ -185,6 +198,20 @@ def main():
                                 print(f"  temperature={table.state.temperature:.1f}C")
                                 print(f"  humidity={table.state.humidity:.1f}%")
                             print()
+                        
+                        elif command == "verbose":
+                            global verbose
+                            if len(parts) < 2:
+                                print(f"Verbose mode: {'ON' if verbose else 'OFF'}")
+                                print("Usage: verbose on/off")
+                            elif parts[1] == "on":
+                                verbose = True
+                                print("Verbose mode ON - live state/status messages enabled")
+                            elif parts[1] == "off":
+                                verbose = False
+                                print("Verbose mode OFF - live messages disabled")
+                            else:
+                                print("Usage: verbose on/off")
                         
                         elif command == "help":
                             print_help()

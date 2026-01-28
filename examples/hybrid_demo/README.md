@@ -132,6 +132,8 @@ In the owner terminal, use commands:
 - `led on` / `led off` - Toggle LED on all devices
 - `active <node_id>` - Set which device publishes state
 - `status` - Show all device statuses
+- `verbose on` / `verbose off` - Toggle live state/status messages
+- `help` - Show available commands
 - `quit` - Exit
 
 ## Folder Structure

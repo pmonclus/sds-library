@@ -404,20 +404,27 @@ class SdsTable:
     @property
     def state(self) -> SectionProxy:
         """
-        Access the state section (DEVICE role only).
+        Access the state section.
+        
+        For DEVICE role: Read/write access to state (publishes to owner).
+        For OWNER role with Python schemas: Read-only access to last received state.
+        
+        Note: For OWNER with C schemas, use get_device().state instead.
         
         Returns:
             SectionProxy for attribute access
         
         Raises:
-            SdsError: If no state schema was provided or not device role
+            SdsError: If no state schema was provided or not available
         """
-        if self._role != Role.DEVICE:
+        # For OWNER with C metadata, per-device state access is via get_device()
+        if self._role == Role.OWNER and self._meta is not None:
             raise SdsError(
                 ErrorCode.INVALID_ROLE,
                 "state property only available for DEVICE role. "
                 "Use get_device().state for OWNER role."
             )
+        
         if self._state_proxy is None:
             raise SdsError(
                 ErrorCode.INVALID_TABLE,
@@ -479,15 +486,28 @@ class SdsTable:
                 "get_device() is only available for OWNER role"
             )
         
-        # Find the device's status slot
-        slot_ptr = lib.sds_find_node_status(
+        # Get slot offsets from C or Python metadata
+        if self._meta is not None:
+            slot_last_seen_offset = self._meta.slot_last_seen_offset
+            slot_status_offset = self._meta.slot_status_offset
+        elif self._python_meta and "slot_last_seen_offset" in self._python_meta:
+            slot_last_seen_offset = self._python_meta["slot_last_seen_offset"]
+            slot_status_offset = self._python_meta["slot_status_offset"]
+        else:
+            return None  # No metadata, can't access device slots
+        
+        # Find the device's status (sds_find_node_status returns pointer to STATUS, not slot)
+        status_ptr = lib.sds_find_node_status(
             self._buffer,
             self._table_type.encode("utf-8"),
             node_id.encode("utf-8"),
         )
         
-        if slot_ptr == ffi.NULL:
+        if status_ptr == ffi.NULL:
             return None
+        
+        # Calculate pointer to the slot start (status_ptr - slot_status_offset)
+        slot_char = ffi.cast("char*", status_ptr) - slot_status_offset
         
         # Calculate online status
         if timeout_ms is None:
@@ -502,37 +522,15 @@ class SdsTable:
         )
         
         # Read last_seen timestamp from slot
-        slot_char = ffi.cast("char*", slot_ptr)
-        last_seen_ptr = ffi.cast("uint32_t*", slot_char + self._meta.slot_last_seen_offset)
+        last_seen_ptr = ffi.cast("uint32_t*", slot_char + slot_last_seen_offset)
         last_seen = last_seen_ptr[0]
         
-        # Create state proxy if we have schema
+        # State is transient (only available during callback), not stored per-device
         state_proxy = None
-        if self._state_info:
-            # State is stored right after the slot header in owner table
-            # For owner, state is at own_state_offset (single state buffer for receiving)
-            # Actually, in owner mode, each device's state/status is stored in the status slots
-            # The slot has: valid, online, last_seen, node_id, then status data
-            # For state, the owner table has a shared buffer at own_state_offset
-            # Let me check the C code to understand the exact layout
-            
-            # Looking at sds_core.c: for owner, incoming state updates are stored
-            # in own_state section. But only one at a time (last received).
-            # For per-device state, we need to look at how the C lib handles this.
-            
-            # Actually, checking the design: owners receive state/status updates
-            # via callbacks and the data is in the shared section temporarily.
-            # Per-device storage is only for status in the slots array.
-            
-            # For this API, we'll read from the status slot which contains the
-            # device's status data. State is transient and only available during callback.
-            pass
         
-        # Create status proxy from slot data
+        # Create status proxy from slot data (status_ptr already points to status)
         status_proxy = None
         if self._status_info:
-            # Status data is at slot_status_offset within the slot
-            status_ptr = slot_char + self._meta.slot_status_offset
             status_proxy = SectionProxy(self._status_info, status_ptr, readonly=True)
         
         return DeviceView(
@@ -608,9 +606,17 @@ class SdsTable:
                 "device_count is only available for OWNER role"
             )
         
-        # Read count from the count offset
         buffer_ptr = ffi.cast("char*", self._buffer)
-        count_ptr = ffi.cast("uint8_t*", buffer_ptr + self._meta.own_status_count_offset)
+        
+        # Use C metadata or Python metadata
+        if self._meta is not None:
+            count_offset = self._meta.own_status_count_offset
+        elif self._python_meta and "status_count_offset" in self._python_meta:
+            count_offset = self._python_meta["status_count_offset"]
+        else:
+            return 0  # No metadata available
+        
+        count_ptr = ffi.cast("uint8_t*", buffer_ptr + count_offset)
         return count_ptr[0]
     
     def __repr__(self) -> str:
