@@ -11,6 +11,7 @@ This example demonstrates how to create a Python device node that:
 Requirements:
 - MQTT broker running (e.g., mosquitto on localhost:1883)
 - SDS library built with generated types that include "SensorData"
+- Generated sds_types.py from schema.sds
 
 Usage:
     python simple_device.py [broker_host] [node_id]
@@ -20,39 +21,19 @@ import sys
 import time
 import random
 import signal
-from dataclasses import dataclass
 
-from sds import (
-    SdsNode,
-    Role,
-    SdsError,
-    SdsMqttError,
-    Field,
-    LogLevel,
-    set_log_level,
-)
+# Import SDS library
+from sds import SdsNode, Role, SdsError, SdsMqttError, LogLevel, set_log_level
 
-
-# Define schemas matching the C SensorData table
-@dataclass
-class SensorConfig:
-    """Configuration received from owner."""
-    command: int = Field(uint8=True, default=0)
-    threshold: float = Field(float32=True, default=25.0)
-
-
-@dataclass
-class SensorState:
-    """State data published to owner."""
-    temperature: float = Field(float32=True, default=0.0)
-    humidity: float = Field(float32=True, default=0.0)
-
-
-@dataclass
-class SensorStatus:
-    """Status data published to owner."""
-    error_code: int = Field(uint8=True, default=0)
-    battery_percent: int = Field(uint8=True, default=100)
+# Import generated schema types (from sds_codegen.py)
+# Add parent directory to path for development
+sys.path.insert(0, str(__file__).rsplit('/', 2)[0])
+try:
+    from sds_types import SensorData
+except ImportError:
+    print("Error: sds_types.py not found.")
+    print("Generate it with: python tools/sds_codegen.py schema.sds --python -o python/")
+    sys.exit(1)
 
 
 # Global flag for graceful shutdown
@@ -88,15 +69,9 @@ def main():
         with SdsNode(node_id, broker_host, port=1883) as node:
             print("Connected to MQTT broker")
             
-            # Register as a device for SensorData table with schema classes
+            # Register with generated schema bundle - no manual dataclass needed!
             try:
-                table = node.register_table(
-                    "SensorData",
-                    Role.DEVICE,
-                    config_schema=SensorConfig,
-                    state_schema=SensorState,
-                    status_schema=SensorStatus,
-                )
+                table = node.register_table("SensorData", Role.DEVICE, schema=SensorData)
                 print("Registered as DEVICE for SensorData table")
             except SdsError as e:
                 print(f"Failed to register table: {e}")
@@ -137,6 +112,7 @@ def main():
                 if iteration % 5 == 0:
                     table.status.error_code = 0
                     table.status.battery_percent = 95
+                    table.status.uptime_seconds = int(time.time()) % 86400
                     print(f"[STATUS] error={table.status.error_code}, battery={table.status.battery_percent}%")
                 
                 # Process MQTT messages (publishes state/status changes)

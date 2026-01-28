@@ -18,50 +18,59 @@ pip install -e ".[dev]"
 
 ## Quick Start
 
-### Device Node (C-like Syntax)
+### Generate Types from Schema
+
+The code generator creates Python types from your `.sds` schema file:
+
+```bash
+# Generate Python types (and optionally C types)
+python tools/sds_codegen.py schema.sds --python -o python/
+```
+
+This creates `sds_types.py` with dataclasses matching your C structs.
+
+### Device Node (Using Generated Types)
+
+```python
+from sds import SdsNode, Role
+from sds_types import SensorData  # Generated from schema.sds
+
+with SdsNode("py_sensor_01", "localhost") as node:
+    # Register with schema bundle - no manual dataclass needed!
+    table = node.register_table("SensorData", Role.DEVICE, schema=SensorData)
+    
+    @node.on_config("SensorData")
+    def handle_config(table_type):
+        print(f"Config: threshold={table.config.threshold}")
+    
+    while True:
+        # C-like attribute access
+        table.state.temperature = 23.5
+        table.state.humidity = 65.0
+        table.status.error_code = 0
+        
+        node.poll(timeout_ms=1000)
+```
+
+### Device Node (Manual Schema Definition)
+
+If you prefer not to use the code generator:
 
 ```python
 from dataclasses import dataclass
 from sds import SdsNode, Role, Field
 
-# Define schema matching your C struct
 @dataclass
 class SensorState:
     temperature: float = Field(float32=True)
     humidity: float = Field(float32=True)
 
-@dataclass
-class SensorStatus:
-    error_code: int = Field(uint8=True)
-    battery_percent: int = Field(uint8=True)
-
-# Create and initialize node
 with SdsNode("py_sensor_01", "localhost") as node:
-    # Register table with schema classes
     table = node.register_table(
-        "SensorData",
-        Role.DEVICE,
+        "SensorData", Role.DEVICE,
         state_schema=SensorState,
-        status_schema=SensorStatus,
     )
-    
-    # Set up config callback
-    @node.on_config("SensorData")
-    def handle_config(table_type):
-        print(f"Config: threshold={table.config.threshold}")
-    
-    # Main loop
-    while True:
-        # Write state using C-like syntax
-        table.state.temperature = 23.5
-        table.state.humidity = 65.0
-        
-        # Write status
-        table.status.error_code = 0
-        table.status.battery_percent = 95
-        
-        # Process MQTT messages
-        node.poll(timeout_ms=1000)
+    table.state.temperature = 23.5
 ```
 
 ### Owner Node (C-like Syntax)
