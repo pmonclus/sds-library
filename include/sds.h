@@ -721,6 +721,37 @@ void sds_set_owner_status_slots(
 );
 
 /**
+ * @brief Configure slot field offsets for online detection (owner role only).
+ * 
+ * This function sets the offsets of the valid, online, and last_seen_ms fields
+ * within each status slot. Required for sds_is_device_online() to work.
+ * 
+ * @code{.c}
+ * // After sds_set_owner_status_slots():
+ * sds_set_owner_slot_offsets(
+ *     "SensorData",
+ *     offsetof(SensorDataStatusSlot, valid),
+ *     offsetof(SensorDataStatusSlot, online),
+ *     offsetof(SensorDataStatusSlot, last_seen_ms)
+ * );
+ * @endcode
+ * 
+ * @param table_type Table type name
+ * @param valid_offset offsetof(StatusSlot, valid)
+ * @param online_offset offsetof(StatusSlot, online)
+ * @param last_seen_offset offsetof(StatusSlot, last_seen_ms)
+ * 
+ * @see sds_set_owner_status_slots
+ * @see sds_is_device_online
+ */
+void sds_set_owner_slot_offsets(
+    const char* table_type,
+    size_t valid_offset,
+    size_t online_offset,
+    size_t last_seen_offset
+);
+
+/**
  * @brief Check if a device is currently online (owner role only).
  * 
  * A device is considered online if all of the following are true:

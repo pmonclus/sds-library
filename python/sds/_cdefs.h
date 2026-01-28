@@ -236,6 +236,13 @@ void sds_set_owner_status_slots(
     uint8_t max_slots
 );
 
+void sds_set_owner_slot_offsets(
+    const char* table_type,
+    size_t valid_offset,
+    size_t online_offset,
+    size_t last_seen_offset
+);
+
 bool sds_is_device_online(
     const void* owner_table,
     const char* table_type,

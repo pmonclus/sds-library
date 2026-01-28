@@ -204,6 +204,14 @@ static void setup_owner(const char* broker) {
         MAX_NODES
     );
     
+    /* Configure slot field offsets for online detection */
+    sds_set_owner_slot_offsets(
+        "LivenessTest",
+        offsetof(LivenessStatusSlot, valid),
+        offsetof(LivenessStatusSlot, online),
+        offsetof(LivenessStatusSlot, last_seen_ms)
+    );
+    
     /* Set callback for status updates */
     sds_on_status_update("LivenessTest", on_status_update, NULL);
     

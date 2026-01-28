@@ -756,6 +756,27 @@ void sds_set_owner_status_slots(
               table_type, slots_offset, slot_size, max_slots);
 }
 
+void sds_set_owner_slot_offsets(
+    const char* table_type,
+    size_t valid_offset,
+    size_t online_offset,
+    size_t last_seen_offset
+) {
+    SdsTableContext* ctx = find_table(table_type);
+    if (!ctx || ctx->role != SDS_ROLE_OWNER) {
+        SDS_LOG_W("sds_set_owner_slot_offsets: table %s not found or not owner", 
+                  table_type ? table_type : "(null)");
+        return;
+    }
+    
+    ctx->slot_valid_offset = valid_offset;
+    ctx->slot_online_offset = online_offset;
+    ctx->slot_last_seen_offset = last_seen_offset;
+    
+    SDS_LOG_D("Configured slot offsets for %s: valid=%zu online=%zu last_seen=%zu",
+              table_type, valid_offset, online_offset, last_seen_offset);
+}
+
 /**
  * Internal helper to notify errors through the callback.
  */
