@@ -161,16 +161,30 @@ All owners support the same commands:
 
 ## ESP32 Device
 
-### Build and Flash
+### Configuration
 
 ```bash
 cd esp32_device
 cp config.h.example config.h
 # Edit config.h with your WiFi and MQTT settings
+```
+
+### Build with PlatformIO (recommended)
+
+```bash
 pio run              # Build
 pio run -t upload    # Flash to ESP32
 pio device monitor   # View serial output
 ```
+
+### Build with Arduino IDE
+
+1. Make sure you've run `./generate.sh` first (creates symlinks in esp32_device/)
+2. Install ESP32 board support (see Prerequisites)
+3. Install PubSubClient library (Tools → Manage Libraries)
+4. Open `esp32_device/esp32_device.ino` in Arduino IDE
+5. Select your ESP32 board (Tools → Board → ESP32 Arduino)
+6. Click Upload
 
 The ESP32 device works with any owner (Python or C).
 

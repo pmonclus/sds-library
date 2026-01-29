@@ -181,6 +181,14 @@ class SdsPlatformError(SdsError):
     pass
 
 
+class SdsValidationError(SdsError):
+    """Raised when input validation fails (e.g., invalid node_id, string too long)."""
+    
+    def __init__(self, message: str):
+        # Use a special code for validation errors (not from C library)
+        super().__init__(code=-1, message=message)
+
+
 def check_error(code: int) -> None:
     """
     Check an error code and raise an exception if it's not OK.

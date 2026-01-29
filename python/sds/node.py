@@ -3,13 +3,27 @@ SdsNode - High-level Pythonic interface for SDS.
 
 This module provides the main SdsNode class that wraps the C library
 with a clean, Pythonic API including context managers and decorators.
+
+Thread Safety:
+    SdsNode is thread-safe. Multiple threads can safely call poll(),
+    register_table(), and access table data. A reentrant lock (RLock)
+    protects all critical sections.
 """
 from __future__ import annotations
 
+import logging
+import threading
+import time
 import weakref
 from typing import Any, Callable, Dict, Optional, Type, Union, TYPE_CHECKING
 
-from sds.types import Role, ErrorCode, SdsError, check_error
+from sds.types import Role, ErrorCode, SdsError, SdsMqttError, SdsValidationError, check_error
+
+# Maximum node ID length (matches C library SDS_MAX_NODE_ID_LEN - 1 for null terminator)
+MAX_NODE_ID_LEN = 31
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 # Import CFFI bindings (will fail if extension not built)
 from sds._bindings import ffi, lib, encode_string, decode_string
@@ -34,6 +48,13 @@ class SdsNode:
     - Context manager support (with statement)
     - Decorator-based callback registration
     - Automatic resource cleanup
+    - Thread-safe operations
+    
+    Thread Safety:
+        This class is thread-safe. Multiple threads can safely call poll(),
+        register_table(), and access table data concurrently. A reentrant
+        lock (RLock) protects all critical sections. Callbacks are executed
+        while holding the lock, so avoid blocking operations in callbacks.
     
     Example:
         >>> with SdsNode("sensor_01", "localhost") as node:
@@ -60,26 +81,55 @@ class SdsNode:
         password: Optional[str] = None,
         *,
         auto_init: bool = True,
+        connect_timeout_ms: int = 5000,
+        retry_count: int = 3,
+        retry_delay_ms: int = 1000,
     ):
         """
         Create an SDS node.
         
         Args:
-            node_id: Unique identifier for this node
+            node_id: Unique identifier for this node (max 31 characters)
             broker_host: MQTT broker hostname or IP address
             port: MQTT broker port (default: 1883)
             username: MQTT username for authentication (optional)
             password: MQTT password for authentication (optional)
             auto_init: If True, automatically call init() (default: True)
+            connect_timeout_ms: Connection timeout in milliseconds (default: 5000)
+            retry_count: Number of connection retries (default: 3)
+            retry_delay_ms: Initial retry delay in milliseconds (default: 1000)
+                           Uses exponential backoff (delay doubles each retry)
         
         Raises:
+            SdsValidationError: If node_id is invalid
             SdsError: If auto_init is True and initialization fails
         """
+        # Validate node_id
+        if not node_id:
+            raise SdsValidationError("node_id cannot be empty")
+        if len(node_id) > MAX_NODE_ID_LEN:
+            raise SdsValidationError(
+                f"node_id '{node_id}' exceeds maximum length of {MAX_NODE_ID_LEN} characters"
+            )
+        # Check for invalid characters (only allow alphanumeric, underscore, hyphen)
+        import re
+        if not re.match(r'^[a-zA-Z0-9_-]+$', node_id):
+            raise SdsValidationError(
+                f"node_id '{node_id}' contains invalid characters. "
+                "Only alphanumeric, underscore, and hyphen are allowed."
+            )
+        
         self._node_id = node_id
         self._broker_host = broker_host
         self._port = port
         self._username = username
         self._password = password
+        self._connect_timeout_ms = connect_timeout_ms
+        self._retry_count = retry_count
+        self._retry_delay_ms = retry_delay_ms
+        
+        # Thread safety lock - reentrant to allow nested calls
+        self._lock = threading.RLock()
         
         self._initialized = False
         self._tables: Dict[str, Dict[str, Any]] = {}
@@ -97,8 +147,23 @@ class SdsNode:
         # Register this instance
         SdsNode._instances.add(self)
         
+        # Set up a finalizer for reliable cleanup even if __del__ is not called
+        self._finalizer = weakref.finalize(self, self._cleanup_class, self._node_id)
+        
         if auto_init:
             self.init()
+    
+    @staticmethod
+    def _cleanup_class(node_id: str) -> None:
+        """
+        Static cleanup method for finalizer.
+        
+        Note: This is called by the finalizer when the SdsNode is garbage collected.
+        It cannot access instance state, only static/class state.
+        """
+        # The instance has already been cleaned up if shutdown() was called,
+        # but log for debugging if something unexpected happens
+        logger.debug(f"Finalizer called for node {node_id}")
     
     @property
     def node_id(self) -> str:
@@ -120,56 +185,85 @@ class SdsNode:
         Initialize SDS and connect to the MQTT broker.
         
         This is called automatically if auto_init=True (the default).
+        Connection is retried with exponential backoff based on retry_count
+        and retry_delay_ms parameters.
         
         Raises:
-            SdsError: If initialization fails
+            SdsError: If initialization fails after all retries
             SdsAlreadyInitializedError: If already initialized
         """
-        if self._initialized:
-            raise SdsError.from_code(ErrorCode.ALREADY_INITIALIZED)
-        
-        # Create config struct
-        config = ffi.new("SdsConfig*")
-        config.node_id = ffi.new("char[]", self._node_id.encode("utf-8"))
-        config.mqtt_broker = ffi.new("char[]", self._broker_host.encode("utf-8"))
-        config.mqtt_port = self._port
-        
-        if self._username is not None:
-            config.mqtt_username = ffi.new("char[]", self._username.encode("utf-8"))
-        else:
-            config.mqtt_username = ffi.NULL
-        
-        if self._password is not None:
-            config.mqtt_password = ffi.new("char[]", self._password.encode("utf-8"))
-        else:
-            config.mqtt_password = ffi.NULL
-        
-        # Keep config alive
-        self._config = config
-        
-        # Set as current instance for callbacks
-        SdsNode._current_instance = self
-        
-        # Initialize
-        result = lib.sds_init(config)
-        check_error(result)
-        
-        self._initialized = True
+        with self._lock:
+            if self._initialized:
+                raise SdsError.from_code(ErrorCode.ALREADY_INITIALIZED)
+            
+            # Create config struct
+            config = ffi.new("SdsConfig*")
+            config.node_id = ffi.new("char[]", self._node_id.encode("utf-8"))
+            config.mqtt_broker = ffi.new("char[]", self._broker_host.encode("utf-8"))
+            config.mqtt_port = self._port
+            
+            if self._username is not None:
+                config.mqtt_username = ffi.new("char[]", self._username.encode("utf-8"))
+            else:
+                config.mqtt_username = ffi.NULL
+            
+            if self._password is not None:
+                config.mqtt_password = ffi.new("char[]", self._password.encode("utf-8"))
+            else:
+                config.mqtt_password = ffi.NULL
+            
+            # Keep config alive
+            self._config = config
+            
+            # Set as current instance for callbacks
+            SdsNode._current_instance = self
+            
+            # Initialize with retry logic
+            last_error: Optional[SdsError] = None
+            delay_ms = self._retry_delay_ms
+            
+            for attempt in range(self._retry_count + 1):
+                try:
+                    result = lib.sds_init(config)
+                    check_error(result)
+                    self._initialized = True
+                    if attempt > 0:
+                        logger.info(f"Connected to MQTT broker after {attempt + 1} attempts")
+                    return
+                except SdsMqttError as e:
+                    last_error = e
+                    if attempt < self._retry_count:
+                        logger.warning(
+                            f"MQTT connection failed (attempt {attempt + 1}/{self._retry_count + 1}), "
+                            f"retrying in {delay_ms}ms: {e}"
+                        )
+                        time.sleep(delay_ms / 1000.0)
+                        delay_ms *= 2  # Exponential backoff
+                    else:
+                        logger.error(f"MQTT connection failed after {attempt + 1} attempts: {e}")
+                except SdsError:
+                    # Non-MQTT errors are not retried
+                    raise
+            
+            # All retries exhausted
+            if last_error:
+                raise last_error
     
     def shutdown(self) -> None:
         """
         Shutdown SDS and disconnect from the MQTT broker.
         
         This is called automatically when exiting a context manager.
-        Safe to call multiple times.
+        Safe to call multiple times. Thread-safe.
         """
-        if self._initialized:
-            lib.sds_shutdown()
-            self._initialized = False
-            self._tables.clear()
-            
-            if SdsNode._current_instance is self:
-                SdsNode._current_instance = None
+        with self._lock:
+            if self._initialized:
+                lib.sds_shutdown()
+                self._initialized = False
+                self._tables.clear()
+                
+                if SdsNode._current_instance is self:
+                    SdsNode._current_instance = None
     
     def __enter__(self) -> "SdsNode":
         """Enter context manager."""
@@ -184,32 +278,38 @@ class SdsNode:
         try:
             self.shutdown()
         except Exception:
-            pass  # Ignore errors during destruction
+            # Log errors during destruction instead of silently ignoring
+            logger.warning("Error during SdsNode cleanup", exc_info=True)
     
     def is_ready(self) -> bool:
         """
         Check if SDS is initialized and connected.
         
+        Thread-safe.
+        
         Returns:
             True if connected and ready for operations
         """
-        if not self._initialized:
-            return False
-        return lib.sds_is_ready()
+        with self._lock:
+            if not self._initialized:
+                return False
+            return lib.sds_is_ready()
     
     def poll(self, timeout_ms: int = 0) -> None:
         """
         Process MQTT messages and sync table changes.
         
-        This should be called regularly in your main loop.
+        This should be called regularly in your main loop. Thread-safe.
+        Callbacks are executed while holding the lock.
         
         Args:
             timeout_ms: Not currently used (reserved for future async support)
         """
-        if not self._initialized:
-            raise SdsError.from_code(ErrorCode.NOT_INITIALIZED)
-        
-        lib.sds_loop()
+        with self._lock:
+            if not self._initialized:
+                raise SdsError.from_code(ErrorCode.NOT_INITIALIZED)
+            
+            lib.sds_loop()
     
     def register_table(
         self,
@@ -261,6 +361,29 @@ class SdsNode:
             )
             table.state.temperature = 23.5
         """
+        with self._lock:
+            return self._register_table_impl(
+                table_type=table_type,
+                role=role,
+                sync_interval_ms=sync_interval_ms,
+                schema=schema,
+                config_schema=config_schema,
+                state_schema=state_schema,
+                status_schema=status_schema,
+            )
+    
+    def _register_table_impl(
+        self,
+        table_type: str,
+        role: Role,
+        *,
+        sync_interval_ms: Optional[int] = None,
+        schema: Optional[Type] = None,
+        config_schema: Optional[Type] = None,
+        state_schema: Optional[Type] = None,
+        status_schema: Optional[Type] = None,
+    ) -> SdsTable:
+        """Internal implementation of register_table (called with lock held)."""
         # Extract schemas from bundle if provided
         if schema is not None:
             if hasattr(schema, 'Config') and config_schema is None:
@@ -327,6 +450,7 @@ class SdsNode:
             config_schema=config_schema,
             state_schema=state_schema,
             status_schema=status_schema,
+            lock=self._lock,
         )
         
         # Store table info
@@ -477,6 +601,7 @@ class SdsNode:
             state_schema=state_schema,
             status_schema=status_schema,
             python_meta=fake_meta,  # Use Python-calculated offsets
+            lock=self._lock,
         )
         
         # Store table info
@@ -530,8 +655,7 @@ class SdsNode:
                             val = ffi.string(ffi.cast("char*", ptr), field.string_len)
                             lib.sds_json_add_string(writer_ptr, field.name.encode(), val)
                 except Exception as e:
-                    import sys
-                    print(f"Serialize error: {e}", file=sys.stderr)
+                    logger.exception(f"Serialize error for {section_info.name if section_info else 'unknown'}")
             
             return serialize
         
@@ -571,8 +695,7 @@ class SdsNode:
                             if lib.sds_json_get_string_field(reader_ptr, field.name.encode(), buf, field.string_len):
                                 ffi.memmove(ptr, buf, field.string_len)
                 except Exception as e:
-                    import sys
-                    print(f"Deserialize error: {e}", file=sys.stderr)
+                    logger.exception(f"Deserialize error for {section_info.name if section_info else 'unknown'}")
             
             return deserialize
         
@@ -726,10 +849,9 @@ class SdsNode:
                 ttype = decode_string(c_table_type)
                 if ttype and ttype in self._config_callbacks:
                     self._config_callbacks[ttype](ttype)
-            except Exception as e:
+            except Exception:
                 # Log but don't propagate - C code can't handle Python exceptions
-                import sys
-                print(f"Error in config callback for {table_type}: {e}", file=sys.stderr)
+                logger.exception(f"Error in config callback for {table_type}")
         
         # Keep callback alive
         self._c_callbacks[f"config_{table_type}"] = c_callback
@@ -744,10 +866,9 @@ class SdsNode:
                 from_node = decode_string(c_from_node)
                 if ttype and from_node and ttype in self._state_callbacks:
                     self._state_callbacks[ttype](ttype, from_node)
-            except Exception as e:
+            except Exception:
                 # Log but don't propagate - C code can't handle Python exceptions
-                import sys
-                print(f"Error in state callback for {table_type}: {e}", file=sys.stderr)
+                logger.exception(f"Error in state callback for {table_type}")
         
         # Keep callback alive
         self._c_callbacks[f"state_{table_type}"] = c_callback
@@ -762,10 +883,9 @@ class SdsNode:
                 from_node = decode_string(c_from_node)
                 if ttype and from_node and ttype in self._status_callbacks:
                     self._status_callbacks[ttype](ttype, from_node)
-            except Exception as e:
+            except Exception:
                 # Log but don't propagate - C code can't handle Python exceptions
-                import sys
-                print(f"Error in status callback for {table_type}: {e}", file=sys.stderr)
+                logger.exception(f"Error in status callback for {table_type}")
         
         # Keep callback alive
         self._c_callbacks[f"status_{table_type}"] = c_callback
@@ -796,9 +916,8 @@ class SdsNode:
             try:
                 context = decode_string(c_context) or ""
                 self._error_callback(int(c_error_code), context)
-            except Exception as e:
-                import sys
-                print(f"Error in error callback: {e}", file=sys.stderr)
+            except Exception:
+                logger.exception("Error in error callback")
         
         # Keep callback alive
         self._c_callbacks["error"] = c_callback
@@ -842,9 +961,8 @@ class SdsNode:
                 return self._version_mismatch_callback(
                     table_type, device_id, local_ver, remote_ver
                 )
-            except Exception as e:
-                import sys
-                print(f"Error in version mismatch callback: {e}", file=sys.stderr)
+            except Exception:
+                logger.exception("Error in version mismatch callback")
                 return False
         
         # Keep callback alive

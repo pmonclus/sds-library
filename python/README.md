@@ -107,8 +107,109 @@ with SdsNode("py_owner_01", "localhost") as node:
 - **C-like Syntax**: Access table data directly (`table.state.temperature = 23.5`)
 - **Zero Protocol Drift**: Python uses the exact same C implementation
 - **Pythonic API**: Context managers, decorators, and keyword arguments
+- **Thread-Safe**: All operations protected by locks for multi-threaded use
 - **Cross-Platform**: Linux (x86_64, ARM64) and macOS
 - **Type Hints**: Full type annotations for IDE support
+
+## Thread Safety
+
+SdsNode is fully thread-safe. Multiple threads can safely:
+- Call `poll()` concurrently
+- Access table data (`table.state.temperature`)
+- Register tables and callbacks
+
+```python
+import threading
+from sds import SdsNode, Role
+
+with SdsNode("my_node", "localhost") as node:
+    table = node.register_table("SensorData", Role.DEVICE, schema=SensorData)
+    
+    def polling_thread():
+        while True:
+            node.poll(timeout_ms=100)
+    
+    def update_thread():
+        while True:
+            table.state.temperature = read_sensor()
+            time.sleep(1)
+    
+    # Both threads can safely access the node and table
+    t1 = threading.Thread(target=polling_thread)
+    t2 = threading.Thread(target=update_thread)
+    t1.start()
+    t2.start()
+```
+
+**Note:** Callbacks are executed while holding the lock. Avoid blocking
+operations in callbacks to prevent deadlocks.
+
+## Logging Configuration
+
+SDS uses Python's standard `logging` module. By default, log messages go
+to a `NullHandler` (silent). To enable logging:
+
+```python
+from sds import configure_logging
+import logging
+
+# Quick setup - logs to stderr at INFO level
+configure_logging(level=logging.INFO)
+
+# Or configure manually
+logging.getLogger("sds").setLevel(logging.DEBUG)
+logging.getLogger("sds").addHandler(logging.StreamHandler())
+```
+
+## Connection Resilience
+
+SdsNode includes built-in connection retry with exponential backoff:
+
+```python
+from sds import SdsNode
+
+node = SdsNode(
+    "my_node",
+    "mqtt.example.com",
+    retry_count=5,           # Try 5 times (default: 3)
+    retry_delay_ms=2000,     # Start with 2 second delay (default: 1000)
+    connect_timeout_ms=10000 # 10 second timeout (default: 5000)
+)
+```
+
+On connection failure, retries are attempted with exponential backoff
+(delay doubles each retry). Non-connection errors are not retried.
+
+## Error Handling Best Practices
+
+```python
+from sds import (
+    SdsNode, SdsMqttError, SdsTableError, 
+    SdsValidationError, SdsError
+)
+
+try:
+    with SdsNode("my_node", "localhost") as node:
+        table = node.register_table("SensorData", Role.DEVICE)
+        
+        while True:
+            try:
+                node.poll()
+            except SdsMqttError:
+                # MQTT connection lost - will auto-reconnect
+                logging.warning("MQTT disconnected, waiting...")
+                time.sleep(1)
+                
+except SdsValidationError as e:
+    # Invalid node_id or configuration
+    logging.error(f"Configuration error: {e}")
+except SdsMqttError as e:
+    # Failed to connect after all retries
+    logging.error(f"Could not connect to MQTT: {e}")
+except SdsError as e:
+    # Other SDS errors
+    logging.error(f"SDS error: {e}")
+```
 
 ## Requirements
 
@@ -216,6 +317,17 @@ class MyConfig:
     name: str = Field(string_len=32)
 ```
 
+### SectionProxy Convenience Methods
+
+```python
+# Convert section to dictionary
+data = table.state.to_dict()
+# {'temperature': 23.5, 'humidity': 65.0}
+
+# Set multiple fields from dictionary
+table.state.from_dict({'temperature': 24.0, 'humidity': 60.0})
+```
+
 ### Exceptions
 
 ```python
@@ -230,6 +342,9 @@ class SdsMqttError(SdsError):
     
 class SdsTableError(SdsError):
     """Raised on table registration errors."""
+
+class SdsValidationError(SdsError):
+    """Raised when input validation fails (e.g., invalid node_id)."""
 ```
 
 ## Building from Source

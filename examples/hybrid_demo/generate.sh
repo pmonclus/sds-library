@@ -40,9 +40,33 @@ mv "$SCRIPT_DIR/python_owner/sds_types.py" "$SCRIPT_DIR/python_owner/demo_types.
 sed -i.bak 's/sds_types.py/demo_types.py/g' "$SCRIPT_DIR/python_owner/demo_types.py"
 rm -f "$SCRIPT_DIR/python_owner/demo_types.py.bak"
 
+# Step 3: Create symlinks for ESP32 Arduino IDE compatibility
+# Arduino IDE requires all files in the sketch folder
+echo "Creating symlinks for ESP32 Arduino IDE..."
+cd "$SCRIPT_DIR/esp32_device"
+
+# Remove old symlinks if they exist
+rm -f sds.h sds_json.h sds_error.h sds_platform.h demo_types.h
+rm -f sds_core.c sds_json.c sds_platform_esp32.cpp
+
+# Create symlinks to headers
+ln -s ../lib/include/sds.h sds.h
+ln -s ../lib/include/sds_json.h sds_json.h
+ln -s ../lib/include/sds_error.h sds_error.h
+ln -s ../lib/include/sds_platform.h sds_platform.h
+ln -s ../lib/include/demo_types.h demo_types.h
+
+# Create symlinks to source files
+ln -s ../lib/src/sds_core.c sds_core.c
+ln -s ../lib/src/sds_json.c sds_json.c
+ln -s ../lib/platform/esp32/sds_platform_esp32.cpp sds_platform_esp32.cpp
+
+cd "$SCRIPT_DIR"
+
 echo ""
 echo "Generated:"
 echo "  - lib/include/demo_types.h"
 echo "  - python_owner/demo_types.py"
+echo "  - esp32_device/ symlinks (for Arduino IDE)"
 echo ""
 echo "You can now build the devices and run the demo."

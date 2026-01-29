@@ -3,11 +3,20 @@ SdsTable - C-like table access for SDS.
 
 This module provides the SdsTable class that wraps registered tables
 and provides C-like attribute access (table.state.temperature = x).
+
+Thread Safety:
+    SdsTable and SectionProxy are thread-safe when used with a lock
+    provided by SdsNode. All attribute access is protected by the lock.
 """
 from __future__ import annotations
 
+import logging
 import struct
+import threading
 from typing import Any, Dict, Iterator, Optional, Tuple, Type, TypeVar
+
+# Module logger
+logger = logging.getLogger(__name__)
 
 from sds._bindings import ffi, lib, decode_string
 from sds.types import Role, ErrorCode, SdsError
@@ -29,19 +38,23 @@ class SectionProxy:
     This class intercepts attribute access and reads/writes directly from
     the C memory buffer, mimicking C struct field access.
     
+    Thread Safety:
+        When a lock is provided, all attribute access is protected by the lock.
+    
     Example:
         table.state.temperature = 23.5  # Writes to C buffer
         print(table.state.temperature)   # Reads from C buffer
     """
     
     # Slots for performance and to avoid __setattr__ recursion
-    __slots__ = ("_section_info", "_buffer_ptr", "_readonly")
+    __slots__ = ("_section_info", "_buffer_ptr", "_readonly", "_lock")
     
     def __init__(
         self,
         section_info: TableSectionInfo,
         buffer_ptr: Any,
         readonly: bool = False,
+        lock: Optional[threading.RLock] = None,
     ):
         """
         Initialize the section proxy.
@@ -50,10 +63,12 @@ class SectionProxy:
             section_info: Field layout information
             buffer_ptr: CFFI pointer to the section start in the C buffer
             readonly: If True, writes will raise an error
+            lock: Optional RLock for thread-safe access
         """
         object.__setattr__(self, "_section_info", section_info)
         object.__setattr__(self, "_buffer_ptr", buffer_ptr)
         object.__setattr__(self, "_readonly", readonly)
+        object.__setattr__(self, "_lock", lock)
     
     def _find_field(self, name: str) -> Optional[TableFieldInfo]:
         """Find field info by name."""
@@ -63,7 +78,14 @@ class SectionProxy:
         return None
     
     def __getattr__(self, name: str) -> Any:
-        """Read a field value from the C buffer."""
+        """Read a field value from the C buffer. Thread-safe if lock provided."""
+        if self._lock:
+            with self._lock:
+                return self._read_field(name)
+        return self._read_field(name)
+    
+    def _read_field(self, name: str) -> Any:
+        """Internal: read a field value (no locking)."""
         field = self._find_field(name)
         if field is None:
             raise AttributeError(f"No field named '{name}'")
@@ -98,12 +120,20 @@ class SectionProxy:
             raise ValueError(f"Unknown field type: {field.field_type}")
     
     def __setattr__(self, name: str, value: Any) -> None:
-        """Write a field value to the C buffer."""
+        """Write a field value to the C buffer. Thread-safe if lock provided."""
         # Handle slots during __init__
-        if name in ("_section_info", "_buffer_ptr", "_readonly"):
+        if name in ("_section_info", "_buffer_ptr", "_readonly", "_lock"):
             object.__setattr__(self, name, value)
             return
         
+        if self._lock:
+            with self._lock:
+                self._write_field(name, value)
+        else:
+            self._write_field(name, value)
+    
+    def _write_field(self, name: str, value: Any) -> None:
+        """Internal: write a field value (no locking)."""
         if self._readonly:
             raise AttributeError(f"Cannot write to read-only section")
         
@@ -121,7 +151,12 @@ class SectionProxy:
             else:
                 encoded = bytes(value)
             max_len = (field.string_len or 32) - 1
-            encoded = encoded[:max_len]
+            if len(encoded) > max_len:
+                logger.warning(
+                    f"String truncated for field '{name}': {len(encoded)} bytes exceeds "
+                    f"max {max_len} bytes (truncating to '{encoded[:max_len].decode('utf-8', errors='replace')}')"
+                )
+                encoded = encoded[:max_len]
             # Zero the buffer first
             ffi.buffer(field_ptr, field.string_len or 32)[:] = b'\x00' * (field.string_len or 32)
             # Write the string
@@ -155,6 +190,51 @@ class SectionProxy:
             except Exception:
                 fields.append(f"{field.name}=?")
         return f"Section({', '.join(fields)})"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Return all field values as a dictionary.
+        
+        Thread-safe if lock was provided.
+        
+        Returns:
+            Dictionary mapping field names to their values
+        
+        Example:
+            >>> data = table.state.to_dict()
+            >>> print(data)
+            {'temperature': 23.5, 'humidity': 65.0}
+        """
+        result = {}
+        for field in self._section_info.fields:
+            try:
+                result[field.name] = getattr(self, field.name)
+            except Exception:
+                result[field.name] = None
+        return result
+    
+    def from_dict(self, data: Dict[str, Any]) -> None:
+        """
+        Set field values from a dictionary.
+        
+        Thread-safe if lock was provided. Read-only sections will raise an error.
+        Unknown keys in the dictionary are ignored.
+        
+        Args:
+            data: Dictionary mapping field names to values
+        
+        Raises:
+            AttributeError: If section is read-only
+        
+        Example:
+            >>> table.state.from_dict({'temperature': 23.5, 'humidity': 65.0})
+        """
+        if self._readonly:
+            raise AttributeError("Cannot write to read-only section")
+        
+        for field in self._section_info.fields:
+            if field.name in data:
+                setattr(self, field.name, data[field.name])
 
 
 class DeviceView:
@@ -282,6 +362,7 @@ class SdsTable:
         state_schema: Optional[Type] = None,
         status_schema: Optional[Type] = None,
         python_meta: Optional[Dict[str, int]] = None,
+        lock: Optional[threading.RLock] = None,
     ):
         """
         Initialize the table wrapper.
@@ -295,12 +376,14 @@ class SdsTable:
             state_schema: Optional dataclass for state section
             status_schema: Optional dataclass for status section
             python_meta: Optional dict with offsets (for Python-only schemas)
+            lock: Optional RLock for thread-safe access
         """
         self._table_type = table_type
         self._role = role
         self._buffer = buffer
         self._meta = meta
         self._python_meta = python_meta
+        self._lock = lock
         
         # Analyze schemas if provided
         self._config_info = analyze_dataclass(config_schema) if config_schema else None
@@ -347,26 +430,36 @@ class SdsTable:
             # Device role: can write state/status, read config
             if self._config_info:
                 config_ptr = buffer_ptr + config_offset
-                self._config_proxy = SectionProxy(self._config_info, config_ptr, readonly=True)
+                self._config_proxy = SectionProxy(
+                    self._config_info, config_ptr, readonly=True, lock=self._lock
+                )
             
             if self._state_info:
                 state_ptr = buffer_ptr + state_offset
-                self._state_proxy = SectionProxy(self._state_info, state_ptr, readonly=False)
+                self._state_proxy = SectionProxy(
+                    self._state_info, state_ptr, readonly=False, lock=self._lock
+                )
             
             if self._status_info:
                 status_ptr = buffer_ptr + status_offset
-                self._status_proxy = SectionProxy(self._status_info, status_ptr, readonly=False)
+                self._status_proxy = SectionProxy(
+                    self._status_info, status_ptr, readonly=False, lock=self._lock
+                )
         
         else:  # OWNER role
             # Owner role: can write config, read state (when devices send updates)
             if self._config_info:
                 config_ptr = buffer_ptr + config_offset
-                self._config_proxy = SectionProxy(self._config_info, config_ptr, readonly=False)
+                self._config_proxy = SectionProxy(
+                    self._config_info, config_ptr, readonly=False, lock=self._lock
+                )
             
             # For owner with Python schemas, also set up state proxy (for reading merged state)
             if self._state_info and self._python_meta:
                 state_ptr = buffer_ptr + state_offset
-                self._state_proxy = SectionProxy(self._state_info, state_ptr, readonly=True)
+                self._state_proxy = SectionProxy(
+                    self._state_info, state_ptr, readonly=True, lock=self._lock
+                )
             
             # Note: For C meta, state proxy not used for owner - use get_device() instead
     

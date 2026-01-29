@@ -53,3 +53,12 @@ examples/hybrid_demo/python_owner/demo_types.py
 examples/hybrid_demo/python_owner/sds_types.py
 examples/hybrid_demo/c_device/device
 examples/hybrid_demo/c_owner/owner
+# ESP32 symlinks for Arduino IDE
+examples/hybrid_demo/esp32_device/sds.h
+examples/hybrid_demo/esp32_device/sds_json.h
+examples/hybrid_demo/esp32_device/sds_error.h
+examples/hybrid_demo/esp32_device/sds_platform.h
+examples/hybrid_demo/esp32_device/demo_types.h
+examples/hybrid_demo/esp32_device/sds_core.c
+examples/hybrid_demo/esp32_device/sds_json.c
+examples/hybrid_demo/esp32_device/sds_platform_esp32.cpp

@@ -47,11 +47,15 @@ from sds.types import (
     SdsTableError,
     SdsCapacityError,
     SdsPlatformError,
+    SdsValidationError,
     check_error,
 )
 
 # Table helpers
 from sds.tables import Field, FieldType
+
+# Logging configuration
+from sds._logging import configure_logging
 
 # Public API
 __all__ = [
@@ -78,6 +82,7 @@ __all__ = [
     "SdsTableError",
     "SdsCapacityError",
     "SdsPlatformError",
+    "SdsValidationError",
     "check_error",
     
     # Table helpers
@@ -89,6 +94,7 @@ __all__ = [
     "get_c_library_version",
     "set_log_level",
     "get_log_level",
+    "configure_logging",
 ]
 
 
