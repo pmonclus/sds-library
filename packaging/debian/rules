@@ -1,0 +1,62 @@
+#!/usr/bin/make -f
+# debian/rules for SDS package
+
+export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DSDS_BUILD_TESTS=OFF \
+		-DSDS_BUILD_EXAMPLES=OFF
+
+override_dh_auto_install:
+	dh_auto_install
+	
+	# Install Python package
+	python3 -m pip install --prefix=$(CURDIR)/debian/sds/usr --no-deps .
+	
+	# Install sds-codegen wrapper
+	install -D -m 755 packaging/common/sds-codegen $(CURDIR)/debian/sds/usr/bin/sds-codegen
+	
+	# Create Arduino ZIP in share directory
+	mkdir -p $(CURDIR)/debian/sds/usr/share/sds
+	mkdir -p $(CURDIR)/arduino_temp/SDS/src
+	mkdir -p $(CURDIR)/arduino_temp/SDS/examples/BasicDevice
+	
+	# Copy Arduino source files (excluding sds_types.h)
+	for f in include/*.h; do \
+		case "$$f" in \
+			*sds_types.h) ;; \
+			*) cp "$$f" $(CURDIR)/arduino_temp/SDS/src/ ;; \
+		esac \
+	done
+	cp src/sds_core.c $(CURDIR)/arduino_temp/SDS/src/
+	cp src/sds_json.c $(CURDIR)/arduino_temp/SDS/src/
+	cp platform/esp32/sds_platform_esp32.cpp $(CURDIR)/arduino_temp/SDS/src/
+	
+	# Create library.properties
+	echo "name=SDS" > $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "version=0.3.0" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "author=SDS Team" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "maintainer=SDS Team" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "sentence=Lightweight MQTT state synchronization for IoT" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "paragraph=Synchronized Data Structures library for ESP32/ESP8266" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "category=Communication" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "url=https://github.com/pmonclus/sds-library" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "architectures=esp32,esp8266" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	echo "depends=PubSubClient" >> $(CURDIR)/arduino_temp/SDS/library.properties
+	
+	# Create ZIP
+	cd $(CURDIR)/arduino_temp && zip -r ../debian/sds/usr/share/sds/sds-arduino-0.3.0.zip SDS
+	
+	# Install codegen tools
+	mkdir -p $(CURDIR)/debian/sds/usr/share/sds/tools/codegen
+	cp -r codegen/* $(CURDIR)/debian/sds/usr/share/sds/tools/codegen/
+	cp tools/sds_codegen.py $(CURDIR)/debian/sds/usr/share/sds/tools/
+
+override_dh_auto_clean:
+	dh_auto_clean
+	rm -rf arduino_temp

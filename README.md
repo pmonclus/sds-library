@@ -1,200 +1,345 @@
-# SDS (Simple DDS)
+# SDS (Synchronized Data Structures)
 
-A lightweight MQTT-based state synchronization library for embedded systems.
+A lightweight MQTT-based state synchronization library for IoT applications.
 
-## Features
+## Overview
 
-- **Single table type** with config/state/status sections
-- **Two roles**: OWNER and DEVICE
-- **Fluid architecture**: Any node can be owner or device for any table
-- **Cross-platform**: ESP32/ESP8266/Arduino + macOS/Linux + **Python**
-- **Liveness detection**: Automatic heartbeats with configurable intervals
-- **LWT support**: Broker notifies on unexpected disconnects
-- **MQTT authentication**: Optional username/password support
-- **Schema versioning**: Detect and handle version mismatches between nodes
-- **Runtime log level**: Adjust logging verbosity without recompiling
-- **Python bindings**: Native Python wrapper using CFFI
+SDS enables automatic state synchronization between devices and owners over MQTT:
+- **Devices** (sensors, actuators) send state/status, receive config
+- **Owners** (servers, dashboards) send config, receive state/status from all devices
 
 ## Quick Start
 
-### C / Embedded
+### 1. Install Dependencies
 
-```c
-#include "sds.h"
-#include "sds_types.h"  // Generated from schema
+**macOS:**
+```bash
+brew install libpaho-mqtt python3
+```
 
-SensorDataTable myTable;
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install libpaho-mqtt-dev python3 python3-pip
+```
 
-void setup() {
-    SdsConfig config = {
-        .node_id = "sensor_A",
-        .mqtt_broker = "192.168.1.100",
-        .mqtt_port = 1883,
-        .mqtt_username = NULL,  // Optional: set for authentication
-        .mqtt_password = NULL
-    };
+### 2. Install SDS Library
+
+```bash
+# Clone the repository
+git clone https://github.com/pmonclus/sds-library.git
+cd sds-library
+
+# Quick install (C library + Python + sds-codegen)
+./packaging/build-package.sh quick
+
+# Add to your PATH (add this to ~/.bashrc or ~/.zshrc)
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Verify installation:
+```bash
+sds-codegen --help
+```
+
+### 3. Define Your Schema
+
+Create a `schema.sds` file that defines your data structure:
+
+```
+// schema.sds
+@version = "1.0.0"
+
+table SensorData {
+    @sync_interval = 1000    // Sync every 1 second
+    @liveness = 5000         // Heartbeat every 5 seconds
     
-    sds_init(&config);
-    sds_register_table(&myTable, "SensorData", SDS_ROLE_DEVICE, NULL);
-}
-
-void loop() {
-    // Update state
-    myTable.state.temperature = read_sensor();
+    // Config: owner → devices
+    config {
+        uint8 led_enabled = 0;
+        float threshold = 25.0;
+    }
     
-    // SDS syncs automatically
-    sds_loop();
+    // State: devices → owner (merged across all devices)
+    state {
+        float temperature;
+        float humidity;
+    }
+    
+    // Status: each device → owner (per-device data)
+    status {
+        uint8 battery_percent;
+        uint8 error_code;
+    }
 }
 ```
 
-### Python
+### 4. Generate Type Definitions
+
+```bash
+sds-codegen schema.sds --c --python
+```
+
+This creates:
+- `sds_types.h` - C structs and serialization
+- `sds_types.py` - Python dataclasses
+
+### 5. Start an MQTT Broker
+
+```bash
+# macOS
+brew install mosquitto
+brew services start mosquitto
+
+# Ubuntu
+sudo apt-get install mosquitto
+sudo systemctl start mosquitto
+```
+
+### 6. Run Your First Device (Python)
+
+Create `device.py`:
 
 ```python
+#!/usr/bin/env python3
 from sds import SdsNode, Role
+import random
+import time
 
 with SdsNode("sensor_01", "localhost") as node:
-    node.register_table("SensorData", Role.DEVICE)
+    table = node.register_table("SensorData", Role.DEVICE)
     
-    @node.on_config("SensorData")
-    def handle_config(table_type):
-        print(f"Config received for {table_type}")
+    print("Device running. Press Ctrl+C to stop.")
+    while True:
+        # Update sensor readings
+        table.state.temperature = 20.0 + random.uniform(0, 5)
+        table.state.humidity = 50.0 + random.uniform(0, 10)
+        table.status.battery_percent = 85
+        
+        node.poll(timeout_ms=1000)
+```
+
+Run it:
+```bash
+python3 device.py
+```
+
+### 7. Run an Owner (Python)
+
+Create `owner.py`:
+
+```python
+#!/usr/bin/env python3
+from sds import SdsNode, Role
+
+def on_state(table_type, user_data):
+    table = user_data
+    print(f"Temperature: {table.state.temperature:.1f}°C, "
+          f"Humidity: {table.state.humidity:.1f}%")
+
+with SdsNode("owner", "localhost") as node:
+    table = node.register_table("SensorData", Role.OWNER)
+    node.on_state_update("SensorData", on_state, table)
     
+    print("Owner running. Press Ctrl+C to stop.")
     while True:
         node.poll(timeout_ms=1000)
 ```
 
-See [python/README.md](python/README.md) for full Python documentation.
-
-## Documentation
-
-- **[DESIGN.md](DESIGN.md)** - Full design specification
-- **[API Reference](docs/html/index.html)** - Doxygen-generated C API docs
-- **[Python README](python/README.md)** - Python wrapper documentation
-- **[TESTING.md](TESTING.md)** - Test suite documentation
-
-### Generating API Documentation
-
+Run it in another terminal:
 ```bash
-# Install Doxygen (if not installed)
-brew install doxygen  # macOS
-# apt-get install doxygen  # Ubuntu
-
-# Generate HTML documentation
-doxygen Doxyfile
-
-# Open in browser
-open docs/html/index.html
+python3 owner.py
 ```
 
-## Memory Requirements
+You should see temperature/humidity readings appearing on the owner!
 
-### Static RAM Usage
+---
 
-| Component | Size | Notes |
-|-----------|------|-------|
-| Node ID buffer | 32 bytes | `SDS_MAX_NODE_ID_LEN` |
-| Broker buffer | 128 bytes | `SDS_MAX_BROKER_LEN` |
-| Table contexts | ~600 bytes each | Includes shadow buffers |
-| Stats | 16 bytes | Counters |
-| **Total (per table)** | **~776 bytes** | + table data |
+## Arduino / ESP32
 
-### Configuration Defaults
+### Installation
 
-| Setting | Default | Can Override |
-|---------|---------|--------------|
-| `SDS_MAX_TABLES` | 8 | Compile-time |
-| `SDS_MAX_NODE_ID_LEN` | 32 | Compile-time |
-| `SDS_MSG_BUFFER_SIZE` | 512 | Compile-time |
-| `SDS_SHADOW_SIZE` | Auto-calculated | From schema |
+1. Run the packaging script to create the Arduino ZIP:
+   ```bash
+   ./packaging/build-package.sh quick
+   ```
 
-### Stack Usage (per sync cycle)
+2. The Arduino library ZIP is at:
+   ```
+   # After brew install (future):
+   $(brew --prefix)/share/sds/sds-arduino-*.zip
+   
+   # For now, create manually:
+   cd packaging && ./build-package.sh tarball
+   # Then find ZIP in the tarball
+   ```
 
-| Buffer | Size |
-|--------|------|
-| Topic buffer | 128 bytes |
-| JSON buffer | 512 bytes |
-| SdsJsonWriter | ~24 bytes |
-| **Total** | **~700 bytes** |
+3. In Arduino IDE: **Sketch → Include Library → Add .ZIP Library**
 
-### Platform-Specific Considerations
+4. Install dependency: **PubSubClient** from Library Manager
 
-| Platform | RAM Available | Recommendation |
-|----------|---------------|----------------|
-| ESP32 | 320 KB | ✅ Full support, up to 8 tables |
-| ESP8266 | 80 KB | ⚠️ Limit to 2-3 tables, reduce buffer sizes |
-| Linux/macOS | Unlimited | ✅ Full support |
+### ESP32 Device Example
 
-### Reducing Memory Footprint
+```cpp
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include "sds.h"
+#include "sds_types.h"  // Generated from your schema.sds
 
-For constrained devices (ESP8266), add to your build:
+WiFiClient wifiClient;
+PubSubClient mqtt(wifiClient);
+SensorDataTable table;
 
-```c
-#define SDS_MAX_TABLES 2
-#define SDS_MSG_BUFFER_SIZE 256
+void setup() {
+    Serial.begin(115200);
+    
+    // Connect WiFi
+    WiFi.begin("your_ssid", "your_password");
+    while (WiFi.status() != WL_CONNECTED) delay(500);
+    
+    // Initialize SDS
+    SdsConfig config = {
+        .node_id = "esp32_sensor",
+        .mqtt_broker = "192.168.1.100",
+        .mqtt_port = 1883
+    };
+    sds_init(&config);
+    sds_register_table(&table, "SensorData", SDS_ROLE_DEVICE, NULL);
+}
+
+void loop() {
+    sds_loop();
+    
+    table.state.temperature = readTemperature();
+    table.state.humidity = readHumidity();
+    
+    delay(100);
+}
 ```
 
-## Building
+See [examples/hybrid_demo/esp32_device/](examples/hybrid_demo/esp32_device/) for a complete example.
 
-### macOS/Linux (C library)
+---
+
+## C Library (Linux/macOS)
+
+### Building
+
 ```bash
 mkdir build && cd build
-cmake ..
+cmake .. -DSDS_BUILD_TESTS=OFF
 make
 ```
 
-### ESP32/ESP8266 (PlatformIO)
-```bash
-cd examples/esp32_sensor
-pio run
+### Simple Device Example
+
+```c
+#include "sds.h"
+#include "sds_types.h"
+
+SensorDataTable table;
+
+int main() {
+    SdsConfig config = {
+        .node_id = "linux_sensor",
+        .mqtt_broker = "localhost",
+        .mqtt_port = 1883
+    };
+    
+    sds_init(&config);
+    sds_register_table(&table, "SensorData", SDS_ROLE_DEVICE, NULL);
+    
+    while (1) {
+        sds_loop();
+        table.state.temperature = read_sensor();
+        usleep(100000);
+    }
+    
+    sds_shutdown();
+    return 0;
+}
 ```
 
-### Python Wrapper
+Compile:
 ```bash
-# Install dependencies
-brew install libpaho-mqtt  # macOS
-# apt-get install libpaho-mqtt-dev  # Ubuntu
-
-# Build and install
-cd python
-pip install -e .
-
-# Run tests
-pytest tests/
+gcc -o device device.c -I../include -L../build -lsds -lpaho-mqtt3c
 ```
 
-### Running Tests
+See [examples/hybrid_demo/c_device/](examples/hybrid_demo/c_device/) for a complete example.
+
+---
+
+## Schema Reference
+
+```
+// Comments use double slashes
+@version = "1.0.0"              // Schema version
+
+table TableName {
+    @sync_interval = 1000       // State sync interval (ms)
+    @liveness = 5000            // Heartbeat interval (ms)
+    
+    config {                    // Owner → Devices
+        uint8 field_name;
+        float value = 1.0;      // With default
+    }
+    
+    state {                     // Devices → Owner (merged)
+        float sensor_value;
+    }
+    
+    status {                    // Each Device → Owner (per-device)
+        uint8 error_code;
+    }
+}
+```
+
+**Supported types:** `bool`, `uint8`, `int8`, `uint16`, `int16`, `uint32`, `int32`, `float`, `string`
+
+---
+
+## Documentation
+
+- [Python README](python/README.md) - Full Python API documentation
+- [DESIGN.md](DESIGN.md) - Architecture and design decisions
+- [TESTING.md](TESTING.md) - Test suite documentation
+- [examples/hybrid_demo/](examples/hybrid_demo/) - Complete multi-language example
+
+---
+
+## Running Tests
 
 ```bash
-# Unit tests (no MQTT broker required) - runs in ~0.5s
+# Unit tests (no MQTT broker required)
 cd build && cmake .. && make
 ./test_unit_core && ./test_json && ./test_utilities
 
-# Integration tests (requires MQTT broker)
-brew services start mosquitto  # or: sudo systemctl start mosquitto
-./run_tests.sh
+# Python tests
+cd python && pytest tests/
 
-# Scale test (25 devices + 1 owner)
-./tests/scale/run_scale_test.sh 25 30
+# Integration tests (requires MQTT broker running)
+./run_tests.sh
 ```
 
-## Testing
+---
 
-The library includes **177 unit tests** with **~84% code coverage**.
+## Troubleshooting
 
-| Test Suite | Tests | MQTT Required | Description |
-|------------|-------|---------------|-------------|
-| `test_unit_core` | 45 | No | Core SDS functionality |
-| `test_json` | 75 | No | JSON serialization/parsing |
-| `test_utilities` | 23 | No | Utility functions |
-| `test_reconnection` | 11 | No | Reconnection scenarios |
-| `test_buffer_overflow` | 16 | No | Buffer limits |
-| `test_concurrent` | 7 | No | Thread safety |
-| `test_sds_basic` | - | Yes | Integration tests |
-| `test_scale_*` | - | Yes | Scale testing (25+ devices) |
+**"sds-codegen: command not found"**
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
 
-See [TESTING.md](TESTING.md) for details.
+**"ModuleNotFoundError: No module named 'codegen'"**
+```bash
+cd sds-library && pip install -e .
+```
+
+**MQTT connection fails**
+- Check broker is running: `brew services list` or `systemctl status mosquitto`
+- Verify broker address and port
+
+---
 
 ## License
 
 MIT
-

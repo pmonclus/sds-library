@@ -1,0 +1,41 @@
+Source: sds
+Section: libs
+Priority: optional
+Maintainer: SDS Team <sds@example.com>
+Build-Depends: debhelper-compat (= 13),
+               cmake (>= 3.14),
+               libpaho-mqtt-dev,
+               python3,
+               python3-pip,
+               python3-cffi
+Standards-Version: 4.6.0
+Homepage: https://github.com/pmonclus/sds-library
+Vcs-Git: https://github.com/pmonclus/sds-library.git
+Vcs-Browser: https://github.com/pmonclus/sds-library
+
+Package: sds
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         libpaho-mqtt1.3,
+         python3,
+         python3-cffi
+Description: SDS - Synchronized Data Structures for IoT
+ A lightweight MQTT-based state synchronization library for IoT
+ applications. Provides C library, Python bindings, and code generator.
+ .
+ Features:
+  - Automatic state synchronization over MQTT
+  - Owner/Device roles with config/state/status sections
+  - Code generator for C and Python from .sds schema files
+  - Arduino/ESP32 support via included library
+
+Package: sds-dev
+Architecture: any
+Depends: sds (= ${binary:Version}),
+         ${misc:Depends}
+Description: SDS - Development files
+ Development headers for the SDS library.
+ .
+ This package contains the C headers needed to develop
+ applications using the SDS library.

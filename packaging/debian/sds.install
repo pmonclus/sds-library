@@ -1,0 +1,3 @@
+usr/lib/libsds.*
+usr/bin/sds-codegen
+usr/share/sds/*

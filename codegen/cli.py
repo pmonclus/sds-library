@@ -3,8 +3,9 @@
 SDS Code Generator CLI
 
 Usage:
-    python -m codegen.cli schema.sds -o sds_types.h
-    python -m codegen.cli schema.sds --output include/sds_types.h
+    sds-codegen schema.sds --c --python
+    sds-codegen schema.sds --c -o ./src/
+    sds-codegen schema.sds  # Generates both C and Python
 """
 
 import argparse
@@ -13,11 +14,12 @@ from pathlib import Path
 
 from .parser import parse_file, ParseError
 from .c_generator import generate_header_file
+from .python_generator import generate_python_file
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate C types from SDS schema',
+        description='Generate C and Python types from SDS schema',
         prog='sds-codegen'
     )
     parser.add_argument(
@@ -26,10 +28,20 @@ def main():
         help='Path to .sds schema file'
     )
     parser.add_argument(
-        '-o', '--output',
+        '-o', '--output-dir',
         type=Path,
-        default=Path('sds_types.h'),
-        help='Output header file path (default: sds_types.h)'
+        default=Path('.'),
+        help='Output directory (default: current directory)'
+    )
+    parser.add_argument(
+        '--c',
+        action='store_true',
+        help='Generate C header (sds_types.h)'
+    )
+    parser.add_argument(
+        '--python',
+        action='store_true',
+        help='Generate Python module (sds_types.py)'
     )
     parser.add_argument(
         '-v', '--verbose',
@@ -38,6 +50,11 @@ def main():
     )
     
     args = parser.parse_args()
+    
+    # Default to generating both if neither specified
+    if not args.c and not args.python:
+        args.c = True
+        args.python = True
     
     if not args.schema.exists():
         print(f"Error: Schema file not found: {args.schema}", file=sys.stderr)
@@ -59,12 +76,25 @@ def main():
                 print(f"      status: {len(table.status_fields)} fields")
                 print(f"      sync_interval: {table.sync_interval_ms}ms")
         
-        if args.verbose:
-            print(f"Generating {args.output}...")
+        # Ensure output directory exists
+        args.output_dir.mkdir(parents=True, exist_ok=True)
         
-        generate_header_file(schema, str(args.output))
+        # Generate C
+        if args.c:
+            c_path = args.output_dir / "sds_types.h"
+            if args.verbose:
+                print(f"Generating {c_path}...")
+            generate_header_file(schema, str(c_path))
+            print(f"Generated: {c_path}")
         
-        print(f"Generated: {args.output}")
+        # Generate Python
+        if args.python:
+            py_path = args.output_dir / "sds_types.py"
+            if args.verbose:
+                print(f"Generating {py_path}...")
+            generate_python_file(schema, str(py_path))
+            print(f"Generated: {py_path}")
+        
         return 0
         
     except ParseError as e:
@@ -80,4 +110,3 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
-

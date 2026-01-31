@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "cffi>=1.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sds-library"
+version = "0.3.0"
+description = "SDS - Synchronized Data Structures for IoT"
+readme = "python/README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "SDS Team"}
+]
+requires-python = ">=3.8"
+dependencies = [
+    "cffi>=1.0.0",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: C",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Internet :: MQTT",
+]
+
+[project.scripts]
+sds-codegen = "codegen.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/pmonclus/sds-library"
+Repository = "https://github.com/pmonclus/sds-library"
+
+[tool.setuptools]
+packages = ["sds", "codegen"]
+package-dir = {"sds" = "python/sds", "codegen" = "codegen"}
+
+[tool.setuptools.package-data]
+sds = ["*.h"]

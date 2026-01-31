@@ -1,0 +1,9 @@
+sds (0.3.0-1) unstable; urgency=medium
+
+  * Initial release
+  * C library with MQTT state synchronization
+  * Python bindings with CFFI
+  * sds-codegen tool for generating types from .sds schemas
+  * Arduino library ZIP for ESP32/ESP8266
+
+ -- SDS Team <sds@example.com>  Wed, 29 Jan 2026 12:00:00 +0000

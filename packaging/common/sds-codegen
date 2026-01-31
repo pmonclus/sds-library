@@ -1,0 +1,13 @@
+#!/bin/bash
+# sds-codegen - SDS Code Generator
+#
+# Generates C and Python type definitions from .sds schema files.
+#
+# Usage:
+#     sds-codegen schema.sds --c --python
+#     sds-codegen schema.sds --c -o ./src/
+#     sds-codegen schema.sds  # Generates both C and Python
+#
+# This wrapper script invokes the Python codegen module.
+
+exec python3 -m codegen "$@"
