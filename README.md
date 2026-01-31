@@ -10,54 +10,52 @@ SDS enables automatic state synchronization between devices and owners over MQTT
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Install SDS
 
-**macOS:**
+**macOS (Homebrew):**
 ```bash
-brew install libpaho-mqtt python3
+brew tap pmonclus/sds
+brew install sds
 ```
+
+This installs:
+- C library (`libsds`)
+- Python bindings
+- `sds-codegen` command-line tool
+- Arduino library ZIP at `$(brew --prefix)/share/sds/sds-arduino-*.zip`
 
 **Ubuntu/Debian:**
 ```bash
-sudo apt-get install libpaho-mqtt-dev python3 python3-pip
-```
+# Install dependencies
+sudo apt-get install libpaho-mqtt-dev python3 python3-pip cmake
 
-### 2. Install SDS Library
-
-```bash
-# Clone the repository
+# Clone and build
 git clone https://github.com/pmonclus/sds-library.git
 cd sds-library
 
-# Create a virtual environment (recommended)
 python3 -m venv venv
 source venv/bin/activate
-
-# Install Python dependencies
 pip install cffi
 
-# Build C library
 mkdir -p build && cd build
 cmake .. -DSDS_BUILD_TESTS=OFF -DSDS_BUILD_EXAMPLES=OFF
 make
 cd ..
 
-# Install SDS Python bindings (compiles CFFI extension)
 cd python && pip install -e . && cd ..
-
-# Install codegen CLI
 pip install -e .
 ```
 
-Verify installation:
+### 2. Verify Installation
+
 ```bash
 sds-codegen --help
-python3 -c "from sds import SdsNode; print('SDS OK')"
 ```
 
-**Note:** Always activate the virtual environment before using SDS:
+For Python usage (Ubuntu/Debian only):
 ```bash
 source venv/bin/activate
+python3 -c "from sds import SdsNode; print('SDS OK')"
 ```
 
 ### 3. Define Your Schema
