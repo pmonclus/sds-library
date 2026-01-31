@@ -12,13 +12,19 @@ from pathlib import Path
 from cffi import FFI
 
 # Find the project root (parent of python/)
-PYTHON_DIR = Path(__file__).parent.parent
+# Use resolve() to get absolute paths
+PYTHON_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = PYTHON_DIR.parent
 
 # Paths to C sources
 INCLUDE_DIR = PROJECT_ROOT / "include"
 SRC_DIR = PROJECT_ROOT / "src"
 PLATFORM_DIR = PROJECT_ROOT / "platform"
+
+print(f"Building CFFI extension with:")
+print(f"  PROJECT_ROOT: {PROJECT_ROOT}")
+print(f"  INCLUDE_DIR: {INCLUDE_DIR}")
+print(f"  SRC_DIR: {SRC_DIR}")
 
 ffibuilder = FFI()
 
@@ -45,14 +51,20 @@ include_dirs = [str(INCLUDE_DIR)]
 library_dirs = []
 sources = []
 
+# For setuptools, we need relative paths from python/ directory
+# But for the compiler, we need include paths to be absolute
+def make_relative_source(path):
+    """Convert absolute path to relative from python/ directory."""
+    return os.path.relpath(str(path), str(PYTHON_DIR))
+
 # Add all C source files
 for src_file in SRC_DIR.glob("*.c"):
-    sources.append(str(src_file))
+    sources.append(make_relative_source(src_file))
 
 # Add platform implementation (POSIX for macOS/Linux)
 platform_posix_c = PLATFORM_DIR / "posix" / "sds_platform_posix.c"
 if platform_posix_c.exists():
-    sources.append(str(platform_posix_c))
+    sources.append(make_relative_source(platform_posix_c))
     print(f"Using POSIX platform: {platform_posix_c}")
 else:
     print(f"Warning: Platform implementation not found at {platform_posix_c}")

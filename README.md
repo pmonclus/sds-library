@@ -29,16 +29,35 @@ sudo apt-get install libpaho-mqtt-dev python3 python3-pip
 git clone https://github.com/pmonclus/sds-library.git
 cd sds-library
 
-# Quick install (C library + Python + sds-codegen)
-./packaging/build-package.sh quick
+# Create a virtual environment (recommended)
+python3 -m venv venv
+source venv/bin/activate
 
-# Add to your PATH (add this to ~/.bashrc or ~/.zshrc)
-export PATH="$HOME/.local/bin:$PATH"
+# Install Python dependencies
+pip install cffi
+
+# Build C library
+mkdir -p build && cd build
+cmake .. -DSDS_BUILD_TESTS=OFF -DSDS_BUILD_EXAMPLES=OFF
+make
+cd ..
+
+# Install SDS Python bindings (compiles CFFI extension)
+cd python && pip install -e . && cd ..
+
+# Install codegen CLI
+pip install -e .
 ```
 
 Verify installation:
 ```bash
 sds-codegen --help
+python3 -c "from sds import SdsNode; print('SDS OK')"
+```
+
+**Note:** Always activate the virtual environment before using SDS:
+```bash
+source venv/bin/activate
 ```
 
 ### 3. Define Your Schema

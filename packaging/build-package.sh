@@ -138,8 +138,14 @@ quick_install() {
     cmake -B build -DSDS_BUILD_TESTS=OFF -DSDS_BUILD_EXAMPLES=OFF
     cmake --build build
     
-    # Install Python package in development mode
-    log_info "Installing Python package..."
+    # Install Python SDS bindings (with CFFI compilation)
+    log_info "Installing Python SDS bindings..."
+    cd "$REPO_ROOT/python"
+    pip3 install -e . --user
+    cd "$REPO_ROOT"
+    
+    # Install codegen package
+    log_info "Installing codegen..."
     pip3 install -e . --user
     
     # Make sds-codegen available
@@ -149,11 +155,12 @@ quick_install() {
     
     log_info "Quick install complete!"
     echo ""
-    echo "Make sure ~/.local/bin is in your PATH"
+    echo "Make sure ~/.local/bin is in your PATH:"
+    echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
     echo ""
     echo "Test with:"
     echo "  sds-codegen --help"
-    echo "  python3 -c 'from codegen import parse_file; print(\"OK\")'"
+    echo "  python3 -c 'from sds import SdsNode; print(\"SDS OK\")'"
 }
 
 # ============== Show Usage ==============
