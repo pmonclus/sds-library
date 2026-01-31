@@ -150,14 +150,13 @@ Create `owner.py`:
 #!/usr/bin/env python3
 from sds import SdsNode, Role
 
-def on_state(table_type, user_data):
-    table = user_data
-    print(f"Temperature: {table.state.temperature:.1f}°C, "
-          f"Humidity: {table.state.humidity:.1f}%")
-
 with SdsNode("owner", "localhost") as node:
     table = node.register_table("SensorData", Role.OWNER)
-    node.on_state_update("SensorData", on_state, table)
+    
+    @node.on_state("SensorData")
+    def handle_state(table_type):
+        print(f"Temperature: {table.state.temperature:.1f}°C, "
+              f"Humidity: {table.state.humidity:.1f}%")
     
     print("Owner running. Press Ctrl+C to stop.")
     while True:
