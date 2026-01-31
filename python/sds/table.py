@@ -421,7 +421,8 @@ class SdsTable:
             else:
                 config_offset = self._meta.own_config_offset
                 state_offset = self._meta.own_state_offset
-                status_offset = self._meta.own_status_offset
+                # Owners don't have a single status offset - status is per-device via slots
+                status_offset = 0
         else:
             # No metadata available
             return
