@@ -121,11 +121,11 @@ Create `device.py`:
 ```python
 #!/usr/bin/env python3
 from sds import SdsNode, Role
+from sds_types import SensorData  # Generated from schema.sds
 import random
-import time
 
 with SdsNode("sensor_01", "localhost") as node:
-    table = node.register_table("SensorData", Role.DEVICE)
+    table = node.register_table("SensorData", Role.DEVICE, schema=SensorData)
     
     print("Device running. Press Ctrl+C to stop.")
     while True:
@@ -149,9 +149,10 @@ Create `owner.py`:
 ```python
 #!/usr/bin/env python3
 from sds import SdsNode, Role
+from sds_types import SensorData  # Generated from schema.sds
 
 with SdsNode("owner", "localhost") as node:
-    table = node.register_table("SensorData", Role.OWNER)
+    table = node.register_table("SensorData", Role.OWNER, schema=SensorData)
     
     @node.on_state("SensorData")
     def handle_state(table_type):
