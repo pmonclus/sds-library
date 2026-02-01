@@ -16,6 +16,7 @@ class Sds < Formula
   sha256 "ce98e8a98486b2ad8ce5c447333d17aed7acd145f5956a9ad3614c4fdb33b472"
 
   depends_on "cmake" => :build
+  depends_on "cffi"
   depends_on "libpaho-mqtt"
   depends_on "python@3.12"
 
