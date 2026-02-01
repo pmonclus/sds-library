@@ -110,6 +110,31 @@ with SdsNode("py_owner_01", "localhost") as node:
 - **Thread-Safe**: All operations protected by locks for multi-threaded use
 - **Cross-Platform**: Linux (x86_64, ARM64) and macOS
 - **Type Hints**: Full type annotations for IDE support
+- **Device Eviction**: Automatic cleanup of offline device slots
+
+## Device Eviction
+
+When devices disconnect unexpectedly, SDS receives MQTT LWT (Last Will and Testament) 
+messages and can automatically evict them from status slots after a grace period.
+This prevents slots from being permanently consumed by devices that never reconnect.
+
+```python
+# Enable eviction with 60-second grace period
+with SdsNode("owner", "localhost", eviction_grace_ms=60000) as node:
+    table = node.register_table("SensorData", Role.OWNER, schema=SensorData)
+    
+    @node.on_device_evicted()
+    def handle_eviction(table_type: str, node_id: str):
+        print(f"Device {node_id} was evicted from {table_type}")
+    
+    while True:
+        node.poll(timeout_ms=1000)
+        
+        # Check if a device has eviction pending
+        device = table.get_device("sensor_01")
+        if device and device.eviction_pending:
+            print("Device will be evicted soon if it doesn't reconnect")
+```
 
 ## Thread Safety
 
@@ -226,8 +251,17 @@ The main class for interacting with SDS.
 ```python
 class SdsNode:
     def __init__(self, node_id: str, broker_host: str, port: int = 1883,
-                 username: str | None = None, password: str | None = None):
-        """Initialize SDS node and connect to MQTT broker."""
+                 username: str | None = None, password: str | None = None,
+                 eviction_grace_ms: int = 0):
+        """
+        Initialize SDS node and connect to MQTT broker.
+        
+        Args:
+            eviction_grace_ms: Grace period before evicting offline devices (0 = disabled).
+                              For OWNER roles, when a device disconnects (LWT), an eviction
+                              timer starts. If the device doesn't reconnect within this period,
+                              it's evicted from status slots, freeing the slot for new devices.
+        """
     
     def register_table(self, table_type: str, role: Role,
                        sync_interval_ms: int | None = None,

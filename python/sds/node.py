@@ -38,6 +38,7 @@ StateCallback = Callable[[str, str], None]
 StatusCallback = Callable[[str, str], None]
 ErrorCallback = Callable[[int, str], None]
 VersionMismatchCallback = Callable[[str, str, str, str], bool]
+DeviceEvictedCallback = Callable[[str, str], None]  # (table_type, node_id)
 
 
 class SdsNode:
@@ -84,6 +85,7 @@ class SdsNode:
         connect_timeout_ms: int = 5000,
         retry_count: int = 3,
         retry_delay_ms: int = 1000,
+        eviction_grace_ms: int = 0,
     ):
         """
         Create an SDS node.
@@ -99,6 +101,9 @@ class SdsNode:
             retry_count: Number of connection retries (default: 3)
             retry_delay_ms: Initial retry delay in milliseconds (default: 1000)
                            Uses exponential backoff (delay doubles each retry)
+            eviction_grace_ms: Grace period before evicting offline devices (default: 0 = disabled)
+                              When > 0, devices that go offline (LWT) will be evicted from
+                              status slots after this many milliseconds if they don't reconnect.
         
         Raises:
             SdsValidationError: If node_id is invalid
@@ -127,6 +132,7 @@ class SdsNode:
         self._connect_timeout_ms = connect_timeout_ms
         self._retry_count = retry_count
         self._retry_delay_ms = retry_delay_ms
+        self._eviction_grace_ms = eviction_grace_ms
         
         # Thread safety lock - reentrant to allow nested calls
         self._lock = threading.RLock()
@@ -140,6 +146,7 @@ class SdsNode:
         self._status_callbacks: Dict[str, StatusCallback] = {}
         self._error_callback: Optional[ErrorCallback] = None
         self._version_mismatch_callback: Optional[VersionMismatchCallback] = None
+        self._eviction_callback: Optional[DeviceEvictedCallback] = None
         
         # Keep C callback handles alive
         self._c_callbacks: Dict[str, Any] = {}
@@ -221,6 +228,9 @@ class SdsNode:
             else:
                 self._config_password = None
                 config.mqtt_password = ffi.NULL
+            
+            # Set eviction grace period
+            config.eviction_grace_ms = self._eviction_grace_ms
             
             # Keep config struct alive
             self._config = config
@@ -851,6 +861,49 @@ class SdsNode:
             return func
         return decorator
     
+    def on_device_evicted(self) -> Callable[[DeviceEvictedCallback], DeviceEvictedCallback]:
+        """
+        Decorator to register a device eviction callback (owner role only).
+        
+        Called when a device is evicted from status slots after the eviction
+        grace period expires following an LWT message.
+        
+        Example:
+            @node.on_device_evicted()
+            def handle_eviction(table_type: str, node_id: str):
+                print(f"Device {node_id} was evicted from {table_type}")
+        
+        Note:
+            Eviction is only triggered if eviction_grace_ms > 0 was set
+            when creating the SdsNode.
+            
+        Returns:
+            Decorator function
+        """
+        def decorator(func: DeviceEvictedCallback) -> DeviceEvictedCallback:
+            self._eviction_callback = func
+            self._setup_eviction_callback()
+            return func
+        return decorator
+    
+    def _setup_eviction_callback(self) -> None:
+        """Set up the C-level eviction callback."""
+        @ffi.callback("SdsDeviceEvictedCallback")
+        def c_callback(c_table_type, c_node_id, user_data):
+            try:
+                ttype = decode_string(c_table_type)
+                node_id = decode_string(c_node_id)
+                if ttype and node_id and self._eviction_callback:
+                    self._eviction_callback(ttype, node_id)
+            except Exception:
+                # Log but don't propagate - C code can't handle Python exceptions
+                logger.exception("Error in eviction callback")
+        
+        # Keep callback alive
+        self._c_callbacks["eviction"] = c_callback
+        # Pass NULL for table_type since eviction callback is global
+        lib.sds_on_device_evicted(ffi.NULL, c_callback, ffi.NULL)
+    
     def _setup_config_callback(self, table_type: str) -> None:
         """Set up the C-level config callback."""
         @ffi.callback("SdsConfigCallback")
@@ -1044,6 +1097,21 @@ class SdsNode:
             Liveness interval in milliseconds
         """
         return lib.sds_get_liveness_interval(table_type.encode("utf-8"))
+    
+    def get_eviction_grace(self) -> int:
+        """
+        Get the configured eviction grace period.
+        
+        Returns:
+            Eviction grace period in milliseconds (0 = disabled)
+        """
+        # Pass NULL since eviction grace is now global
+        return lib.sds_get_eviction_grace(ffi.NULL)
+    
+    @property
+    def eviction_grace_ms(self) -> int:
+        """The configured eviction grace period in milliseconds."""
+        return self._eviction_grace_ms
     
     def get_schema_version(self) -> str:
         """

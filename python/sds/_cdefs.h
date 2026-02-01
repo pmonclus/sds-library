@@ -72,6 +72,7 @@ typedef struct {
     uint16_t mqtt_port;
     const char* mqtt_username;
     const char* mqtt_password;
+    uint32_t eviction_grace_ms;
 } SdsConfig;
 
 typedef struct {
@@ -101,6 +102,7 @@ typedef bool (*SdsVersionMismatchCallback)(
     const char* local_version,
     const char* remote_version
 );
+typedef void (*SdsDeviceEvictedCallback)(const char* table_type, const char* node_id, void* user_data);
 
 /* ============== JSON Writer/Reader (opaque for Python) ============== */
 
@@ -148,7 +150,9 @@ typedef struct {
     size_t own_status_count_offset;
     size_t slot_valid_offset;
     size_t slot_online_offset;
+    size_t slot_eviction_pending_offset;
     size_t slot_last_seen_offset;
+    size_t slot_eviction_deadline_offset;
     size_t slot_status_offset;
     uint8_t own_max_status_slots;
     
@@ -251,6 +255,14 @@ bool sds_is_device_online(
 );
 
 uint32_t sds_get_liveness_interval(const char* table_type);
+
+uint32_t sds_get_eviction_grace(const char* table_type);
+void sds_on_device_evicted(const char* table_type, SdsDeviceEvictedCallback callback, void* user_data);
+void sds_set_owner_eviction_offsets(
+    const char* table_type,
+    size_t eviction_pending_offset,
+    size_t eviction_deadline_offset
+);
 
 /* ============== JSON API (for advanced usage) ============== */
 

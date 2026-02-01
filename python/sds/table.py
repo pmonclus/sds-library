@@ -258,6 +258,7 @@ class DeviceView:
         status_proxy: Optional[SectionProxy],
         online: bool,
         last_seen: int,
+        eviction_pending: bool = False,
     ):
         """
         Initialize the device view.
@@ -268,12 +269,14 @@ class DeviceView:
             status_proxy: Proxy for reading status (or None if no schema)
             online: Whether the device is currently online
             last_seen: Timestamp of last message (ms since epoch)
+            eviction_pending: Whether eviction timer is running for this device
         """
         self._node_id = node_id
         self._state = state_proxy
         self._status = status_proxy
         self._online = online
         self._last_seen = last_seen
+        self._eviction_pending = eviction_pending
     
     @property
     def node_id(self) -> str:
@@ -296,12 +299,18 @@ class DeviceView:
         return self._online
     
     @property
+    def eviction_pending(self) -> bool:
+        """Check if eviction timer is running for this device."""
+        return self._eviction_pending
+    
+    @property
     def last_seen(self) -> int:
         """Get the timestamp of the last message from this device."""
         return self._last_seen
     
     def __repr__(self) -> str:
-        return f"DeviceView(node_id={self._node_id!r}, online={self._online})"
+        eviction_str = ", eviction_pending=True" if self._eviction_pending else ""
+        return f"DeviceView(node_id={self._node_id!r}, online={self._online}{eviction_str})"
 
 
 class SdsTable:
@@ -584,9 +593,11 @@ class SdsTable:
         if self._meta is not None:
             slot_last_seen_offset = self._meta.slot_last_seen_offset
             slot_status_offset = self._meta.slot_status_offset
+            slot_eviction_pending_offset = getattr(self._meta, 'slot_eviction_pending_offset', 0)
         elif self._python_meta and "slot_last_seen_offset" in self._python_meta:
             slot_last_seen_offset = self._python_meta["slot_last_seen_offset"]
             slot_status_offset = self._python_meta["slot_status_offset"]
+            slot_eviction_pending_offset = self._python_meta.get("slot_eviction_pending_offset", 0)
         else:
             return None  # No metadata, can't access device slots
         
@@ -619,6 +630,12 @@ class SdsTable:
         last_seen_ptr = ffi.cast("uint32_t*", slot_char + slot_last_seen_offset)
         last_seen = last_seen_ptr[0]
         
+        # Read eviction_pending flag if available
+        eviction_pending = False
+        if slot_eviction_pending_offset > 0:
+            eviction_pending_ptr = ffi.cast("bool*", slot_char + slot_eviction_pending_offset)
+            eviction_pending = bool(eviction_pending_ptr[0])
+        
         # State is transient (only available during callback), not stored per-device
         state_proxy = None
         
@@ -633,6 +650,7 @@ class SdsTable:
             status_proxy=status_proxy,
             online=online,
             last_seen=last_seen,
+            eviction_pending=eviction_pending,
         )
     
     def iter_devices(self, timeout_ms: Optional[int] = None) -> Iterator[Tuple[str, DeviceView]]:
