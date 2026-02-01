@@ -198,21 +198,31 @@ class SdsNode:
             
             # Create config struct
             config = ffi.new("SdsConfig*")
-            config.node_id = ffi.new("char[]", self._node_id.encode("utf-8"))
-            config.mqtt_broker = ffi.new("char[]", self._broker_host.encode("utf-8"))
+            
+            # Allocate string buffers and keep them alive as instance attributes.
+            # CFFI buffers must be stored separately because assigning to struct
+            # fields only copies the pointer, not the Python reference.
+            self._config_node_id = ffi.new("char[]", self._node_id.encode("utf-8"))
+            self._config_broker = ffi.new("char[]", self._broker_host.encode("utf-8"))
+            config.node_id = self._config_node_id
+            config.mqtt_broker = self._config_broker
             config.mqtt_port = self._port
             
             if self._username is not None:
-                config.mqtt_username = ffi.new("char[]", self._username.encode("utf-8"))
+                self._config_username = ffi.new("char[]", self._username.encode("utf-8"))
+                config.mqtt_username = self._config_username
             else:
+                self._config_username = None
                 config.mqtt_username = ffi.NULL
             
             if self._password is not None:
-                config.mqtt_password = ffi.new("char[]", self._password.encode("utf-8"))
+                self._config_password = ffi.new("char[]", self._password.encode("utf-8"))
+                config.mqtt_password = self._config_password
             else:
+                self._config_password = None
                 config.mqtt_password = ffi.NULL
             
-            # Keep config alive
+            # Keep config struct alive
             self._config = config
             
             # Set as current instance for callbacks
