@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.16.1"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>SDS Library: SDS (Simple DDS)</title>
+<title>SDS Library: SDS (Synchronized Data Structures)</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -89,50 +89,190 @@ $(function(){initNavTree('index.html','',''); });
 </div>
 
 <div><div class="header">
-  <div class="headertitle"><div class="title">SDS (Simple DDS) </div></div>
+  <div class="headertitle"><div class="title">SDS (Synchronized Data Structures) </div></div>
 </div><!--header-->
 <div class="contents">
 <div class="textblock"><p><a class="anchor" id="md__r_e_a_d_m_e"></a></p>
-<p>A lightweight MQTT-based state synchronization library for embedded systems.</p>
+<p>A lightweight MQTT-based state synchronization library for IoT applications.</p>
 <h1 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
-Features</h1>
-<ul>
-<li><b>Single table type</b> with config/state/status sections</li>
-<li><b>Two roles</b>: OWNER and DEVICE</li>
-<li><b>Fluid architecture</b>: Any node can be owner or device for any table</li>
-<li><b>Cross-platform</b>: ESP32/ESP8266/Arduino + macOS/Linux</li>
-<li><b>Liveness detection</b>: Automatic heartbeats with configurable intervals</li>
-<li><b>LWT support</b>: Broker notifies on unexpected disconnects</li>
-<li><b>MQTT authentication</b>: Optional username/password support</li>
-<li><b>Schema versioning</b>: Detect and handle version mismatches between nodes</li>
-<li><b>Runtime log level</b>: Adjust logging verbosity without recompiling</li>
+Overview</h1>
+<p>SDS enables automatic state synchronization between devices and owners over MQTT:</p><ul>
+<li><b>Devices</b> (sensors, actuators) send state/status, receive config</li>
+<li><b>Owners</b> (servers, dashboards) send config, receive state/status from all devices</li>
 </ul>
 <h1 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
 Quick Start</h1>
-<div class="fragment"><div class="line"><span class="preprocessor">#include &quot;<a class="code" href="sds_8h.html">sds.h</a>&quot;</span></div>
-<div class="line"><span class="preprocessor">#include &quot;sds_types.h&quot;</span>  <span class="comment">// Generated from schema</span></div>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+1. Install SDS</h2>
+<p><b>macOS (Homebrew):</b> </p><div class="fragment"><div class="line">brew tap pmonclus/sds</div>
+<div class="line">brew install sds</div>
+</div><!-- fragment --><p>This installs:</p><ul>
+<li>C library (<span class="tt">libsds</span>)</li>
+<li>Python bindings</li>
+<li><span class="tt">sds-codegen</span> command-line tool</li>
+<li>Arduino library ZIP at <span class="tt">$(brew --prefix)/share/sds/sds-arduino-*.zip</span></li>
+</ul>
+<p><b>Ubuntu/Debian:</b> </p><div class="fragment"><div class="line"># Install dependencies</div>
+<div class="line">sudo apt-get install libpaho-mqtt-dev python3 python3-pip cmake</div>
 <div class="line"> </div>
-<div class="line">SensorDataTable myTable;</div>
+<div class="line"># Clone and build</div>
+<div class="line">git clone https://github.com/pmonclus/sds-library.git</div>
+<div class="line">cd sds-library</div>
+<div class="line"> </div>
+<div class="line">python3 -m venv venv</div>
+<div class="line">source venv/bin/activate</div>
+<div class="line">pip install cffi</div>
+<div class="line"> </div>
+<div class="line">mkdir -p build &amp;&amp; cd build</div>
+<div class="line">cmake .. -DSDS_BUILD_TESTS=OFF -DSDS_BUILD_EXAMPLES=OFF</div>
+<div class="line">make</div>
+<div class="line">cd ..</div>
+<div class="line"> </div>
+<div class="line">cd python &amp;&amp; pip install -e . &amp;&amp; cd ..</div>
+<div class="line">pip install -e .</div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
+2. Verify Installation</h2>
+<div class="fragment"><div class="line">sds-codegen --help</div>
+</div><!-- fragment --><p>For Python usage (Ubuntu/Debian only): </p><div class="fragment"><div class="line">source venv/bin/activate</div>
+<div class="line">python3 -c &quot;from sds import SdsNode; print(&#39;SDS OK&#39;)&quot;</div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
+3. Define Your Schema</h2>
+<p>Create a <span class="tt">schema.sds</span> file that defines your data structure:</p>
+<div class="fragment"><div class="line">// schema.sds</div>
+<div class="line">@version = &quot;1.0.0&quot;</div>
+<div class="line"> </div>
+<div class="line">table SensorData {</div>
+<div class="line">    @sync_interval = 1000    // Sync every 1 second</div>
+<div class="line">    @liveness = 5000         // Heartbeat every 5 seconds</div>
+<div class="line">    </div>
+<div class="line">    // Config: owner → devices</div>
+<div class="line">    config {</div>
+<div class="line">        uint8 led_enabled = 0;</div>
+<div class="line">        float threshold = 25.0;</div>
+<div class="line">    }</div>
+<div class="line">    </div>
+<div class="line">    // State: devices → owner (merged across all devices)</div>
+<div class="line">    state {</div>
+<div class="line">        float temperature;</div>
+<div class="line">        float humidity;</div>
+<div class="line">    }</div>
+<div class="line">    </div>
+<div class="line">    // Status: each device → owner (per-device data)</div>
+<div class="line">    status {</div>
+<div class="line">        uint8 battery_percent;</div>
+<div class="line">        uint8 error_code;</div>
+<div class="line">    }</div>
+<div class="line">}</div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
+4. Generate Type Definitions</h2>
+<div class="fragment"><div class="line">sds-codegen schema.sds --c --python</div>
+</div><!-- fragment --><p>This creates:</p><ul>
+<li><span class="tt">sds_types.h</span> - C structs and serialization</li>
+<li><span class="tt">sds_types.py</span> - Python dataclasses</li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md7"></a>
+5. Start an MQTT Broker</h2>
+<div class="fragment"><div class="line"># macOS</div>
+<div class="line">brew install mosquitto</div>
+<div class="line">brew services start mosquitto</div>
+<div class="line"> </div>
+<div class="line"># Ubuntu</div>
+<div class="line">sudo apt-get install mosquitto</div>
+<div class="line">sudo systemctl start mosquitto</div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md8"></a>
+6. Run Your First Device (Python)</h2>
+<p>Create <span class="tt">device.py</span>:</p>
+<div class="fragment"><div class="line"><span class="comment">#!/usr/bin/env python3</span></div>
+<div class="line"><span class="keyword">from</span> sds <span class="keyword">import</span> SdsNode, Role</div>
+<div class="line"><span class="keyword">from</span> sds_types <span class="keyword">import</span> SensorData  <span class="comment"># Generated from schema.sds</span></div>
+<div class="line"><span class="keyword">import</span> random</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">with</span> SdsNode(<span class="stringliteral">&quot;sensor_01&quot;</span>, <span class="stringliteral">&quot;localhost&quot;</span>) <span class="keyword">as</span> node:</div>
+<div class="line">    table = node.register_table(<span class="stringliteral">&quot;SensorData&quot;</span>, Role.DEVICE, schema=SensorData)</div>
+<div class="line">    </div>
+<div class="line">    print(<span class="stringliteral">&quot;Device running. Press Ctrl+C to stop.&quot;</span>)</div>
+<div class="line">    <span class="keywordflow">while</span> <span class="keyword">True</span>:</div>
+<div class="line">        <span class="comment"># Update sensor readings</span></div>
+<div class="line">        table.state.temperature = 20.0 + random.uniform(0, 5)</div>
+<div class="line">        table.state.humidity = 50.0 + random.uniform(0, 10)</div>
+<div class="line">        table.status.battery_percent = 85</div>
+<div class="line">        </div>
+<div class="line">        node.poll(timeout_ms=1000)</div>
+</div><!-- fragment --><p>Run it: </p><div class="fragment"><div class="line">python3 device.py</div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md9"></a>
+7. Run an Owner (Python)</h2>
+<p>Create <span class="tt">owner.py</span>:</p>
+<div class="fragment"><div class="line"><span class="comment">#!/usr/bin/env python3</span></div>
+<div class="line"><span class="keyword">from</span> sds <span class="keyword">import</span> SdsNode, Role</div>
+<div class="line"><span class="keyword">from</span> sds_types <span class="keyword">import</span> SensorData  <span class="comment"># Generated from schema.sds</span></div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">with</span> SdsNode(<span class="stringliteral">&quot;owner&quot;</span>, <span class="stringliteral">&quot;localhost&quot;</span>) <span class="keyword">as</span> node:</div>
+<div class="line">    table = node.register_table(<span class="stringliteral">&quot;SensorData&quot;</span>, Role.OWNER, schema=SensorData)</div>
+<div class="line">    </div>
+<div class="line">    <span class="preprocessor">@node.on_state(&quot;SensorData&quot;)</span></div>
+<div class="line">    <span class="keyword">def </span>handle_state(table_type):</div>
+<div class="line">        print(f<span class="stringliteral">&quot;Temperature: {table.state.temperature:.1f}°C, &quot;</span></div>
+<div class="line">              f<span class="stringliteral">&quot;Humidity: {table.state.humidity:.1f}%&quot;</span>)</div>
+<div class="line">    </div>
+<div class="line">    print(<span class="stringliteral">&quot;Owner running. Press Ctrl+C to stop.&quot;</span>)</div>
+<div class="line">    <span class="keywordflow">while</span> <span class="keyword">True</span>:</div>
+<div class="line">        node.poll(timeout_ms=1000)</div>
+</div><!-- fragment --><p>Run it in another terminal: </p><div class="fragment"><div class="line">python3 owner.py</div>
+</div><!-- fragment --><p>You should see temperature/humidity readings appearing on the owner!</p>
+<hr  />
+<h1 class="doxsection"><a class="anchor" id="autotoc_md11"></a>
+Arduino / ESP32</h1>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md12"></a>
+Installation</h2>
+<ol type="1">
+<li>Run the packaging script to create the Arduino ZIP: <div class="fragment"><div class="line">./packaging/build-package.sh quick</div>
+</div><!-- fragment --></li>
+<li>The Arduino library ZIP is at: <div class="fragment"><div class="line"># After brew install (future):</div>
+<div class="line">$(brew --prefix)/share/sds/sds-arduino-*.zip</div>
+<div class="line"> </div>
+<div class="line"># For now, create manually:</div>
+<div class="line">cd packaging &amp;&amp; ./build-package.sh tarball</div>
+<div class="line"># Then find ZIP in the tarball</div>
+</div><!-- fragment --></li>
+<li>In Arduino IDE: <b>Sketch → Include Library → Add .ZIP Library</b></li>
+<li>Install dependency: <b>PubSubClient</b> from Library Manager</li>
+</ol>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md13"></a>
+ESP32 Device Example</h2>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &lt;WiFi.h&gt;</span></div>
+<div class="line"><span class="preprocessor">#include &lt;PubSubClient.h&gt;</span></div>
+<div class="line"><span class="preprocessor">#include &quot;<a class="code" href="sds_8h.html">sds.h</a>&quot;</span></div>
+<div class="line"><span class="preprocessor">#include &quot;sds_types.h&quot;</span>  <span class="comment">// Generated from your schema.sds</span></div>
+<div class="line"> </div>
+<div class="line">WiFiClient wifiClient;</div>
+<div class="line">PubSubClient mqtt(wifiClient);</div>
+<div class="line">SensorDataTable table;</div>
 <div class="line"> </div>
 <div class="line"><span class="keywordtype">void</span> setup() {</div>
+<div class="line">    Serial.begin(115200);</div>
+<div class="line">    </div>
+<div class="line">    <span class="comment">// Connect WiFi</span></div>
+<div class="line">    WiFi.begin(<span class="stringliteral">&quot;your_ssid&quot;</span>, <span class="stringliteral">&quot;your_password&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">while</span> (WiFi.status() != WL_CONNECTED) delay(500);</div>
+<div class="line">    </div>
+<div class="line">    <span class="comment">// Initialize SDS</span></div>
 <div class="line">    <a class="code hl_struct" href="struct_sds_config.html">SdsConfig</a> config = {</div>
-<div class="line">        .node_id = <span class="stringliteral">&quot;sensor_A&quot;</span>,</div>
+<div class="line">        .node_id = <span class="stringliteral">&quot;esp32_sensor&quot;</span>,</div>
 <div class="line">        .mqtt_broker = <span class="stringliteral">&quot;192.168.1.100&quot;</span>,</div>
 <div class="line">        .mqtt_port = 1883,</div>
-<div class="line">        .mqtt_username = NULL,  <span class="comment">// Optional: set for authentication</span></div>
-<div class="line">        .mqtt_password = NULL</div>
+<div class="line">        .eviction_grace_ms = 0  <span class="comment">// 0 = no auto-eviction (optional for owners)</span></div>
 <div class="line">    };</div>
-<div class="line">    </div>
 <div class="line">    <a class="code hl_function" href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a>(&amp;config);</div>
-<div class="line">    <a class="code hl_function" href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a>(&amp;myTable, <span class="stringliteral">&quot;SensorData&quot;</span>, <a class="code hl_enumvalue" href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a>, NULL);</div>
+<div class="line">    <a class="code hl_function" href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a>(&amp;table, <span class="stringliteral">&quot;SensorData&quot;</span>, <a class="code hl_enumvalue" href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a>, NULL);</div>
 <div class="line">}</div>
 <div class="line"> </div>
 <div class="line"><span class="keywordtype">void</span> loop() {</div>
-<div class="line">    <span class="comment">// Update state</span></div>
-<div class="line">    myTable.state.temperature = read_sensor();</div>
-<div class="line">    </div>
-<div class="line">    <span class="comment">// SDS syncs automatically</span></div>
 <div class="line">    <a class="code hl_function" href="group__init.html#ga275b11badbc4756a9b93502af7e30778">sds_loop</a>();</div>
+<div class="line">    </div>
+<div class="line">    table.state.temperature = readTemperature();</div>
+<div class="line">    table.state.humidity = readHumidity();</div>
+<div class="line">    </div>
+<div class="line">    delay(100);</div>
 <div class="line">}</div>
 <div class="ttc" id="agroup__init_html_ga275b11badbc4756a9b93502af7e30778"><div class="ttname"><a href="group__init.html#ga275b11badbc4756a9b93502af7e30778">sds_loop</a></div><div class="ttdeci">void sds_loop(void)</div><div class="ttdoc">Process SDS events.</div></div>
 <div class="ttc" id="agroup__init_html_ga99eea78bf2771e604ab5ce296cd8a815"><div class="ttname"><a href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a></div><div class="ttdeci">SdsError sds_init(const SdsConfig *config)</div><div class="ttdoc">Initialize SDS and connect to MQTT broker.</div></div>
@@ -140,134 +280,101 @@ Quick Start</h1>
 <div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:106</div></div>
 <div class="ttc" id="asds_8h_html"><div class="ttname"><a href="sds_8h.html">sds.h</a></div><div class="ttdoc">SDS (Simple DDS) Core API Header.</div></div>
 <div class="ttc" id="astruct_sds_config_html"><div class="ttname"><a href="struct_sds_config.html">SdsConfig</a></div><div class="ttdoc">Configuration for SDS initialization.</div><div class="ttdef"><b>Definition</b> sds.h:117</div></div>
-</div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+</div><!-- fragment --><p>See <a href="examples/hybrid_demo/esp32_device/">examples/hybrid_demo/esp32_device/</a> for a complete example.</p>
+<hr  />
+<h1 class="doxsection"><a class="anchor" id="autotoc_md15"></a>
+C Library (Linux/macOS)</h1>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md16"></a>
+Building</h2>
+<div class="fragment"><div class="line">mkdir build &amp;&amp; cd build</div>
+<div class="line">cmake .. -DSDS_BUILD_TESTS=OFF</div>
+<div class="line">make</div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md17"></a>
+Simple Device Example</h2>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &quot;<a class="code" href="sds_8h.html">sds.h</a>&quot;</span></div>
+<div class="line"><span class="preprocessor">#include &quot;sds_types.h&quot;</span></div>
+<div class="line"> </div>
+<div class="line">SensorDataTable table;</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">int</span> main() {</div>
+<div class="line">    <a class="code hl_struct" href="struct_sds_config.html">SdsConfig</a> config = {</div>
+<div class="line">        .node_id = <span class="stringliteral">&quot;linux_sensor&quot;</span>,</div>
+<div class="line">        .mqtt_broker = <span class="stringliteral">&quot;localhost&quot;</span>,</div>
+<div class="line">        .mqtt_port = 1883,</div>
+<div class="line">        .eviction_grace_ms = 0  <span class="comment">// Set &gt; 0 for owners to auto-evict offline devices</span></div>
+<div class="line">    };</div>
+<div class="line">    </div>
+<div class="line">    <a class="code hl_function" href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a>(&amp;config);</div>
+<div class="line">    <a class="code hl_function" href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a>(&amp;table, <span class="stringliteral">&quot;SensorData&quot;</span>, <a class="code hl_enumvalue" href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a>, NULL);</div>
+<div class="line">    </div>
+<div class="line">    <span class="keywordflow">while</span> (1) {</div>
+<div class="line">        <a class="code hl_function" href="group__init.html#ga275b11badbc4756a9b93502af7e30778">sds_loop</a>();</div>
+<div class="line">        table.state.temperature = read_sensor();</div>
+<div class="line">        usleep(100000);</div>
+<div class="line">    }</div>
+<div class="line">    </div>
+<div class="line">    <a class="code hl_function" href="group__init.html#gae809cf426b23805d83699f84d67882ca">sds_shutdown</a>();</div>
+<div class="line">    <span class="keywordflow">return</span> 0;</div>
+<div class="line">}</div>
+<div class="ttc" id="agroup__init_html_gae809cf426b23805d83699f84d67882ca"><div class="ttname"><a href="group__init.html#gae809cf426b23805d83699f84d67882ca">sds_shutdown</a></div><div class="ttdeci">void sds_shutdown(void)</div><div class="ttdoc">Shutdown SDS and disconnect from MQTT broker.</div></div>
+</div><!-- fragment --><p>Compile: </p><div class="fragment"><div class="line">gcc -o device device.c -I../include -L../build -lsds -lpaho-mqtt3c</div>
+</div><!-- fragment --><p>See <a href="examples/hybrid_demo/c_device/">examples/hybrid_demo/c_device/</a> for a complete example.</p>
+<hr  />
+<h1 class="doxsection"><a class="anchor" id="autotoc_md19"></a>
+Schema Reference</h1>
+<div class="fragment"><div class="line">// Comments use double slashes</div>
+<div class="line">@version = &quot;1.0.0&quot;              // Schema version</div>
+<div class="line"> </div>
+<div class="line">table TableName {</div>
+<div class="line">    @sync_interval = 1000       // State sync interval (ms)</div>
+<div class="line">    @liveness = 5000            // Heartbeat interval (ms)</div>
+<div class="line">    </div>
+<div class="line">    config {                    // Owner → Devices</div>
+<div class="line">        uint8 field_name;</div>
+<div class="line">        float value = 1.0;      // With default</div>
+<div class="line">    }</div>
+<div class="line">    </div>
+<div class="line">    state {                     // Devices → Owner (merged)</div>
+<div class="line">        float sensor_value;</div>
+<div class="line">    }</div>
+<div class="line">    </div>
+<div class="line">    status {                    // Each Device → Owner (per-device)</div>
+<div class="line">        uint8 error_code;</div>
+<div class="line">    }</div>
+<div class="line">}</div>
+</div><!-- fragment --><p><b>Supported types:</b> <span class="tt">bool</span>, <span class="tt">uint8</span>, <span class="tt">int8</span>, <span class="tt">uint16</span>, <span class="tt">int16</span>, <span class="tt">uint32</span>, <span class="tt">int32</span>, <span class="tt">float</span>, <span class="tt">string</span></p>
+<hr  />
+<h1 class="doxsection"><a class="anchor" id="autotoc_md21"></a>
 Documentation</h1>
 <ul>
-<li><b>DESIGN.md</b> - Full design specification</li>
-<li><b><a href="docs/html/index.html">API Reference</a></b> - Doxygen-generated API docs</li>
+<li>Python README - Full Python API documentation</li>
+<li>DESIGN.md - Architecture and design decisions</li>
+<li>TESTING.md - Test suite documentation</li>
+<li><a href="examples/hybrid_demo/">examples/hybrid_demo/</a> - Complete multi-language example</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-Generating API Documentation</h2>
-<div class="fragment"><div class="line"># Install Doxygen (if not installed)</div>
-<div class="line">brew install doxygen  # macOS</div>
-<div class="line"># apt-get install doxygen  # Ubuntu</div>
-<div class="line"> </div>
-<div class="line"># Generate HTML documentation</div>
-<div class="line">doxygen Doxyfile</div>
-<div class="line"> </div>
-<div class="line"># Open in browser</div>
-<div class="line">open docs/html/index.html</div>
-</div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
-Memory Requirements</h1>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
-Static RAM Usage</h2>
-<table class="markdownTable">
-<tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Component  </th><th class="markdownTableHeadNone">Size  </th><th class="markdownTableHeadNone">Notes  </th></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Node ID buffer  </td><td class="markdownTableBodyNone">32 bytes  </td><td class="markdownTableBodyNone"><span class="tt"><a class="el" href="group__config.html#ga74cac56f4582eab6a9f65ffcc678c2ef" title="Maximum length of node ID string (including null terminator).">SDS_MAX_NODE_ID_LEN</a></span>  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Broker buffer  </td><td class="markdownTableBodyNone">128 bytes  </td><td class="markdownTableBodyNone"><span class="tt">SDS_MAX_BROKER_LEN</span>  </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Table contexts  </td><td class="markdownTableBodyNone">~600 bytes each  </td><td class="markdownTableBodyNone">Includes shadow buffers  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">Stats  </td><td class="markdownTableBodyNone">16 bytes  </td><td class="markdownTableBodyNone">Counters  </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><b>Total (per table)</b>  </td><td class="markdownTableBodyNone">**~776 bytes**  </td><td class="markdownTableBodyNone">+ table data  </td></tr>
-</table>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md7"></a>
-Configuration Defaults</h2>
-<table class="markdownTable">
-<tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Setting  </th><th class="markdownTableHeadNone">Default  </th><th class="markdownTableHeadNone">Can Override  </th></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt"><a class="el" href="group__config.html#gad36ade84fa5fd2ae20589cfbf4ec9d41" title="Maximum number of tables per node.">SDS_MAX_TABLES</a></span>  </td><td class="markdownTableBodyNone">8  </td><td class="markdownTableBodyNone">Compile-time  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt"><a class="el" href="group__config.html#ga74cac56f4582eab6a9f65ffcc678c2ef" title="Maximum length of node ID string (including null terminator).">SDS_MAX_NODE_ID_LEN</a></span>  </td><td class="markdownTableBodyNone">32  </td><td class="markdownTableBodyNone">Compile-time  </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt"><a class="el" href="group__config.html#ga5fc9a201a766acf6f4c090c004286029" title="Buffer size for JSON message serialization.">SDS_MSG_BUFFER_SIZE</a></span>  </td><td class="markdownTableBodyNone">512  </td><td class="markdownTableBodyNone">Compile-time  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">SDS_SHADOW_SIZE</span>  </td><td class="markdownTableBodyNone">Auto-calculated  </td><td class="markdownTableBodyNone">From schema  </td></tr>
-</table>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md8"></a>
-Stack Usage (per sync cycle)</h2>
-<table class="markdownTable">
-<tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Buffer  </th><th class="markdownTableHeadNone">Size  </th></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Topic buffer  </td><td class="markdownTableBodyNone">128 bytes  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">JSON buffer  </td><td class="markdownTableBodyNone">512 bytes  </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><a class="el" href="struct_sds_json_writer.html">SdsJsonWriter</a>  </td><td class="markdownTableBodyNone">~24 bytes  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><b>Total</b>  </td><td class="markdownTableBodyNone">**~700 bytes**  </td></tr>
-</table>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md9"></a>
-Platform-Specific Considerations</h2>
-<table class="markdownTable">
-<tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Platform  </th><th class="markdownTableHeadNone">RAM Available  </th><th class="markdownTableHeadNone">Recommendation  </th></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">ESP32  </td><td class="markdownTableBodyNone">320 KB  </td><td class="markdownTableBodyNone">✅ Full support, up to 8 tables  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone">ESP8266  </td><td class="markdownTableBodyNone">80 KB  </td><td class="markdownTableBodyNone">⚠️ Limit to 2-3 tables, reduce buffer sizes  </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone">Linux/macOS  </td><td class="markdownTableBodyNone">Unlimited  </td><td class="markdownTableBodyNone">✅ Full support  </td></tr>
-</table>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md10"></a>
-Reducing Memory Footprint</h2>
-<p>For constrained devices (ESP8266), add to your build:</p>
-<div class="fragment"><div class="line"><span class="preprocessor">#define SDS_MAX_TABLES 2</span></div>
-<div class="line"><span class="preprocessor">#define SDS_MSG_BUFFER_SIZE 256</span></div>
-</div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md11"></a>
-Building</h1>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md12"></a>
-macOS/Linux (for testing)</h2>
-<div class="fragment"><div class="line">mkdir build &amp;&amp; cd build</div>
-<div class="line">cmake ..</div>
-<div class="line">make</div>
-</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md13"></a>
-ESP32/ESP8266 (PlatformIO)</h2>
-<div class="fragment"><div class="line">cd examples/esp32_sensor</div>
-<div class="line">pio run</div>
-</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md14"></a>
-Running Tests</h2>
-<div class="fragment"><div class="line"># Unit tests (no MQTT broker required) - runs in ~0.5s</div>
+<hr  />
+<h1 class="doxsection"><a class="anchor" id="autotoc_md23"></a>
+Running Tests</h1>
+<div class="fragment"><div class="line"># Unit tests (no MQTT broker required)</div>
 <div class="line">cd build &amp;&amp; cmake .. &amp;&amp; make</div>
 <div class="line">./test_unit_core &amp;&amp; ./test_json &amp;&amp; ./test_utilities</div>
 <div class="line"> </div>
-<div class="line"># Integration tests (requires MQTT broker)</div>
-<div class="line">brew services start mosquitto  # or: sudo systemctl start mosquitto</div>
-<div class="line">./run_tests.sh</div>
+<div class="line"># Python tests</div>
+<div class="line">cd python &amp;&amp; pytest tests/</div>
 <div class="line"> </div>
-<div class="line"># Scale test (25 devices + 1 owner)</div>
-<div class="line">./tests/scale/run_scale_test.sh 25 30</div>
-</div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md15"></a>
-Testing</h1>
-<p>The library includes <b>177 unit tests</b> with **~84% code coverage**.</p>
-<table class="markdownTable">
-<tr class="markdownTableHead">
-<th class="markdownTableHeadNone">Test Suite  </th><th class="markdownTableHeadNone">Tests  </th><th class="markdownTableHeadNone">MQTT Required  </th><th class="markdownTableHeadNone">Description  </th></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">test_unit_core</span>  </td><td class="markdownTableBodyNone">45  </td><td class="markdownTableBodyNone">No  </td><td class="markdownTableBodyNone">Core SDS functionality  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">test_json</span>  </td><td class="markdownTableBodyNone">75  </td><td class="markdownTableBodyNone">No  </td><td class="markdownTableBodyNone">JSON serialization/parsing  </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">test_utilities</span>  </td><td class="markdownTableBodyNone">23  </td><td class="markdownTableBodyNone">No  </td><td class="markdownTableBodyNone">Utility functions  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">test_reconnection</span>  </td><td class="markdownTableBodyNone">11  </td><td class="markdownTableBodyNone">No  </td><td class="markdownTableBodyNone">Reconnection scenarios  </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">test_buffer_overflow</span>  </td><td class="markdownTableBodyNone">16  </td><td class="markdownTableBodyNone">No  </td><td class="markdownTableBodyNone">Buffer limits  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">test_concurrent</span>  </td><td class="markdownTableBodyNone">7  </td><td class="markdownTableBodyNone">No  </td><td class="markdownTableBodyNone">Thread safety  </td></tr>
-<tr class="markdownTableRowOdd">
-<td class="markdownTableBodyNone"><span class="tt">test_sds_basic</span>  </td><td class="markdownTableBodyNone">-  </td><td class="markdownTableBodyNone">Yes  </td><td class="markdownTableBodyNone">Integration tests  </td></tr>
-<tr class="markdownTableRowEven">
-<td class="markdownTableBodyNone"><span class="tt">test_scale_*</span>  </td><td class="markdownTableBodyNone">-  </td><td class="markdownTableBodyNone">Yes  </td><td class="markdownTableBodyNone">Scale testing (25+ devices)  </td></tr>
-</table>
-<p>See TESTING.md for details.</p>
-<h1 class="doxsection"><a class="anchor" id="autotoc_md16"></a>
+<div class="line"># Integration tests (requires MQTT broker running)</div>
+<div class="line">./run_tests.sh</div>
+</div><!-- fragment --><hr  />
+<h1 class="doxsection"><a class="anchor" id="autotoc_md25"></a>
+Troubleshooting</h1>
+<p><b>"sds-codegen: command not found"</b> </p><div class="fragment"><div class="line">export PATH=&quot;$HOME/.local/bin:$PATH&quot;</div>
+</div><!-- fragment --><p><b>"ModuleNotFoundError: No module named 'codegen'"</b> </p><div class="fragment"><div class="line">cd sds-library &amp;&amp; pip install -e .</div>
+</div><!-- fragment --><p><b>MQTT connection fails</b></p><ul>
+<li>Check broker is running: <span class="tt">brew services list</span> or <span class="tt">systemctl status mosquitto</span></li>
+<li>Verify broker address and port</li>
+</ul>
+<hr  />
+<h1 class="doxsection"><a class="anchor" id="autotoc_md27"></a>
 License</h1>
 <p>MIT </p>
 </div></div><!-- PageDoc -->

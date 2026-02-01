@@ -98,12 +98,12 @@ $(function(){initNavTree('group__event__callbacks.html','',''); });
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-func-members" class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
-<tr class="memitem:ga3419208a3993bcd88d0d1c1c227a15f2" id="r_ga3419208a3993bcd88d0d1c1c227a15f2"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga3419208a3993bcd88d0d1c1c227a15f2">sds_on_config_update</a> (const char *table_type, <a class="el" href="group__callbacks.html#ga06b81d3e094e85b340b82a5cf2b20309">SdsConfigCallback</a> callback)</td></tr>
-<tr class="memdesc:ga3419208a3993bcd88d0d1c1c227a15f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set callback for config updates (device role only).  <br /></td></tr>
-<tr class="memitem:ga9d9f721ed355b7657125e69484131005" id="r_ga9d9f721ed355b7657125e69484131005"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga9d9f721ed355b7657125e69484131005">sds_on_state_update</a> (const char *table_type, <a class="el" href="group__callbacks.html#ga7c7a6328bcc9923fd2038129b0b1541b">SdsStateCallback</a> callback)</td></tr>
-<tr class="memdesc:ga9d9f721ed355b7657125e69484131005"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set callback for state updates (owner role only).  <br /></td></tr>
-<tr class="memitem:gac86d601823af7a89218b84efbdb43aa4" id="r_gac86d601823af7a89218b84efbdb43aa4"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#gac86d601823af7a89218b84efbdb43aa4">sds_on_status_update</a> (const char *table_type, <a class="el" href="group__callbacks.html#ga03db0c4b57b6c7406396aa67e791efb0">SdsStatusCallback</a> callback)</td></tr>
-<tr class="memdesc:gac86d601823af7a89218b84efbdb43aa4"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set callback for status updates (owner role only).  <br /></td></tr>
+<tr class="memitem:ga883ce1b7d6ab2188564664d83df5190f" id="r_ga883ce1b7d6ab2188564664d83df5190f"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga883ce1b7d6ab2188564664d83df5190f">sds_on_config_update</a> (const char *table_type, <a class="el" href="group__callbacks.html#ga06eb6da1ae6f67d724515caf67281d28">SdsConfigCallback</a> callback, void *user_data)</td></tr>
+<tr class="memdesc:ga883ce1b7d6ab2188564664d83df5190f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set callback for config updates (device role only).  <br /></td></tr>
+<tr class="memitem:ga91c7b4168913bf321fab470c6bbc920f" id="r_ga91c7b4168913bf321fab470c6bbc920f"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga91c7b4168913bf321fab470c6bbc920f">sds_on_state_update</a> (const char *table_type, <a class="el" href="group__callbacks.html#ga6733edea0d33e8c1718333a493cdd254">SdsStateCallback</a> callback, void *user_data)</td></tr>
+<tr class="memdesc:ga91c7b4168913bf321fab470c6bbc920f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set callback for state updates (owner role only).  <br /></td></tr>
+<tr class="memitem:ga9e44ff93f2a354a19a1cc16bb1031ab7" id="r_ga9e44ff93f2a354a19a1cc16bb1031ab7"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga9e44ff93f2a354a19a1cc16bb1031ab7">sds_on_status_update</a> (const char *table_type, <a class="el" href="group__callbacks.html#gab350835fef85e82bb47c8bc41f931e09">SdsStatusCallback</a> callback, void *user_data)</td></tr>
+<tr class="memdesc:ga9e44ff93f2a354a19a1cc16bb1031ab7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set callback for status updates (owner role only).  <br /></td></tr>
 <tr class="memitem:ga3dd9b63cdbc4393a6a3bc495570c3a9c" id="r_ga3dd9b63cdbc4393a6a3bc495570c3a9c"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga3dd9b63cdbc4393a6a3bc495570c3a9c">sds_on_error</a> (<a class="el" href="group__callbacks.html#ga0c01cb5dd7ba9f1283e33dfac541fe08">SdsErrorCallback</a> callback)</td></tr>
 <tr class="memdesc:ga3dd9b63cdbc4393a6a3bc495570c3a9c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set callback for async error notifications.  <br /></td></tr>
 <tr class="memitem:ga547546bec14b0c9a668b44c90f086d89" id="r_ga547546bec14b0c9a668b44c90f086d89"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga547546bec14b0c9a668b44c90f086d89">sds_on_version_mismatch</a> (<a class="el" href="group__callbacks.html#ga5ed0d3421d5a6a90667376da7b1dd7c0">SdsVersionMismatchCallback</a> callback)</td></tr>
@@ -138,8 +138,8 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga3419208a3993bcd88d0d1c1c227a15f2" name="ga3419208a3993bcd88d0d1c1c227a15f2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga3419208a3993bcd88d0d1c1c227a15f2">&#9670;&#160;</a></span>sds_on_config_update()</h2>
+<a id="ga883ce1b7d6ab2188564664d83df5190f" name="ga883ce1b7d6ab2188564664d83df5190f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga883ce1b7d6ab2188564664d83df5190f">&#9670;&#160;</a></span>sds_on_config_update()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -152,7 +152,12 @@ Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__callbacks.html#ga06b81d3e094e85b340b82a5cf2b20309">SdsConfigCallback</a></td>          <td class="paramname"><span class="paramname"><em>callback</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="group__callbacks.html#ga06eb6da1ae6f67d724515caf67281d28">SdsConfigCallback</a></td>          <td class="paramname"><span class="paramname"><em>callback</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *</td>          <td class="paramname"><span class="paramname"><em>user_data</em></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -162,11 +167,12 @@ Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">table_type</td><td>Table type to monitor </td></tr>
-    <tr><td class="paramname">callback</td><td>Function to call on config change (NULL to disable)</td></tr>
+    <tr><td class="paramname">callback</td><td>Function to call on config change (NULL to disable) </td></tr>
+    <tr><td class="paramname">user_data</td><td>User context passed to callback (can be NULL)</td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__callbacks.html#ga06b81d3e094e85b340b82a5cf2b20309" title="Callback for config updates (device role only).">SdsConfigCallback</a> </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__callbacks.html#ga06eb6da1ae6f67d724515caf67281d28" title="Callback for config updates (device role only).">SdsConfigCallback</a> </dd></dl>
 
 </div>
 </div>
@@ -197,8 +203,8 @@ Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="ga9d9f721ed355b7657125e69484131005" name="ga9d9f721ed355b7657125e69484131005"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga9d9f721ed355b7657125e69484131005">&#9670;&#160;</a></span>sds_on_state_update()</h2>
+<a id="ga91c7b4168913bf321fab470c6bbc920f" name="ga91c7b4168913bf321fab470c6bbc920f"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga91c7b4168913bf321fab470c6bbc920f">&#9670;&#160;</a></span>sds_on_state_update()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -211,7 +217,12 @@ Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__callbacks.html#ga7c7a6328bcc9923fd2038129b0b1541b">SdsStateCallback</a></td>          <td class="paramname"><span class="paramname"><em>callback</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="group__callbacks.html#ga6733edea0d33e8c1718333a493cdd254">SdsStateCallback</a></td>          <td class="paramname"><span class="paramname"><em>callback</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *</td>          <td class="paramname"><span class="paramname"><em>user_data</em></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -221,16 +232,17 @@ Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">table_type</td><td>Table type to monitor </td></tr>
-    <tr><td class="paramname">callback</td><td>Function to call on state change (NULL to disable)</td></tr>
+    <tr><td class="paramname">callback</td><td>Function to call on state change (NULL to disable) </td></tr>
+    <tr><td class="paramname">user_data</td><td>User context passed to callback (can be NULL)</td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__callbacks.html#ga7c7a6328bcc9923fd2038129b0b1541b" title="Callback for state updates (owner role only).">SdsStateCallback</a> </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__callbacks.html#ga6733edea0d33e8c1718333a493cdd254" title="Callback for state updates (owner role only).">SdsStateCallback</a> </dd></dl>
 
 </div>
 </div>
-<a id="gac86d601823af7a89218b84efbdb43aa4" name="gac86d601823af7a89218b84efbdb43aa4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#gac86d601823af7a89218b84efbdb43aa4">&#9670;&#160;</a></span>sds_on_status_update()</h2>
+<a id="ga9e44ff93f2a354a19a1cc16bb1031ab7" name="ga9e44ff93f2a354a19a1cc16bb1031ab7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga9e44ff93f2a354a19a1cc16bb1031ab7">&#9670;&#160;</a></span>sds_on_status_update()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -243,7 +255,12 @@ Functions</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype"><a class="el" href="group__callbacks.html#ga03db0c4b57b6c7406396aa67e791efb0">SdsStatusCallback</a></td>          <td class="paramname"><span class="paramname"><em>callback</em></span>&#160;)</td>
+          <td class="paramtype"><a class="el" href="group__callbacks.html#gab350835fef85e82bb47c8bc41f931e09">SdsStatusCallback</a></td>          <td class="paramname"><span class="paramname"><em>callback</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *</td>          <td class="paramname"><span class="paramname"><em>user_data</em></span>&#160;)</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -253,11 +270,12 @@ Functions</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">table_type</td><td>Table type to monitor </td></tr>
-    <tr><td class="paramname">callback</td><td>Function to call on status change (NULL to disable)</td></tr>
+    <tr><td class="paramname">callback</td><td>Function to call on status change (NULL to disable) </td></tr>
+    <tr><td class="paramname">user_data</td><td>User context passed to callback (can be NULL)</td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__callbacks.html#ga03db0c4b57b6c7406396aa67e791efb0" title="Callback for status updates (owner role only).">SdsStatusCallback</a>, <a class="el" href="group__owner__helpers.html#ga002e756761a5c2dcd4389ab860247ded" title="Find status for a specific device (owner role only).">sds_find_node_status</a> </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__callbacks.html#gab350835fef85e82bb47c8bc41f931e09" title="Callback for status updates (owner role only).">SdsStatusCallback</a>, <a class="el" href="group__owner__helpers.html#ga002e756761a5c2dcd4389ab860247ded" title="Find status for a specific device (owner role only).">sds_find_node_status</a> </dd></dl>
 
 </div>
 </div>

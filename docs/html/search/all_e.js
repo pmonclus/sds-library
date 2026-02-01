@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['quick_20start_0',['Quick Start',['../index.html#autotoc_md2',1,'']]]
+  ['helper_20functions_0',['Owner Helper Functions',['../group__owner__helpers.html',1,'']]]
 ];

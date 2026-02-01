@@ -24,6 +24,8 @@ var group__registry =
       [ "serialize_config", "struct_sds_table_meta.html#afc7ea21149fa91ea837ba29d23ff51f3", null ],
       [ "serialize_state", "struct_sds_table_meta.html#a3c57577f6ce36eead1176dff90504ebe", null ],
       [ "serialize_status", "struct_sds_table_meta.html#a53315a09941cb615ab2a1cbf444a2923", null ],
+      [ "slot_eviction_deadline_offset", "struct_sds_table_meta.html#a90eb3532240f1d716f47456b46709606", null ],
+      [ "slot_eviction_pending_offset", "struct_sds_table_meta.html#ae2721e23cf3a7ced77080d385f83d0b5", null ],
       [ "slot_last_seen_offset", "struct_sds_table_meta.html#a0e9a7af9946435d4b8dafbd7a71ad084", null ],
       [ "slot_online_offset", "struct_sds_table_meta.html#acdadc28382bb588cc098b5cd05408d93", null ],
       [ "slot_status_offset", "struct_sds_table_meta.html#a47f47505f0848b84fe4fa5afcde2609d", null ],

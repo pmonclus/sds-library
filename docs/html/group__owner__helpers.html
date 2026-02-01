@@ -104,10 +104,18 @@ Functions</h2></td></tr>
 <tr class="memdesc:gaf6b368bf2bb3267cee8db6c0fb1ef0ca"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterate over all known device nodes (owner role only).  <br /></td></tr>
 <tr class="memitem:ga123fbc786143c83795b09d8332e18f71" id="r_ga123fbc786143c83795b09d8332e18f71"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga123fbc786143c83795b09d8332e18f71">sds_set_owner_status_slots</a> (const char *table_type, size_t slots_offset, size_t slot_size, size_t slot_status_offset, size_t count_offset, uint8_t max_slots)</td></tr>
 <tr class="memdesc:ga123fbc786143c83795b09d8332e18f71"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configure status slot metadata for manual table registration.  <br /></td></tr>
+<tr class="memitem:ga1f5ee7f7b53a65c266dee0a967683dd1" id="r_ga1f5ee7f7b53a65c266dee0a967683dd1"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#ga1f5ee7f7b53a65c266dee0a967683dd1">sds_set_owner_slot_offsets</a> (const char *table_type, size_t valid_offset, size_t online_offset, size_t last_seen_offset)</td></tr>
+<tr class="memdesc:ga1f5ee7f7b53a65c266dee0a967683dd1"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configure slot field offsets for online detection (owner role only).  <br /></td></tr>
+<tr class="memitem:gabad46d1e7d411b2b7773e0248651fd5b" id="r_gabad46d1e7d411b2b7773e0248651fd5b"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#gabad46d1e7d411b2b7773e0248651fd5b">sds_set_owner_eviction_offsets</a> (const char *table_type, size_t eviction_pending_offset, size_t eviction_deadline_offset)</td></tr>
+<tr class="memdesc:gabad46d1e7d411b2b7773e0248651fd5b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Configure eviction slot offsets for an owner table.  <br /></td></tr>
 <tr class="memitem:gae142a1929b1869cff9059e48b9d29d58" id="r_gae142a1929b1869cff9059e48b9d29d58"><td class="memItemLeft">bool&#160;</td><td class="memItemRight"><a class="el" href="#gae142a1929b1869cff9059e48b9d29d58">sds_is_device_online</a> (const void *owner_table, const char *table_type, const char *node_id, uint32_t timeout_ms)</td></tr>
 <tr class="memdesc:gae142a1929b1869cff9059e48b9d29d58"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if a device is currently online (owner role only).  <br /></td></tr>
 <tr class="memitem:gaf3bc5a746b96a07e311c4c24feb94127" id="r_gaf3bc5a746b96a07e311c4c24feb94127"><td class="memItemLeft">uint32_t&#160;</td><td class="memItemRight"><a class="el" href="#gaf3bc5a746b96a07e311c4c24feb94127">sds_get_liveness_interval</a> (const char *table_type)</td></tr>
 <tr class="memdesc:gaf3bc5a746b96a07e311c4c24feb94127"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the liveness interval for a table type.  <br /></td></tr>
+<tr class="memitem:ga870e494e925171aef1c910118c3a2a8e" id="r_ga870e494e925171aef1c910118c3a2a8e"><td class="memItemLeft">uint32_t&#160;</td><td class="memItemRight"><a class="el" href="#ga870e494e925171aef1c910118c3a2a8e">sds_get_eviction_grace</a> (const char *table_type)</td></tr>
+<tr class="memdesc:ga870e494e925171aef1c910118c3a2a8e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the global eviction grace period.  <br /></td></tr>
+<tr class="memitem:gaa960005296d3c78a174f8ff2031719fa" id="r_gaa960005296d3c78a174f8ff2031719fa"><td class="memItemLeft">void&#160;</td><td class="memItemRight"><a class="el" href="#gaa960005296d3c78a174f8ff2031719fa">sds_on_device_evicted</a> (const char *table_type, <a class="el" href="group__callbacks.html#ga1620244dfc15a6423fe29b7d9c3edc3e">SdsDeviceEvictedCallback</a> callback, void *user_data)</td></tr>
+<tr class="memdesc:gaa960005296d3c78a174f8ff2031719fa"><td class="mdescLeft">&#160;</td><td class="mdescRight">Set global callback for device eviction notifications.  <br /></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Utility functions for the owner role. </p>
@@ -205,6 +213,34 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="ga870e494e925171aef1c910118c3a2a8e" name="ga870e494e925171aef1c910118c3a2a8e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga870e494e925171aef1c910118c3a2a8e">&#9670;&#160;</a></span>sds_get_eviction_grace()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint32_t sds_get_eviction_grace </td>
+          <td>(</td>
+          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>table_type</em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Get the global eviction grace period. </p>
+<p>Returns the eviction grace period configured in <a class="el" href="struct_sds_config.html" title="Configuration for SDS initialization.">SdsConfig</a>. After an LWT (device offline) message, the device has this long to reconnect before being evicted from all status tables.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">table_type</td><td>Ignored (kept for backward compatibility) </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>Eviction grace period in milliseconds, or 0 if eviction is disabled</dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="struct_sds_config.html#a2bbfb685e4fd026e7be87e0f9352583f">SdsConfig::eviction_grace_ms</a> </dd></dl>
+
+</div>
+</div>
 <a id="gaf3bc5a746b96a07e311c4c24feb94127" name="gaf3bc5a746b96a07e311c4c24feb94127"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gaf3bc5a746b96a07e311c4c24feb94127">&#9670;&#160;</a></span>sds_get_liveness_interval()</h2>
 
@@ -285,6 +321,153 @@ Functions</h2></td></tr>
 </dl>
 <dl class="section return"><dt>Returns</dt><dd>true if device is online</dd></dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="#gaf3bc5a746b96a07e311c4c24feb94127" title="Get the liveness interval for a table type.">sds_get_liveness_interval</a> </dd></dl>
+
+</div>
+</div>
+<a id="gaa960005296d3c78a174f8ff2031719fa" name="gaa960005296d3c78a174f8ff2031719fa"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaa960005296d3c78a174f8ff2031719fa">&#9670;&#160;</a></span>sds_on_device_evicted()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void sds_on_device_evicted </td>
+          <td>(</td>
+          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>table_type</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="group__callbacks.html#ga1620244dfc15a6423fe29b7d9c3edc3e">SdsDeviceEvictedCallback</a></td>          <td class="paramname"><span class="paramname"><em>callback</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *</td>          <td class="paramname"><span class="paramname"><em>user_data</em></span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Set global callback for device eviction notifications. </p>
+<p>Called when a device is evicted from any status table after the eviction grace period expires following an LWT message. Since eviction is global (one grace period for all tables), this callback is invoked once per table that the device was registered in.</p>
+<div class="fragment"><div class="line"><span class="keywordtype">void</span> on_device_evicted(<span class="keyword">const</span> <span class="keywordtype">char</span>* table_type, <span class="keyword">const</span> <span class="keywordtype">char</span>* node_id, <span class="keywordtype">void</span>* user_data) {</div>
+<div class="line">    printf(<span class="stringliteral">&quot;Device %s was evicted from %s\n&quot;</span>, node_id, table_type);</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="comment">// table_type parameter is ignored (global callback)</span></div>
+<div class="line"><a class="code hl_function" href="#gaa960005296d3c78a174f8ff2031719fa">sds_on_device_evicted</a>(NULL, on_device_evicted, NULL);</div>
+<div class="ttc" id="agroup__owner__helpers_html_gaa960005296d3c78a174f8ff2031719fa"><div class="ttname"><a href="#gaa960005296d3c78a174f8ff2031719fa">sds_on_device_evicted</a></div><div class="ttdeci">void sds_on_device_evicted(const char *table_type, SdsDeviceEvictedCallback callback, void *user_data)</div><div class="ttdoc">Set global callback for device eviction notifications.</div></div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">table_type</td><td>Ignored (kept for backward compatibility) </td></tr>
+    <tr><td class="paramname">callback</td><td>Function to call on eviction </td></tr>
+    <tr><td class="paramname">user_data</td><td>User context passed to callback</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__callbacks.html#ga1620244dfc15a6423fe29b7d9c3edc3e" title="Callback for device eviction (owner role only).">SdsDeviceEvictedCallback</a>, <a class="el" href="struct_sds_config.html#a2bbfb685e4fd026e7be87e0f9352583f">SdsConfig::eviction_grace_ms</a> </dd></dl>
+
+</div>
+</div>
+<a id="gabad46d1e7d411b2b7773e0248651fd5b" name="gabad46d1e7d411b2b7773e0248651fd5b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gabad46d1e7d411b2b7773e0248651fd5b">&#9670;&#160;</a></span>sds_set_owner_eviction_offsets()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void sds_set_owner_eviction_offsets </td>
+          <td>(</td>
+          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>table_type</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t</td>          <td class="paramname"><span class="paramname"><em>eviction_pending_offset</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t</td>          <td class="paramname"><span class="paramname"><em>eviction_deadline_offset</em></span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Configure eviction slot offsets for an owner table. </p>
+<p>This function configures the slot field offsets needed for eviction tracking. The eviction grace period is set globally via <a class="el" href="struct_sds_config.html#a2bbfb685e4fd026e7be87e0f9352583f">SdsConfig.eviction_grace_ms</a>.</p>
+<div class="fragment"><div class="line"><span class="comment">// After sds_set_owner_slot_offsets():</span></div>
+<div class="line"><a class="code hl_function" href="#gabad46d1e7d411b2b7773e0248651fd5b">sds_set_owner_eviction_offsets</a>(</div>
+<div class="line">    <span class="stringliteral">&quot;SensorData&quot;</span>,</div>
+<div class="line">    offsetof(SensorDataStatusSlot, eviction_pending),</div>
+<div class="line">    offsetof(SensorDataStatusSlot, eviction_deadline)</div>
+<div class="line">);</div>
+<div class="ttc" id="agroup__owner__helpers_html_gabad46d1e7d411b2b7773e0248651fd5b"><div class="ttname"><a href="#gabad46d1e7d411b2b7773e0248651fd5b">sds_set_owner_eviction_offsets</a></div><div class="ttdeci">void sds_set_owner_eviction_offsets(const char *table_type, size_t eviction_pending_offset, size_t eviction_deadline_offset)</div><div class="ttdoc">Configure eviction slot offsets for an owner table.</div></div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">table_type</td><td>Table type name </td></tr>
+    <tr><td class="paramname">eviction_pending_offset</td><td>offsetof(StatusSlot, eviction_pending) </td></tr>
+    <tr><td class="paramname">eviction_deadline_offset</td><td>offsetof(StatusSlot, eviction_deadline)</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section note"><dt>Note</dt><dd>The eviction grace period is configured in <a class="el" href="struct_sds_config.html" title="Configuration for SDS initialization.">SdsConfig</a>, not per-table.</dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="struct_sds_config.html#a2bbfb685e4fd026e7be87e0f9352583f">SdsConfig::eviction_grace_ms</a> </dd>
+<dd>
+<a class="el" href="#gaa960005296d3c78a174f8ff2031719fa" title="Set global callback for device eviction notifications.">sds_on_device_evicted</a> </dd></dl>
+
+</div>
+</div>
+<a id="ga1f5ee7f7b53a65c266dee0a967683dd1" name="ga1f5ee7f7b53a65c266dee0a967683dd1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga1f5ee7f7b53a65c266dee0a967683dd1">&#9670;&#160;</a></span>sds_set_owner_slot_offsets()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void sds_set_owner_slot_offsets </td>
+          <td>(</td>
+          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>table_type</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t</td>          <td class="paramname"><span class="paramname"><em>valid_offset</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t</td>          <td class="paramname"><span class="paramname"><em>online_offset</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t</td>          <td class="paramname"><span class="paramname"><em>last_seen_offset</em></span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Configure slot field offsets for online detection (owner role only). </p>
+<p>This function sets the offsets of the valid, online, and last_seen_ms fields within each status slot. Required for <a class="el" href="#gae142a1929b1869cff9059e48b9d29d58" title="Check if a device is currently online (owner role only).">sds_is_device_online()</a> to work.</p>
+<div class="fragment"><div class="line"><span class="comment">// After sds_set_owner_status_slots():</span></div>
+<div class="line"><a class="code hl_function" href="#ga1f5ee7f7b53a65c266dee0a967683dd1">sds_set_owner_slot_offsets</a>(</div>
+<div class="line">    <span class="stringliteral">&quot;SensorData&quot;</span>,</div>
+<div class="line">    offsetof(SensorDataStatusSlot, valid),</div>
+<div class="line">    offsetof(SensorDataStatusSlot, online),</div>
+<div class="line">    offsetof(SensorDataStatusSlot, last_seen_ms)</div>
+<div class="line">);</div>
+<div class="ttc" id="agroup__owner__helpers_html_ga1f5ee7f7b53a65c266dee0a967683dd1"><div class="ttname"><a href="#ga1f5ee7f7b53a65c266dee0a967683dd1">sds_set_owner_slot_offsets</a></div><div class="ttdeci">void sds_set_owner_slot_offsets(const char *table_type, size_t valid_offset, size_t online_offset, size_t last_seen_offset)</div><div class="ttdoc">Configure slot field offsets for online detection (owner role only).</div></div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">table_type</td><td>Table type name </td></tr>
+    <tr><td class="paramname">valid_offset</td><td>offsetof(StatusSlot, valid) </td></tr>
+    <tr><td class="paramname">online_offset</td><td>offsetof(StatusSlot, online) </td></tr>
+    <tr><td class="paramname">last_seen_offset</td><td>offsetof(StatusSlot, last_seen_ms)</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga123fbc786143c83795b09d8332e18f71" title="Configure status slot metadata for manual table registration.">sds_set_owner_status_slots</a> </dd>
+<dd>
+<a class="el" href="#gae142a1929b1869cff9059e48b9d29d58" title="Check if a device is currently online (owner role only).">sds_is_device_online</a> </dd></dl>
 
 </div>
 </div>

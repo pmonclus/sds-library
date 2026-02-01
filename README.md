@@ -12,7 +12,14 @@ SDS enables automatic state synchronization between devices and owners over MQTT
 
 ### 1. Install SDS
 
-**macOS (Homebrew):**
+Choose the installation method that fits your needs:
+
+---
+
+#### Option A: Quick Install (Homebrew) — *Recommended for users*
+
+For macOS users who just want to use SDS in their projects:
+
 ```bash
 brew tap pmonclus/sds
 brew install sds
@@ -24,39 +31,78 @@ This installs:
 - `sds-codegen` command-line tool
 - Arduino library ZIP at `$(brew --prefix)/share/sds/sds-arduino-*.zip`
 
+Verify installation:
+```bash
+sds-codegen --help
+python3 -c "from sds import SdsNode; print('SDS OK')"
+```
+
+---
+
+#### Option B: Build from Source — *For developers and contributors*
+
+For those who want to explore the code, run tests, or contribute:
+
+**macOS:**
+```bash
+# Install dependencies
+brew install paho-mqtt-c cmake python3
+
+# Clone the repository
+git clone https://github.com/pmonclus/sds-library.git
+cd sds-library
+
+# Build the C library
+mkdir -p build && cd build
+cmake .. -DSDS_BUILD_TESTS=ON
+make -j4
+cd ..
+
+# Install Python bindings (optional)
+python3 -m venv venv
+source venv/bin/activate
+pip install cffi
+cd python && pip install -e . && cd ..
+pip install -e .
+```
+
 **Ubuntu/Debian:**
 ```bash
 # Install dependencies
 sudo apt-get install libpaho-mqtt-dev python3 python3-pip cmake
 
-# Clone and build
+# Clone the repository
 git clone https://github.com/pmonclus/sds-library.git
 cd sds-library
 
+# Build the C library
+mkdir -p build && cd build
+cmake .. -DSDS_BUILD_TESTS=ON
+make -j4
+cd ..
+
+# Install Python bindings (optional)
 python3 -m venv venv
 source venv/bin/activate
 pip install cffi
-
-mkdir -p build && cd build
-cmake .. -DSDS_BUILD_TESTS=OFF -DSDS_BUILD_EXAMPLES=OFF
-make
-cd ..
-
 cd python && pip install -e . && cd ..
 pip install -e .
 ```
 
-### 2. Verify Installation
-
+Verify installation:
 ```bash
+# C library tests (no MQTT broker required)
+cd build && ./test_unit_core && ./test_json
+
+# Python (if installed)
+source venv/bin/activate
+python3 -c "from sds import SdsNode; print('SDS OK')"
+
+# Codegen
 sds-codegen --help
 ```
 
-For Python usage (Ubuntu/Debian only):
-```bash
-source venv/bin/activate
-python3 -c "from sds import SdsNode; print('SDS OK')"
-```
+---
 
 ### 3. Define Your Schema
 
@@ -217,7 +263,8 @@ void setup() {
     SdsConfig config = {
         .node_id = "esp32_sensor",
         .mqtt_broker = "192.168.1.100",
-        .mqtt_port = 1883
+        .mqtt_port = 1883,
+        .eviction_grace_ms = 0  // 0 = no auto-eviction (optional for owners)
     };
     sds_init(&config);
     sds_register_table(&table, "SensorData", SDS_ROLE_DEVICE, NULL);
@@ -259,7 +306,8 @@ int main() {
     SdsConfig config = {
         .node_id = "linux_sensor",
         .mqtt_broker = "localhost",
-        .mqtt_port = 1883
+        .mqtt_port = 1883,
+        .eviction_grace_ms = 0  // Set > 0 for owners to auto-evict offline devices
     };
     
     sds_init(&config);

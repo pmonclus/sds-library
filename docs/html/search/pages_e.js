@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['testing_0',['Testing',['../index.html#autotoc_md15',1,'']]],
-  ['testing_1',['macOS/Linux (for testing)',['../index.html#autotoc_md12',1,'']]],
-  ['tests_2',['Running Tests',['../index.html#autotoc_md14',1,'']]]
+  ['install_20sds_0',['1. Install SDS',['../index.html#autotoc_md3',1,'']]],
+  ['installation_1',['Installation',['../index.html#autotoc_md4',1,'2. Verify Installation'],['../index.html#autotoc_md12',1,'Installation']]]
 ];

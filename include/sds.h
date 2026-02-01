@@ -120,6 +120,7 @@ typedef struct {
     uint16_t mqtt_port;         /**< MQTT port (default: 1883) */
     const char* mqtt_username;  /**< MQTT username (NULL = no authentication) */
     const char* mqtt_password;  /**< MQTT password (NULL = no authentication) */
+    uint32_t eviction_grace_ms; /**< Grace period before evicting offline devices (0 = disabled) */
 } SdsConfig;
 
 /**
@@ -193,6 +194,20 @@ typedef void (*SdsStateCallback)(const char* table_type, const char* from_node, 
  * @see sds_on_status_update, sds_find_node_status
  */
 typedef void (*SdsStatusCallback)(const char* table_type, const char* from_node, void* user_data);
+
+/**
+ * @brief Callback for device eviction (owner role only).
+ * 
+ * Called when a device is evicted from the status table after the grace period
+ * expires following an LWT (device offline) message.
+ * 
+ * @param table_type The table type (e.g., "SensorData")
+ * @param node_id The evicted device's node ID
+ * @param user_data User-provided context from sds_on_device_evicted()
+ * 
+ * @see sds_on_device_evicted
+ */
+typedef void (*SdsDeviceEvictedCallback)(const char* table_type, const char* node_id, void* user_data);
 
 /**
  * @brief Iterator callback for sds_foreach_node().
@@ -297,6 +312,7 @@ typedef struct {
     const char* table_type;             /**< Table type name (e.g., "SensorData") */
     uint32_t sync_interval_ms;          /**< Default sync check interval in ms */
     uint32_t liveness_interval_ms;      /**< Max time between heartbeats (device role) */
+    /* Note: eviction_grace_ms is now global in SdsConfig, not per-table */
     
     /* Struct sizes */
     size_t device_table_size;           /**< sizeof({Table}Table) for device role */
@@ -322,7 +338,9 @@ typedef struct {
     size_t own_status_count_offset;     /**< offsetof(OwnerTable, status_count) */
     size_t slot_valid_offset;           /**< offsetof(StatusSlot, valid) */
     size_t slot_online_offset;          /**< offsetof(StatusSlot, online) */
+    size_t slot_eviction_pending_offset; /**< offsetof(StatusSlot, eviction_pending) */
     size_t slot_last_seen_offset;       /**< offsetof(StatusSlot, last_seen_ms) */
+    size_t slot_eviction_deadline_offset; /**< offsetof(StatusSlot, eviction_deadline) */
     size_t slot_status_offset;          /**< offsetof(StatusSlot, status) */
     uint8_t own_max_status_slots;       /**< Maximum device slots (SDS_GENERATED_MAX_NODES) */
     
@@ -752,6 +770,36 @@ void sds_set_owner_slot_offsets(
 );
 
 /**
+ * @brief Configure eviction slot offsets for an owner table.
+ * 
+ * This function configures the slot field offsets needed for eviction tracking.
+ * The eviction grace period is set globally via SdsConfig.eviction_grace_ms.
+ * 
+ * @code{.c}
+ * // After sds_set_owner_slot_offsets():
+ * sds_set_owner_eviction_offsets(
+ *     "SensorData",
+ *     offsetof(SensorDataStatusSlot, eviction_pending),
+ *     offsetof(SensorDataStatusSlot, eviction_deadline)
+ * );
+ * @endcode
+ * 
+ * @param table_type Table type name
+ * @param eviction_pending_offset offsetof(StatusSlot, eviction_pending)
+ * @param eviction_deadline_offset offsetof(StatusSlot, eviction_deadline)
+ * 
+ * @note The eviction grace period is configured in SdsConfig, not per-table.
+ * 
+ * @see SdsConfig::eviction_grace_ms
+ * @see sds_on_device_evicted
+ */
+void sds_set_owner_eviction_offsets(
+    const char* table_type,
+    size_t eviction_pending_offset,
+    size_t eviction_deadline_offset
+);
+
+/**
  * @brief Check if a device is currently online (owner role only).
  * 
  * A device is considered online if all of the following are true:
@@ -793,6 +841,45 @@ bool sds_is_device_online(
  * @see sds_is_device_online
  */
 uint32_t sds_get_liveness_interval(const char* table_type);
+
+/**
+ * @brief Get the global eviction grace period.
+ * 
+ * Returns the eviction grace period configured in SdsConfig.
+ * After an LWT (device offline) message, the device has this long to reconnect
+ * before being evicted from all status tables.
+ * 
+ * @param table_type Ignored (kept for backward compatibility)
+ * @return Eviction grace period in milliseconds, or 0 if eviction is disabled
+ * 
+ * @see SdsConfig::eviction_grace_ms
+ */
+uint32_t sds_get_eviction_grace(const char* table_type);
+
+/**
+ * @brief Set global callback for device eviction notifications.
+ * 
+ * Called when a device is evicted from any status table after the eviction
+ * grace period expires following an LWT message. Since eviction is global
+ * (one grace period for all tables), this callback is invoked once per table
+ * that the device was registered in.
+ * 
+ * @code{.c}
+ * void on_device_evicted(const char* table_type, const char* node_id, void* user_data) {
+ *     printf("Device %s was evicted from %s\n", node_id, table_type);
+ * }
+ * 
+ * // table_type parameter is ignored (global callback)
+ * sds_on_device_evicted(NULL, on_device_evicted, NULL);
+ * @endcode
+ * 
+ * @param table_type Ignored (kept for backward compatibility)
+ * @param callback Function to call on eviction
+ * @param user_data User context passed to callback
+ * 
+ * @see SdsDeviceEvictedCallback, SdsConfig::eviction_grace_ms
+ */
+void sds_on_device_evicted(const char* table_type, SdsDeviceEvictedCallback callback, void* user_data);
 
 /** @} */ // end of owner_helpers group
 
@@ -836,15 +923,18 @@ public:
      * @param node_id Unique identifier for this node
      * @param broker MQTT broker hostname or IP
      * @param port MQTT broker port (default: 1883)
+     * @param eviction_grace_ms Grace period before evicting offline devices (0 = disabled)
      * @return true on success
      */
-    bool begin(const char* node_id, const char* broker, uint16_t port = 1883) {
+    bool begin(const char* node_id, const char* broker, uint16_t port = 1883, 
+               uint32_t eviction_grace_ms = 0) {
         SdsConfig config = {
             .node_id = node_id,
             .mqtt_broker = broker,
             .mqtt_port = port,
             .mqtt_username = nullptr,
-            .mqtt_password = nullptr
+            .mqtt_password = nullptr,
+            .eviction_grace_ms = eviction_grace_ms
         };
         return sds_init(&config) == SDS_OK;
     }
@@ -856,16 +946,19 @@ public:
      * @param port MQTT broker port
      * @param username MQTT username
      * @param password MQTT password
+     * @param eviction_grace_ms Grace period before evicting offline devices (0 = disabled)
      * @return true on success
      */
     bool beginWithAuth(const char* node_id, const char* broker, uint16_t port,
-                       const char* username, const char* password) {
+                       const char* username, const char* password,
+                       uint32_t eviction_grace_ms = 0) {
         SdsConfig config = {
             .node_id = node_id,
             .mqtt_broker = broker,
             .mqtt_port = port,
             .mqtt_username = username,
-            .mqtt_password = password
+            .mqtt_password = password,
+            .eviction_grace_ms = eviction_grace_ms
         };
         return sds_init(&config) == SDS_OK;
     }

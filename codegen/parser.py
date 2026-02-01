@@ -51,6 +51,7 @@ class Table:
     name: str
     sync_interval_ms: int = 1000
     liveness_interval_ms: int = 30000  # Default 30s heartbeat
+    # Note: eviction_grace_ms is now configured in SdsConfig, not per-table
     config_fields: List[Field] = dataclass_field(default_factory=list)
     state_fields: List[Field] = dataclass_field(default_factory=list)
     status_fields: List[Field] = dataclass_field(default_factory=list)
@@ -224,6 +225,10 @@ class Parser:
                 table.sync_interval_ms = ann_value
             elif ann_name == 'liveness':
                 table.liveness_interval_ms = ann_value
+            elif ann_name == 'eviction_grace':
+                # Deprecated: eviction_grace is now configured globally in SdsConfig
+                import sys
+                print(f"Warning: @eviction_grace is deprecated. Use SdsConfig.eviction_grace_ms instead.", file=sys.stderr)
         
         # Parse sections
         while self.current()[0] != 'RBRACE':

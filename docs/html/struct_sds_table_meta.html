@@ -120,7 +120,9 @@ Data Fields</h2></td></tr>
 <tr class="memitem:a153d004c1cc889bf66f5749625cf22ae" id="r_a153d004c1cc889bf66f5749625cf22ae"><td class="memItemLeft">size_t&#160;</td><td class="memItemRight"><a class="el" href="#a153d004c1cc889bf66f5749625cf22ae">own_status_count_offset</a></td></tr>
 <tr class="memitem:a7929d08dd5a355f66d85e904fba1d32f" id="r_a7929d08dd5a355f66d85e904fba1d32f"><td class="memItemLeft">size_t&#160;</td><td class="memItemRight"><a class="el" href="#a7929d08dd5a355f66d85e904fba1d32f">slot_valid_offset</a></td></tr>
 <tr class="memitem:acdadc28382bb588cc098b5cd05408d93" id="r_acdadc28382bb588cc098b5cd05408d93"><td class="memItemLeft">size_t&#160;</td><td class="memItemRight"><a class="el" href="#acdadc28382bb588cc098b5cd05408d93">slot_online_offset</a></td></tr>
+<tr class="memitem:ae2721e23cf3a7ced77080d385f83d0b5" id="r_ae2721e23cf3a7ced77080d385f83d0b5"><td class="memItemLeft">size_t&#160;</td><td class="memItemRight"><a class="el" href="#ae2721e23cf3a7ced77080d385f83d0b5">slot_eviction_pending_offset</a></td></tr>
 <tr class="memitem:a0e9a7af9946435d4b8dafbd7a71ad084" id="r_a0e9a7af9946435d4b8dafbd7a71ad084"><td class="memItemLeft">size_t&#160;</td><td class="memItemRight"><a class="el" href="#a0e9a7af9946435d4b8dafbd7a71ad084">slot_last_seen_offset</a></td></tr>
+<tr class="memitem:a90eb3532240f1d716f47456b46709606" id="r_a90eb3532240f1d716f47456b46709606"><td class="memItemLeft">size_t&#160;</td><td class="memItemRight"><a class="el" href="#a90eb3532240f1d716f47456b46709606">slot_eviction_deadline_offset</a></td></tr>
 <tr class="memitem:a47f47505f0848b84fe4fa5afcde2609d" id="r_a47f47505f0848b84fe4fa5afcde2609d"><td class="memItemLeft">size_t&#160;</td><td class="memItemRight"><a class="el" href="#a47f47505f0848b84fe4fa5afcde2609d">slot_status_offset</a></td></tr>
 <tr class="memitem:aa9c61f7edae85c413082ca240804c16d" id="r_aa9c61f7edae85c413082ca240804c16d"><td class="memItemLeft">uint8_t&#160;</td><td class="memItemRight"><a class="el" href="#aa9c61f7edae85c413082ca240804c16d">own_max_status_slots</a></td></tr>
 <tr class="memitem:afc7ea21149fa91ea837ba29d23ff51f3" id="r_afc7ea21149fa91ea837ba29d23ff51f3"><td class="memItemLeft"><a class="el" href="group__serialization.html#ga7c07d1ba6575c0a6a05017bf410d3d6c">SdsSerializeFunc</a>&#160;</td><td class="memItemRight"><a class="el" href="#afc7ea21149fa91ea837ba29d23ff51f3">serialize_config</a></td></tr>
@@ -482,6 +484,36 @@ Data Fields</h2></td></tr>
       </table>
 </div><div class="memdoc">
 <p>Status section serializer (device) </p>
+
+</div>
+</div>
+<a id="a90eb3532240f1d716f47456b46709606" name="a90eb3532240f1d716f47456b46709606"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a90eb3532240f1d716f47456b46709606">&#9670;&#160;</a></span>slot_eviction_deadline_offset</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">size_t SdsTableMeta::slot_eviction_deadline_offset</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>offsetof(StatusSlot, eviction_deadline) </p>
+
+</div>
+</div>
+<a id="ae2721e23cf3a7ced77080d385f83d0b5" name="ae2721e23cf3a7ced77080d385f83d0b5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae2721e23cf3a7ced77080d385f83d0b5">&#9670;&#160;</a></span>slot_eviction_pending_offset</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">size_t SdsTableMeta::slot_eviction_pending_offset</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>offsetof(StatusSlot, eviction_pending) </p>
 
 </div>
 </div>

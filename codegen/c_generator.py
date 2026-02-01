@@ -137,7 +137,9 @@ def _generate_table(output: TextIO, name: str, table: Table):
     
     output.write(f"/* ============== Table: {name} ============== */\n\n")
     output.write(f"#define SDS_{upper_name}_SYNC_INTERVAL_MS {table.sync_interval_ms}\n")
-    output.write(f"#define SDS_{upper_name}_LIVENESS_INTERVAL_MS {table.liveness_interval_ms}\n\n")
+    output.write(f"#define SDS_{upper_name}_LIVENESS_INTERVAL_MS {table.liveness_interval_ms}\n")
+    # Note: eviction_grace_ms is now configured globally in SdsConfig, not per-table
+    output.write("\n")
     
     # Config struct
     if table.config_fields:
@@ -180,8 +182,10 @@ def _generate_table(output: TextIO, name: str, table: Table):
         output.write(f"typedef struct {{\n")
         output.write(f"    char node_id[SDS_MAX_NODE_ID_LEN];\n")
         output.write(f"    bool valid;\n")
-        output.write(f"    bool online;           /* false if LWT received or graceful disconnect */\n")
-        output.write(f"    uint32_t last_seen_ms; /* Timestamp of last received status */\n")
+        output.write(f"    bool online;             /* false if LWT received or graceful disconnect */\n")
+        output.write(f"    bool eviction_pending;   /* true if awaiting grace period after LWT */\n")
+        output.write(f"    uint32_t last_seen_ms;   /* Timestamp of last received status */\n")
+        output.write(f"    uint32_t eviction_deadline; /* When to evict if device doesn't return */\n")
         output.write(f"    {name}Status status;\n")
         output.write(f"}} {name}StatusSlot;\n\n")
     
@@ -353,6 +357,7 @@ def _generate_table_registry(output: TextIO, schema: Schema):
         output.write(f'        .table_type = "{name}",\n')
         output.write(f"        .sync_interval_ms = SDS_{upper_name}_SYNC_INTERVAL_MS,\n")
         output.write(f"        .liveness_interval_ms = SDS_{upper_name}_LIVENESS_INTERVAL_MS,\n")
+        # Note: eviction_grace_ms is now in SdsConfig, not per-table
         output.write(f"        .device_table_size = sizeof({name}Table),\n")
         output.write(f"        .owner_table_size = sizeof({name}OwnerTable),\n")
         
@@ -398,12 +403,22 @@ def _generate_table_registry(output: TextIO, schema: Schema):
             output.write(f"        .own_status_slots_offset = offsetof({name}OwnerTable, status_slots),\n")
             output.write(f"        .own_status_slot_size = sizeof({name}StatusSlot),\n")
             output.write(f"        .own_status_count_offset = offsetof({name}OwnerTable, status_count),\n")
+            output.write(f"        .slot_valid_offset = offsetof({name}StatusSlot, valid),\n")
+            output.write(f"        .slot_online_offset = offsetof({name}StatusSlot, online),\n")
+            output.write(f"        .slot_eviction_pending_offset = offsetof({name}StatusSlot, eviction_pending),\n")
+            output.write(f"        .slot_last_seen_offset = offsetof({name}StatusSlot, last_seen_ms),\n")
+            output.write(f"        .slot_eviction_deadline_offset = offsetof({name}StatusSlot, eviction_deadline),\n")
             output.write(f"        .slot_status_offset = offsetof({name}StatusSlot, status),\n")
             output.write("        .own_max_status_slots = SDS_GENERATED_MAX_NODES,\n")
         else:
             output.write("        .own_status_slots_offset = 0,\n")
             output.write("        .own_status_slot_size = 0,\n")
             output.write("        .own_status_count_offset = 0,\n")
+            output.write("        .slot_valid_offset = 0,\n")
+            output.write("        .slot_online_offset = 0,\n")
+            output.write("        .slot_eviction_pending_offset = 0,\n")
+            output.write("        .slot_last_seen_offset = 0,\n")
+            output.write("        .slot_eviction_deadline_offset = 0,\n")
             output.write("        .slot_status_offset = 0,\n")
             output.write("        .own_max_status_slots = 0,\n")
         

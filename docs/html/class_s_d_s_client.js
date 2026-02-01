@@ -1,7 +1,7 @@
 var class_s_d_s_client =
 [
-    [ "begin", "class_s_d_s_client.html#a41f312a8a7260e938009d68bfa37ea9e", null ],
-    [ "beginWithAuth", "class_s_d_s_client.html#ace124b5df391da3903f94693cfeb81ec", null ],
+    [ "begin", "class_s_d_s_client.html#a593e371b6806330f45d61195565a637c", null ],
+    [ "beginWithAuth", "class_s_d_s_client.html#a8797addf1ca40f0154f4a0626f49c328", null ],
     [ "end", "class_s_d_s_client.html#a14b106624a92a4456db78feabe5b3e12", null ],
     [ "getNodeId", "class_s_d_s_client.html#a196cd5488d81187a72d382a9d62986f2", null ],
     [ "getStats", "class_s_d_s_client.html#acd34c9dd14f45aa9fb21da370c19fbdf", null ],

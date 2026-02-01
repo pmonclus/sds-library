@@ -1,6 +1,4 @@
 var searchData=
 [
-  ['features_0',['Features',['../index.html#autotoc_md1',1,'']]],
-  ['footprint_1',['Reducing Memory Footprint',['../index.html#autotoc_md10',1,'']]],
-  ['for_20testing_2',['macOS/Linux (for testing)',['../index.html#autotoc_md12',1,'']]]
+  ['6_20run_20your_20first_20device_20python_0',['6. Run Your First Device (Python)',['../index.html#autotoc_md8',1,'']]]
 ];

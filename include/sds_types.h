@@ -53,8 +53,10 @@ typedef struct {
 typedef struct {
     char node_id[SDS_MAX_NODE_ID_LEN];
     bool valid;
-    bool online;           /* false if LWT received or graceful disconnect */
-    uint32_t last_seen_ms; /* Timestamp of last received status */
+    bool online;             /* false if LWT received or graceful disconnect */
+    bool eviction_pending;   /* true if awaiting grace period after LWT */
+    uint32_t last_seen_ms;   /* Timestamp of last received status */
+    uint32_t eviction_deadline; /* When to evict if device doesn't return */
     SensorDataStatus status;
 } SensorDataStatusSlot;
 
@@ -137,8 +139,10 @@ typedef struct {
 typedef struct {
     char node_id[SDS_MAX_NODE_ID_LEN];
     bool valid;
-    bool online;           /* false if LWT received or graceful disconnect */
-    uint32_t last_seen_ms; /* Timestamp of last received status */
+    bool online;             /* false if LWT received or graceful disconnect */
+    bool eviction_pending;   /* true if awaiting grace period after LWT */
+    uint32_t last_seen_ms;   /* Timestamp of last received status */
+    uint32_t eviction_deadline; /* When to evict if device doesn't return */
     ActuatorDataStatus status;
 } ActuatorDataStatusSlot;
 
@@ -222,7 +226,9 @@ static const SdsTableMeta SDS_TABLE_REGISTRY[] = {
         .own_status_count_offset = offsetof(SensorDataOwnerTable, status_count),
         .slot_valid_offset = offsetof(SensorDataStatusSlot, valid),
         .slot_online_offset = offsetof(SensorDataStatusSlot, online),
+        .slot_eviction_pending_offset = offsetof(SensorDataStatusSlot, eviction_pending),
         .slot_last_seen_offset = offsetof(SensorDataStatusSlot, last_seen_ms),
+        .slot_eviction_deadline_offset = offsetof(SensorDataStatusSlot, eviction_deadline),
         .slot_status_offset = offsetof(SensorDataStatusSlot, status),
         .own_max_status_slots = SDS_GENERATED_MAX_NODES,
         .serialize_config = sensor_data_serialize_config,
@@ -254,7 +260,9 @@ static const SdsTableMeta SDS_TABLE_REGISTRY[] = {
         .own_status_count_offset = offsetof(ActuatorDataOwnerTable, status_count),
         .slot_valid_offset = offsetof(ActuatorDataStatusSlot, valid),
         .slot_online_offset = offsetof(ActuatorDataStatusSlot, online),
+        .slot_eviction_pending_offset = offsetof(ActuatorDataStatusSlot, eviction_pending),
         .slot_last_seen_offset = offsetof(ActuatorDataStatusSlot, last_seen_ms),
+        .slot_eviction_deadline_offset = offsetof(ActuatorDataStatusSlot, eviction_deadline),
         .slot_status_offset = offsetof(ActuatorDataStatusSlot, status),
         .own_max_status_slots = SDS_GENERATED_MAX_NODES,
         .serialize_config = actuator_data_serialize_config,

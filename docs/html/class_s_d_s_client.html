@@ -100,10 +100,10 @@ $(function(){initNavTree('class_s_d_s_client.html','',''); });
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-pub-methods" class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a41f312a8a7260e938009d68bfa37ea9e" id="r_a41f312a8a7260e938009d68bfa37ea9e"><td class="memItemLeft">bool&#160;</td><td class="memItemRight"><a class="el" href="#a41f312a8a7260e938009d68bfa37ea9e">begin</a> (const char *node_id, const char *broker, uint16_t port=1883)</td></tr>
-<tr class="memdesc:a41f312a8a7260e938009d68bfa37ea9e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize SDS and connect to MQTT broker.  <br /></td></tr>
-<tr class="memitem:ace124b5df391da3903f94693cfeb81ec" id="r_ace124b5df391da3903f94693cfeb81ec"><td class="memItemLeft">bool&#160;</td><td class="memItemRight"><a class="el" href="#ace124b5df391da3903f94693cfeb81ec">beginWithAuth</a> (const char *node_id, const char *broker, uint16_t port, const char *username, const char *password)</td></tr>
-<tr class="memdesc:ace124b5df391da3903f94693cfeb81ec"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize SDS with authentication.  <br /></td></tr>
+<tr class="memitem:a593e371b6806330f45d61195565a637c" id="r_a593e371b6806330f45d61195565a637c"><td class="memItemLeft">bool&#160;</td><td class="memItemRight"><a class="el" href="#a593e371b6806330f45d61195565a637c">begin</a> (const char *node_id, const char *broker, uint16_t port=1883, uint32_t eviction_grace_ms=0)</td></tr>
+<tr class="memdesc:a593e371b6806330f45d61195565a637c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize SDS and connect to MQTT broker.  <br /></td></tr>
+<tr class="memitem:a8797addf1ca40f0154f4a0626f49c328" id="r_a8797addf1ca40f0154f4a0626f49c328"><td class="memItemLeft">bool&#160;</td><td class="memItemRight"><a class="el" href="#a8797addf1ca40f0154f4a0626f49c328">beginWithAuth</a> (const char *node_id, const char *broker, uint16_t port, const char *username, const char *password, uint32_t eviction_grace_ms=0)</td></tr>
+<tr class="memdesc:a8797addf1ca40f0154f4a0626f49c328"><td class="mdescLeft">&#160;</td><td class="mdescRight">Initialize SDS with authentication.  <br /></td></tr>
 <tr class="memitem:aaa368a52bd7533c87f5b72857e0859d9" id="r_aaa368a52bd7533c87f5b72857e0859d9"><td class="memItemLeft"><a id="aaa368a52bd7533c87f5b72857e0859d9" name="aaa368a52bd7533c87f5b72857e0859d9"></a>
 void&#160;</td><td class="memItemRight"><b>loop</b> ()</td></tr>
 <tr class="memdesc:aaa368a52bd7533c87f5b72857e0859d9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Process SDS events. Call in <a class="el" href="#aaa368a52bd7533c87f5b72857e0859d9" title="Process SDS events. Call in loop().">loop()</a>. <br /></td></tr>
@@ -132,7 +132,7 @@ static const char *&#160;</td><td class="memItemRight"><b>errorString</b> (SdsEr
 <div class="fragment"><div class="line"><a class="code hl_class" href="class_s_d_s_client.html">SDSClient</a> sds;</div>
 <div class="line"> </div>
 <div class="line"><span class="keywordtype">void</span> setup() {</div>
-<div class="line">    <span class="keywordflow">if</span> (!sds.<a class="code hl_function" href="#a41f312a8a7260e938009d68bfa37ea9e">begin</a>(<span class="stringliteral">&quot;sensor_01&quot;</span>, <span class="stringliteral">&quot;192.168.1.100&quot;</span>)) {</div>
+<div class="line">    <span class="keywordflow">if</span> (!sds.<a class="code hl_function" href="#a593e371b6806330f45d61195565a637c">begin</a>(<span class="stringliteral">&quot;sensor_01&quot;</span>, <span class="stringliteral">&quot;192.168.1.100&quot;</span>)) {</div>
 <div class="line">        Serial.println(<span class="stringliteral">&quot;SDS init failed&quot;</span>);</div>
 <div class="line">        <span class="keywordflow">return</span>;</div>
 <div class="line">    }</div>
@@ -145,15 +145,15 @@ static const char *&#160;</td><td class="memItemRight"><b>errorString</b> (SdsEr
 <div class="line">        sensor_table.state.temperature = readSensor();</div>
 <div class="line">    }</div>
 <div class="line">}</div>
-<div class="ttc" id="aclass_s_d_s_client_html"><div class="ttname"><a href="class_s_d_s_client.html">SDSClient</a></div><div class="ttdoc">Arduino-style wrapper class for SDS.</div><div class="ttdef"><b>Definition</b> sds.h:795</div></div>
-<div class="ttc" id="aclass_s_d_s_client_html_a41f312a8a7260e938009d68bfa37ea9e"><div class="ttname"><a href="#a41f312a8a7260e938009d68bfa37ea9e">SDSClient::begin</a></div><div class="ttdeci">bool begin(const char *node_id, const char *broker, uint16_t port=1883)</div><div class="ttdoc">Initialize SDS and connect to MQTT broker.</div><div class="ttdef"><b>Definition</b> sds.h:804</div></div>
-<div class="ttc" id="aclass_s_d_s_client_html_a5d7b6872b8b84a0907c59de8a06db001"><div class="ttname"><a href="#a5d7b6872b8b84a0907c59de8a06db001">SDSClient::isReady</a></div><div class="ttdeci">bool isReady()</div><div class="ttdoc">Check if connected and ready.</div><div class="ttdef"><b>Definition</b> sds.h:843</div></div>
-<div class="ttc" id="aclass_s_d_s_client_html_aaa368a52bd7533c87f5b72857e0859d9"><div class="ttname"><a href="#aaa368a52bd7533c87f5b72857e0859d9">SDSClient::loop</a></div><div class="ttdeci">void loop()</div><div class="ttdoc">Process SDS events. Call in loop().</div><div class="ttdef"><b>Definition</b> sds.h:837</div></div>
+<div class="ttc" id="aclass_s_d_s_client_html"><div class="ttname"><a href="class_s_d_s_client.html">SDSClient</a></div><div class="ttdoc">Arduino-style wrapper class for SDS.</div><div class="ttdef"><b>Definition</b> sds.h:919</div></div>
+<div class="ttc" id="aclass_s_d_s_client_html_a593e371b6806330f45d61195565a637c"><div class="ttname"><a href="#a593e371b6806330f45d61195565a637c">SDSClient::begin</a></div><div class="ttdeci">bool begin(const char *node_id, const char *broker, uint16_t port=1883, uint32_t eviction_grace_ms=0)</div><div class="ttdoc">Initialize SDS and connect to MQTT broker.</div><div class="ttdef"><b>Definition</b> sds.h:929</div></div>
+<div class="ttc" id="aclass_s_d_s_client_html_a5d7b6872b8b84a0907c59de8a06db001"><div class="ttname"><a href="#a5d7b6872b8b84a0907c59de8a06db001">SDSClient::isReady</a></div><div class="ttdeci">bool isReady()</div><div class="ttdoc">Check if connected and ready.</div><div class="ttdef"><b>Definition</b> sds.h:973</div></div>
+<div class="ttc" id="aclass_s_d_s_client_html_aaa368a52bd7533c87f5b72857e0859d9"><div class="ttname"><a href="#aaa368a52bd7533c87f5b72857e0859d9">SDSClient::loop</a></div><div class="ttdeci">void loop()</div><div class="ttdoc">Process SDS events. Call in loop().</div><div class="ttdef"><b>Definition</b> sds.h:967</div></div>
 <div class="ttc" id="agroup__registration_html_ga0ecdb264b6ba8215cd48675e50dcbbe4"><div class="ttname"><a href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a></div><div class="ttdeci">SdsError sds_register_table(void *table, const char *table_type, SdsRole role, const SdsTableOptions *options)</div><div class="ttdoc">Register a table using the metadata registry.</div></div>
 <div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:106</div></div>
 </div><!-- fragment --> </div><a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">Member Function Documentation</h2>
-<a id="a41f312a8a7260e938009d68bfa37ea9e" name="a41f312a8a7260e938009d68bfa37ea9e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a41f312a8a7260e938009d68bfa37ea9e">&#9670;&#160;</a></span>begin()</h2>
+<a id="a593e371b6806330f45d61195565a637c" name="a593e371b6806330f45d61195565a637c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a593e371b6806330f45d61195565a637c">&#9670;&#160;</a></span>begin()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -174,7 +174,12 @@ static const char *&#160;</td><td class="memItemRight"><b>errorString</b> (SdsEr
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">uint16_t</td>          <td class="paramname"><span class="paramname"><em>port</em></span><span class="paramdefsep"> = </span><span class="paramdefval">1883</span>&#160;)</td>
+          <td class="paramtype">uint16_t</td>          <td class="paramname"><span class="paramname"><em>port</em></span><span class="paramdefsep"> = </span><span class="paramdefval">1883</span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>eviction_grace_ms</em></span><span class="paramdefsep"> = </span><span class="paramdefval">0</span>&#160;)</td>
         </tr>
       </table>
   </td>
@@ -190,6 +195,7 @@ static const char *&#160;</td><td class="memItemRight"><b>errorString</b> (SdsEr
     <tr><td class="paramname">node_id</td><td>Unique identifier for this node </td></tr>
     <tr><td class="paramname">broker</td><td>MQTT broker hostname or IP </td></tr>
     <tr><td class="paramname">port</td><td>MQTT broker port (default: 1883) </td></tr>
+    <tr><td class="paramname">eviction_grace_ms</td><td>Grace period before evicting offline devices (0 = disabled) </td></tr>
   </table>
   </dd>
 </dl>
@@ -197,8 +203,8 @@ static const char *&#160;</td><td class="memItemRight"><b>errorString</b> (SdsEr
 
 </div>
 </div>
-<a id="ace124b5df391da3903f94693cfeb81ec" name="ace124b5df391da3903f94693cfeb81ec"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ace124b5df391da3903f94693cfeb81ec">&#9670;&#160;</a></span>beginWithAuth()</h2>
+<a id="a8797addf1ca40f0154f4a0626f49c328" name="a8797addf1ca40f0154f4a0626f49c328"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8797addf1ca40f0154f4a0626f49c328">&#9670;&#160;</a></span>beginWithAuth()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -229,7 +235,12 @@ static const char *&#160;</td><td class="memItemRight"><b>errorString</b> (SdsEr
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>password</em></span>&#160;)</td>
+          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>password</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>eviction_grace_ms</em></span><span class="paramdefsep"> = </span><span class="paramdefval">0</span>&#160;)</td>
         </tr>
       </table>
   </td>
@@ -247,6 +258,7 @@ static const char *&#160;</td><td class="memItemRight"><b>errorString</b> (SdsEr
     <tr><td class="paramname">port</td><td>MQTT broker port </td></tr>
     <tr><td class="paramname">username</td><td>MQTT username </td></tr>
     <tr><td class="paramname">password</td><td>MQTT password </td></tr>
+    <tr><td class="paramname">eviction_grace_ms</td><td>Grace period before evicting offline devices (0 = disabled) </td></tr>
   </table>
   </dd>
 </dl>

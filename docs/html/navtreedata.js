@@ -25,7 +25,7 @@
 var NAVTREE =
 [
   [ "SDS Library", "index.html", [
-    [ "SDS (Simple DDS)", "index.html", "index" ],
+    [ "SDS (Synchronized Data Structures)", "index.html", "index" ],
     [ "Topics", "topics.html", "topics" ],
     [ "Data Structures", "annotated.html", [
       [ "Data Structures", "annotated.html", "annotated_dup" ],

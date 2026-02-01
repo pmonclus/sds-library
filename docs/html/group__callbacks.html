@@ -98,12 +98,14 @@ $(function(){initNavTree('group__callbacks.html','',''); });
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-typedef-members" class="groupheader"><a id="typedef-members" name="typedef-members"></a>
 Typedefs</h2></td></tr>
-<tr class="memitem:ga06b81d3e094e85b340b82a5cf2b20309" id="r_ga06b81d3e094e85b340b82a5cf2b20309"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#ga06b81d3e094e85b340b82a5cf2b20309">SdsConfigCallback</a>) (const char *table_type)</td></tr>
-<tr class="memdesc:ga06b81d3e094e85b340b82a5cf2b20309"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for config updates (device role only).  <br /></td></tr>
-<tr class="memitem:ga7c7a6328bcc9923fd2038129b0b1541b" id="r_ga7c7a6328bcc9923fd2038129b0b1541b"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#ga7c7a6328bcc9923fd2038129b0b1541b">SdsStateCallback</a>) (const char *table_type, const char *from_node)</td></tr>
-<tr class="memdesc:ga7c7a6328bcc9923fd2038129b0b1541b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for state updates (owner role only).  <br /></td></tr>
-<tr class="memitem:ga03db0c4b57b6c7406396aa67e791efb0" id="r_ga03db0c4b57b6c7406396aa67e791efb0"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#ga03db0c4b57b6c7406396aa67e791efb0">SdsStatusCallback</a>) (const char *table_type, const char *from_node)</td></tr>
-<tr class="memdesc:ga03db0c4b57b6c7406396aa67e791efb0"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for status updates (owner role only).  <br /></td></tr>
+<tr class="memitem:ga06eb6da1ae6f67d724515caf67281d28" id="r_ga06eb6da1ae6f67d724515caf67281d28"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#ga06eb6da1ae6f67d724515caf67281d28">SdsConfigCallback</a>) (const char *table_type, void *user_data)</td></tr>
+<tr class="memdesc:ga06eb6da1ae6f67d724515caf67281d28"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for config updates (device role only).  <br /></td></tr>
+<tr class="memitem:ga6733edea0d33e8c1718333a493cdd254" id="r_ga6733edea0d33e8c1718333a493cdd254"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#ga6733edea0d33e8c1718333a493cdd254">SdsStateCallback</a>) (const char *table_type, const char *from_node, void *user_data)</td></tr>
+<tr class="memdesc:ga6733edea0d33e8c1718333a493cdd254"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for state updates (owner role only).  <br /></td></tr>
+<tr class="memitem:gab350835fef85e82bb47c8bc41f931e09" id="r_gab350835fef85e82bb47c8bc41f931e09"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#gab350835fef85e82bb47c8bc41f931e09">SdsStatusCallback</a>) (const char *table_type, const char *from_node, void *user_data)</td></tr>
+<tr class="memdesc:gab350835fef85e82bb47c8bc41f931e09"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for status updates (owner role only).  <br /></td></tr>
+<tr class="memitem:ga1620244dfc15a6423fe29b7d9c3edc3e" id="r_ga1620244dfc15a6423fe29b7d9c3edc3e"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#ga1620244dfc15a6423fe29b7d9c3edc3e">SdsDeviceEvictedCallback</a>) (const char *table_type, const char *node_id, void *user_data)</td></tr>
+<tr class="memdesc:ga1620244dfc15a6423fe29b7d9c3edc3e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for device eviction (owner role only).  <br /></td></tr>
 <tr class="memitem:ga663545907da5cc9b3981185ffe824c52" id="r_ga663545907da5cc9b3981185ffe824c52"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#ga663545907da5cc9b3981185ffe824c52">SdsNodeIterator</a>) (const char *node_id, const void *status, void *user_data)</td></tr>
 <tr class="memdesc:ga663545907da5cc9b3981185ffe824c52"><td class="mdescLeft">&#160;</td><td class="mdescRight">Iterator callback for <a class="el" href="group__owner__helpers.html#gaf6b368bf2bb3267cee8db6c0fb1ef0ca" title="Iterate over all known device nodes (owner role only).">sds_foreach_node()</a>.  <br /></td></tr>
 <tr class="memitem:ga0c01cb5dd7ba9f1283e33dfac541fe08" id="r_ga0c01cb5dd7ba9f1283e33dfac541fe08"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#ga0c01cb5dd7ba9f1283e33dfac541fe08">SdsErrorCallback</a>) (SdsError error, const char *context)</td></tr>
@@ -114,14 +116,14 @@ Typedefs</h2></td></tr>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Callback function types for SDS events. </p>
 </div><a name="doc-typedef-members" id="doc-typedef-members"></a><h2 id="header-doc-typedef-members" class="groupheader">Typedef Documentation</h2>
-<a id="ga06b81d3e094e85b340b82a5cf2b20309" name="ga06b81d3e094e85b340b82a5cf2b20309"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga06b81d3e094e85b340b82a5cf2b20309">&#9670;&#160;</a></span>SdsConfigCallback</h2>
+<a id="ga06eb6da1ae6f67d724515caf67281d28" name="ga06eb6da1ae6f67d724515caf67281d28"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga06eb6da1ae6f67d724515caf67281d28">&#9670;&#160;</a></span>SdsConfigCallback</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef void(* SdsConfigCallback) (const char *table_type)</td>
+          <td class="memname">typedef void(* SdsConfigCallback) (const char *table_type, void *user_data)</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -130,11 +132,38 @@ Typedefs</h2></td></tr>
 <p>Called when a device receives new configuration from the owner. The config data has already been deserialized into the table struct when this callback is invoked.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">table_type</td><td>Name of the table that received the update</td></tr>
+    <tr><td class="paramname">table_type</td><td>Name of the table that received the update </td></tr>
+    <tr><td class="paramname">user_data</td><td>User-provided context from <a class="el" href="group__event__callbacks.html#ga883ce1b7d6ab2188564664d83df5190f" title="Set callback for config updates (device role only).">sds_on_config_update()</a></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__event__callbacks.html#ga3419208a3993bcd88d0d1c1c227a15f2" title="Set callback for config updates (device role only).">sds_on_config_update</a> </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__event__callbacks.html#ga883ce1b7d6ab2188564664d83df5190f" title="Set callback for config updates (device role only).">sds_on_config_update</a> </dd></dl>
+
+</div>
+</div>
+<a id="ga1620244dfc15a6423fe29b7d9c3edc3e" name="ga1620244dfc15a6423fe29b7d9c3edc3e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga1620244dfc15a6423fe29b7d9c3edc3e">&#9670;&#160;</a></span>SdsDeviceEvictedCallback</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">typedef void(* SdsDeviceEvictedCallback) (const char *table_type, const char *node_id, void *user_data)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Callback for device eviction (owner role only). </p>
+<p>Called when a device is evicted from the status table after the grace period expires following an LWT (device offline) message.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">table_type</td><td>The table type (e.g., "SensorData") </td></tr>
+    <tr><td class="paramname">node_id</td><td>The evicted device's node ID </td></tr>
+    <tr><td class="paramname">user_data</td><td>User-provided context from <a class="el" href="group__owner__helpers.html#gaa960005296d3c78a174f8ff2031719fa" title="Set global callback for device eviction notifications.">sds_on_device_evicted()</a></td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__owner__helpers.html#gaa960005296d3c78a174f8ff2031719fa" title="Set global callback for device eviction notifications.">sds_on_device_evicted</a> </dd></dl>
 
 </div>
 </div>
@@ -189,14 +218,14 @@ Typedefs</h2></td></tr>
 
 </div>
 </div>
-<a id="ga7c7a6328bcc9923fd2038129b0b1541b" name="ga7c7a6328bcc9923fd2038129b0b1541b"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga7c7a6328bcc9923fd2038129b0b1541b">&#9670;&#160;</a></span>SdsStateCallback</h2>
+<a id="ga6733edea0d33e8c1718333a493cdd254" name="ga6733edea0d33e8c1718333a493cdd254"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga6733edea0d33e8c1718333a493cdd254">&#9670;&#160;</a></span>SdsStateCallback</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef void(* SdsStateCallback) (const char *table_type, const char *from_node)</td>
+          <td class="memname">typedef void(* SdsStateCallback) (const char *table_type, const char *from_node, void *user_data)</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -206,22 +235,23 @@ Typedefs</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">table_type</td><td>Name of the table that received the update </td></tr>
-    <tr><td class="paramname">from_node</td><td>Node ID of the device that sent the state</td></tr>
+    <tr><td class="paramname">from_node</td><td>Node ID of the device that sent the state </td></tr>
+    <tr><td class="paramname">user_data</td><td>User-provided context from <a class="el" href="group__event__callbacks.html#ga91c7b4168913bf321fab470c6bbc920f" title="Set callback for state updates (owner role only).">sds_on_state_update()</a></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__event__callbacks.html#ga9d9f721ed355b7657125e69484131005" title="Set callback for state updates (owner role only).">sds_on_state_update</a> </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__event__callbacks.html#ga91c7b4168913bf321fab470c6bbc920f" title="Set callback for state updates (owner role only).">sds_on_state_update</a> </dd></dl>
 
 </div>
 </div>
-<a id="ga03db0c4b57b6c7406396aa67e791efb0" name="ga03db0c4b57b6c7406396aa67e791efb0"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ga03db0c4b57b6c7406396aa67e791efb0">&#9670;&#160;</a></span>SdsStatusCallback</h2>
+<a id="gab350835fef85e82bb47c8bc41f931e09" name="gab350835fef85e82bb47c8bc41f931e09"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gab350835fef85e82bb47c8bc41f931e09">&#9670;&#160;</a></span>SdsStatusCallback</h2>
 
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">typedef void(* SdsStatusCallback) (const char *table_type, const char *from_node)</td>
+          <td class="memname">typedef void(* SdsStatusCallback) (const char *table_type, const char *from_node, void *user_data)</td>
         </tr>
       </table>
 </div><div class="memdoc">
@@ -231,11 +261,12 @@ Typedefs</h2></td></tr>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">table_type</td><td>Name of the table that received the update </td></tr>
-    <tr><td class="paramname">from_node</td><td>Node ID of the device that sent the status</td></tr>
+    <tr><td class="paramname">from_node</td><td>Node ID of the device that sent the status </td></tr>
+    <tr><td class="paramname">user_data</td><td>User-provided context from <a class="el" href="group__event__callbacks.html#ga9e44ff93f2a354a19a1cc16bb1031ab7" title="Set callback for status updates (owner role only).">sds_on_status_update()</a></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__event__callbacks.html#gac86d601823af7a89218b84efbdb43aa4" title="Set callback for status updates (owner role only).">sds_on_status_update</a>, <a class="el" href="group__owner__helpers.html#ga002e756761a5c2dcd4389ab860247ded" title="Find status for a specific device (owner role only).">sds_find_node_status</a> </dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="group__event__callbacks.html#ga9e44ff93f2a354a19a1cc16bb1031ab7" title="Set callback for status updates (owner role only).">sds_on_status_update</a>, <a class="el" href="group__owner__helpers.html#ga002e756761a5c2dcd4389ab860247ded" title="Find status for a specific device (owner role only).">sds_find_node_status</a> </dd></dl>
 
 </div>
 </div>

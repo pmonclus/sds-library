@@ -4,11 +4,11 @@ This document describes the comprehensive test suite for the SDS library.
 
 ## Test Suite Overview
 
-The library has **177 unit tests** achieving **~84% code coverage**.
+The library has **187+ unit tests** achieving **~84% code coverage**.
 
 | Category | Tests | MQTT Broker | Runtime |
 |----------|-------|-------------|---------|
-| Unit Tests (Mock) | 177 | No | ~0.5s |
+| Unit Tests (Mock) | 187+ | No | ~0.5s |
 | Integration Tests | ~6 suites | Yes | ~60s |
 | Scale Tests | 1 | Yes | configurable |
 | Fuzz Tests | 2 targets | No | configurable |
@@ -31,7 +31,7 @@ cmake .. && make
 
 These tests use a **mock platform layer** that simulates MQTT without a real broker. They run in ~0.5 seconds and are ideal for CI/CD.
 
-### `test_unit_core` (45 tests)
+### `test_unit_core` (55 tests)
 
 Core SDS library functionality.
 
@@ -39,11 +39,15 @@ Core SDS library functionality.
 |----------|-------|
 | Initialization | init, shutdown, double init, ready state |
 | Table Registration | device/owner roles, multiple tables, unregister |
-| State Sync | state changes, dirty detection, publish |
-| Config Handling | config receive, callbacks |
-| Status Updates | status publish, owner tracking |
+| Subscriptions | device/owner topic subscriptions |
+| Sync / Publish | state changes, dirty detection, publish |
+| Message Receive | config/state/status handling |
+| Callbacks | config, state, status callbacks |
 | Reconnection | disconnect detection, auto-reconnect |
 | Statistics | message counters, error tracking |
+| Edge Cases | empty payload, malformed JSON, unknown table |
+| LWT (Device Offline) | LWT subscription, offline detection, callbacks |
+| Eviction | eviction timer, reconnect cancellation, grace period |
 
 ```bash
 ./build/test_unit_core

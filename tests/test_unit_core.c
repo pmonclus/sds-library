@@ -101,7 +101,10 @@ typedef struct {
 typedef struct {
     char node_id[SDS_MAX_NODE_ID_LEN];  /* Required: at offset 0 */
     bool valid;                          /* Required: at offset SDS_MAX_NODE_ID_LEN */
+    bool online;                         /* For LWT detection */
+    bool eviction_pending;               /* For eviction timer */
     uint32_t last_seen_ms;               /* User field */
+    uint32_t eviction_deadline;          /* For eviction timer */
     TestStatus status;                   /* User field: status data */
 } TestStatusSlot;
 
@@ -169,7 +172,29 @@ static SdsError init_sds_with_mock(const char* node_id) {
     SdsConfig config = {
         .node_id = node_id,
         .mqtt_broker = "mock_broker",
-        .mqtt_port = 1883
+        .mqtt_port = 1883,
+        .eviction_grace_ms = 0  /* Eviction disabled by default */
+    };
+    
+    return sds_init(&config);
+}
+
+/* Helper: init SDS with eviction enabled */
+static SdsError init_sds_with_mock_eviction(const char* node_id, uint32_t eviction_grace_ms) {
+    SdsMockConfig mock_cfg = {
+        .init_returns_success = true,
+        .mqtt_connect_returns_success = true,
+        .mqtt_connected = true,
+        .mqtt_publish_returns_success = true,
+        .mqtt_subscribe_returns_success = true,
+    };
+    sds_mock_configure(&mock_cfg);
+    
+    SdsConfig config = {
+        .node_id = node_id,
+        .mqtt_broker = "mock_broker",
+        .mqtt_port = 1883,
+        .eviction_grace_ms = eviction_grace_ms
     };
     
     return sds_init(&config);
@@ -206,6 +231,14 @@ static SdsError register_owner_table(TestOwnerTable* table, const char* type) {
             offsetof(TestStatusSlot, status),
             offsetof(TestOwnerTable, status_count),
             TEST_MAX_NODES
+        );
+        
+        /* Configure slot offsets for online detection */
+        sds_set_owner_slot_offsets(
+            type,
+            offsetof(TestStatusSlot, valid),
+            offsetof(TestStatusSlot, online),
+            offsetof(TestStatusSlot, last_seen_ms)
         );
     }
     
@@ -946,6 +979,307 @@ TEST(status_slots_full) {
 }
 
 /* ============================================================================
+ * LWT (Last Will and Testament) TESTS
+ * ============================================================================ */
+
+TEST(owner_subscribes_to_lwt) {
+    init_sds_with_mock("owner_node");
+    
+    TestOwnerTable table = {0};
+    register_owner_table(&table, "TestTable");
+    
+    /* Owner should subscribe to LWT topic for device offline detection */
+    ASSERT(sds_mock_is_subscribed("sds/lwt/+"));
+}
+
+TEST(lwt_message_marks_device_offline) {
+    init_sds_with_mock("owner_node");
+    
+    TestOwnerTable table = {0};
+    register_owner_table(&table, "TestTable");
+    
+    /* First, device sends normal status (comes online) */
+    sds_mock_inject_message_str(
+        "sds/TestTable/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":90}"
+    );
+    
+    /* Verify device is online */
+    ASSERT_EQ(table.status_count, 1);
+    ASSERT(table.status_slots[0].valid);
+    ASSERT(table.status_slots[0].online);
+    ASSERT_STR_EQ(table.status_slots[0].node_id, "device1");
+    
+    /* Now inject LWT message (device crashed) */
+    sds_mock_inject_message_str(
+        "sds/lwt/device1",
+        "{\"online\":false,\"node\":\"device1\",\"ts\":0}"
+    );
+    
+    /* Verify device is marked offline */
+    ASSERT(table.status_slots[0].valid);       /* Slot still valid */
+    ASSERT(!table.status_slots[0].online);     /* But marked offline */
+}
+
+TEST(lwt_callback_invoked) {
+    g_status_callback_count = 0;
+    g_last_callback_from_node[0] = '\0';
+    
+    init_sds_with_mock("owner_node");
+    
+    TestOwnerTable table = {0};
+    register_owner_table(&table, "TestTable");
+    sds_on_status_update("TestTable", test_status_callback, NULL);
+    
+    /* Device comes online */
+    sds_mock_inject_message_str(
+        "sds/TestTable/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":90}"
+    );
+    ASSERT_EQ(g_status_callback_count, 1);
+    
+    /* Reset callback counter */
+    g_status_callback_count = 0;
+    
+    /* LWT received */
+    sds_mock_inject_message_str(
+        "sds/lwt/device1",
+        "{\"online\":false,\"node\":\"device1\",\"ts\":0}"
+    );
+    
+    /* Callback should be invoked for LWT */
+    ASSERT_EQ(g_status_callback_count, 1);
+    ASSERT_STR_EQ(g_last_callback_from_node, "device1");
+}
+
+TEST(lwt_ignored_for_unknown_device) {
+    init_sds_with_mock("owner_node");
+    
+    TestOwnerTable table = {0};
+    register_owner_table(&table, "TestTable");
+    
+    /* LWT for device that never connected - should not crash */
+    sds_mock_inject_message_str(
+        "sds/lwt/unknown_device",
+        "{\"online\":false,\"node\":\"unknown_device\",\"ts\":0}"
+    );
+    
+    /* No slots should be created */
+    ASSERT_EQ(table.status_count, 0);
+}
+
+TEST(lwt_updates_multiple_tables) {
+    init_sds_with_mock("owner_node");
+    
+    TestOwnerTable table1 = {0};
+    TestOwnerTable table2 = {0};
+    register_owner_table(&table1, "Table1");
+    register_owner_table(&table2, "Table2");
+    
+    /* Device registers in both tables */
+    sds_mock_inject_message_str(
+        "sds/Table1/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":90}"
+    );
+    sds_mock_inject_message_str(
+        "sds/Table2/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":85}"
+    );
+    
+    /* Both tables should have device online */
+    ASSERT(table1.status_slots[0].online);
+    ASSERT(table2.status_slots[0].online);
+    
+    /* LWT received - should mark offline in BOTH tables */
+    sds_mock_inject_message_str(
+        "sds/lwt/device1",
+        "{\"online\":false,\"node\":\"device1\",\"ts\":0}"
+    );
+    
+    /* Both tables should have device offline */
+    ASSERT(!table1.status_slots[0].online);
+    ASSERT(!table2.status_slots[0].online);
+}
+
+/* ============================================================================
+ * EVICTION TESTS
+ * ============================================================================ */
+
+/* Grace period for eviction tests (100ms for fast tests) */
+#define TEST_EVICTION_GRACE_MS 100
+
+/* Helper: register owner table with eviction offsets configured
+ * Note: eviction_grace_ms is now global in SdsConfig, not per-table */
+static SdsError register_owner_table_with_eviction_offsets(TestOwnerTable* table, const char* type) {
+    SdsError err = register_owner_table(table, type);
+    if (err == SDS_OK) {
+        sds_set_owner_eviction_offsets(
+            type,
+            offsetof(TestStatusSlot, eviction_pending),
+            offsetof(TestStatusSlot, eviction_deadline)
+        );
+    }
+    return err;
+}
+
+static int g_eviction_callback_count = 0;
+static char g_evicted_node_id[64] = "";
+
+static void test_eviction_callback(const char* table_type, const char* node_id, void* user_data) {
+    (void)table_type;
+    (void)user_data;
+    g_eviction_callback_count++;
+    strncpy(g_evicted_node_id, node_id, sizeof(g_evicted_node_id) - 1);
+}
+
+TEST(eviction_timer_starts_on_lwt) {
+    init_sds_with_mock_eviction("owner_node", TEST_EVICTION_GRACE_MS);
+    
+    TestOwnerTable table = {0};
+    register_owner_table_with_eviction_offsets(&table, "TestTable");
+    
+    /* Device comes online */
+    sds_mock_inject_message_str(
+        "sds/TestTable/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":90}"
+    );
+    
+    /* Verify device is online, eviction not pending */
+    ASSERT(table.status_slots[0].valid);
+    ASSERT(table.status_slots[0].online);
+    ASSERT(!table.status_slots[0].eviction_pending);
+    
+    /* LWT received */
+    sds_mock_inject_message_str(
+        "sds/lwt/device1",
+        "{\"online\":false,\"node\":\"device1\",\"ts\":0}"
+    );
+    
+    /* Eviction should be pending */
+    ASSERT(!table.status_slots[0].online);
+    ASSERT(table.status_slots[0].eviction_pending);
+    ASSERT(table.status_slots[0].eviction_deadline > 0);
+}
+
+TEST(eviction_cancelled_on_reconnect) {
+    init_sds_with_mock_eviction("owner_node", TEST_EVICTION_GRACE_MS);
+    
+    TestOwnerTable table = {0};
+    register_owner_table_with_eviction_offsets(&table, "TestTable");
+    
+    /* Device comes online */
+    sds_mock_inject_message_str(
+        "sds/TestTable/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":90}"
+    );
+    
+    /* LWT received - eviction pending */
+    sds_mock_inject_message_str(
+        "sds/lwt/device1",
+        "{\"online\":false,\"node\":\"device1\",\"ts\":0}"
+    );
+    ASSERT(table.status_slots[0].eviction_pending);
+    
+    /* Device reconnects */
+    sds_mock_inject_message_str(
+        "sds/TestTable/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":85}"
+    );
+    
+    /* Eviction should be cancelled */
+    ASSERT(table.status_slots[0].online);
+    ASSERT(!table.status_slots[0].eviction_pending);
+}
+
+TEST(eviction_triggers_after_grace_period) {
+    init_sds_with_mock_eviction("owner_node", TEST_EVICTION_GRACE_MS);
+    
+    TestOwnerTable table = {0};
+    register_owner_table_with_eviction_offsets(&table, "TestTable");
+    
+    /* Device comes online */
+    sds_mock_inject_message_str(
+        "sds/TestTable/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":90}"
+    );
+    ASSERT_EQ(table.status_count, 1);
+    
+    /* LWT received */
+    sds_mock_inject_message_str(
+        "sds/lwt/device1",
+        "{\"online\":false,\"node\":\"device1\",\"ts\":0}"
+    );
+    ASSERT(table.status_slots[0].eviction_pending);
+    
+    /* Advance time past grace period */
+    sds_mock_advance_time(TEST_EVICTION_GRACE_MS + 10);
+    sds_loop();
+    
+    /* Device should be evicted */
+    ASSERT(!table.status_slots[0].valid);
+    ASSERT_EQ(table.status_count, 0);
+}
+
+TEST(eviction_callback_invoked) {
+    g_eviction_callback_count = 0;
+    g_evicted_node_id[0] = '\0';
+    
+    init_sds_with_mock_eviction("owner_node", TEST_EVICTION_GRACE_MS);
+    
+    TestOwnerTable table = {0};
+    register_owner_table_with_eviction_offsets(&table, "TestTable");
+    sds_on_device_evicted(NULL, test_eviction_callback, NULL);  /* Global callback */
+    
+    /* Device comes online */
+    sds_mock_inject_message_str(
+        "sds/TestTable/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":90}"
+    );
+    
+    /* LWT received */
+    sds_mock_inject_message_str(
+        "sds/lwt/device1",
+        "{\"online\":false,\"node\":\"device1\",\"ts\":0}"
+    );
+    
+    /* Advance time past grace period */
+    sds_mock_advance_time(TEST_EVICTION_GRACE_MS + 10);
+    sds_loop();
+    
+    /* Callback should have been invoked */
+    ASSERT_EQ(g_eviction_callback_count, 1);
+    ASSERT_STR_EQ(g_evicted_node_id, "device1");
+}
+
+TEST(eviction_disabled_when_grace_zero) {
+    init_sds_with_mock("owner_node");
+    
+    TestOwnerTable table = {0};
+    register_owner_table(&table, "TestTable");  /* No eviction configured */
+    
+    /* Device comes online */
+    sds_mock_inject_message_str(
+        "sds/TestTable/status/device1",
+        "{\"online\":true,\"error_code\":0,\"battery_level\":90}"
+    );
+    
+    /* LWT received */
+    sds_mock_inject_message_str(
+        "sds/lwt/device1",
+        "{\"online\":false,\"node\":\"device1\",\"ts\":0}"
+    );
+    
+    /* Advance time way past any grace period */
+    sds_mock_advance_time(10000);
+    sds_loop();
+    
+    /* Device should still be valid (not evicted because grace=0) */
+    ASSERT(table.status_slots[0].valid);
+    ASSERT(!table.status_slots[0].online);
+    ASSERT_EQ(table.status_count, 1);
+}
+
+/* ============================================================================
  * MAIN
  * ============================================================================ */
 
@@ -1019,6 +1353,20 @@ int main(void) {
     RUN_TEST(handles_wrong_topic_prefix);
     RUN_TEST(handles_unknown_table);
     RUN_TEST(status_slots_full);
+    
+    printf("\n─── LWT (Device Offline Detection) Tests ───\n");
+    RUN_TEST(owner_subscribes_to_lwt);
+    RUN_TEST(lwt_message_marks_device_offline);
+    RUN_TEST(lwt_callback_invoked);
+    RUN_TEST(lwt_ignored_for_unknown_device);
+    RUN_TEST(lwt_updates_multiple_tables);
+    
+    printf("\n─── Eviction Tests ───\n");
+    RUN_TEST(eviction_timer_starts_on_lwt);
+    RUN_TEST(eviction_cancelled_on_reconnect);
+    RUN_TEST(eviction_triggers_after_grace_period);
+    RUN_TEST(eviction_callback_invoked);
+    RUN_TEST(eviction_disabled_when_grace_zero);
     
     printf("\n");
     printf("══════════════════════════════════════════════════════════════\n");

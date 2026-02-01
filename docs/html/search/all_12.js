@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['usage_0',['Usage',['../sds_8h.html#usage',1,'Basic Usage'],['../index.html#autotoc_md6',1,'Static RAM Usage']]],
-  ['usage_20per_20sync_20cycle_1',['Stack Usage (per sync cycle)',['../index.html#autotoc_md8',1,'']]]
+  ['node_5fid_0',['node_id',['../struct_sds_config.html#a92d3097a776498e13cedfab7a99a2d3c',1,'SdsConfig']]]
 ];

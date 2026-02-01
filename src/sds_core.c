@@ -74,9 +74,12 @@ typedef struct {
     uint8_t max_status_slots;
     size_t slot_valid_offset;       /* Offset to valid flag within a slot */
     size_t slot_online_offset;      /* Offset to online flag within a slot */
+    size_t slot_eviction_pending_offset; /* Offset to eviction_pending flag within a slot */
     size_t slot_last_seen_offset;   /* Offset to last_seen_ms within a slot */
+    size_t slot_eviction_deadline_offset; /* Offset to eviction_deadline within a slot */
     size_t slot_status_offset;      /* Offset to status within a slot */
     size_t status_count_offset;     /* Offset to status_count in owner table */
+    /* Note: eviction_grace_ms and eviction_callback are now global (see _eviction_*) */
 } SdsTableContext;
 
 /* ============== Log Level ============== */
@@ -129,6 +132,14 @@ static uint32_t _last_reconnect_attempt_ms = 0;
 #define SDS_RECONNECT_MAX_MS       60000  /* Max 60 seconds */
 #define SDS_RECONNECT_MULTIPLIER   2      /* Double each time */
 
+/* LWT subscription state - only subscribe once for all owner tables */
+static bool _lwt_subscribed = false;
+
+/* Global eviction configuration (from SdsConfig) */
+static uint32_t _eviction_grace_ms = 0;
+static SdsDeviceEvictedCallback _eviction_callback = NULL;
+static void* _eviction_user_data = NULL;
+
 /* ============== Forward Declarations ============== */
 
 static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t payload_len);
@@ -137,6 +148,7 @@ static void notify_error(SdsError error, const char* context);
 static void subscribe_table_topics(SdsTableContext* ctx);
 static void unsubscribe_table_topics(SdsTableContext* ctx);
 static void sync_table(SdsTableContext* ctx);
+static void handle_lwt_message(const char* node_id, const uint8_t* payload, size_t len);
 static void handle_config_message(SdsTableContext* ctx, const uint8_t* payload, size_t len);
 static void handle_state_message(SdsTableContext* ctx, const char* from_node, const uint8_t* payload, size_t len);
 static void handle_status_message(SdsTableContext* ctx, const char* from_node, const uint8_t* payload, size_t len);
@@ -271,6 +283,15 @@ SdsError sds_init(const SdsConfig* config) {
     _reconnect_backoff_ms = 0;
     _last_reconnect_attempt_ms = 0;
     
+    /* Store global eviction configuration */
+    _eviction_grace_ms = config->eviction_grace_ms;
+    _eviction_callback = NULL;
+    _eviction_user_data = NULL;
+    
+    if (_eviction_grace_ms > 0) {
+        SDS_LOG_I("Device eviction enabled: grace period = %u ms", _eviction_grace_ms);
+    }
+    
     /* Set MQTT callback */
     sds_platform_mqtt_set_callback(on_mqtt_message);
     
@@ -394,6 +415,60 @@ void sds_loop(void) {
             ctx->last_sync_ms = now;
         }
     }
+    
+    /* Check for expired eviction timers (owner tables only) */
+    if (_eviction_grace_ms > 0) {
+        for (int i = 0; i < SDS_MAX_TABLES; i++) {
+            SdsTableContext* ctx = &_tables[i];
+            if (!ctx->active || ctx->role != SDS_ROLE_OWNER) continue;
+            if (ctx->status_slots_offset == 0) continue;  /* No slots configured */
+            
+            uint8_t* slots_base = (uint8_t*)ctx->table + ctx->status_slots_offset;
+            size_t valid_offset = ctx->slot_valid_offset ? ctx->slot_valid_offset : SDS_MAX_NODE_ID_LEN;
+            
+            for (uint8_t j = 0; j < ctx->max_status_slots; j++) {
+                uint8_t* slot = slots_base + (j * ctx->status_slot_size);
+                bool* slot_valid = (bool*)(slot + valid_offset);
+                
+                if (!*slot_valid) continue;
+                
+                /* Check if eviction is pending */
+                if (ctx->slot_eviction_pending_offset > 0) {
+                    bool* slot_eviction_pending = (bool*)(slot + ctx->slot_eviction_pending_offset);
+                    if (!*slot_eviction_pending) continue;
+                    
+                    /* Check if deadline has passed */
+                    if (ctx->slot_eviction_deadline_offset > 0) {
+                        uint32_t* slot_eviction_deadline = (uint32_t*)(slot + ctx->slot_eviction_deadline_offset);
+                        if (now >= *slot_eviction_deadline) {
+                            /* Eviction time! */
+                            char* slot_node_id = (char*)slot;
+                            SDS_LOG_I("Evicting device %s from table %s (grace period expired)", 
+                                      slot_node_id, ctx->table_type);
+                            
+                            /* Invoke global eviction callback before clearing */
+                            if (_eviction_callback) {
+                                _eviction_callback(ctx->table_type, slot_node_id, _eviction_user_data);
+                            }
+                            
+                            /* Clear the slot */
+                            *slot_valid = false;
+                            *slot_eviction_pending = false;
+                            memset(slot_node_id, 0, SDS_MAX_NODE_ID_LEN);
+                            
+                            /* Decrement status_count */
+                            if (ctx->status_count_offset > 0) {
+                                uint8_t* count_ptr = (uint8_t*)ctx->table + ctx->status_count_offset;
+                                if (*count_ptr > 0) {
+                                    (*count_ptr)--;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 void sds_shutdown(void) {
@@ -419,6 +494,7 @@ void sds_shutdown(void) {
         }
     }
     _table_count = 0;
+    _lwt_subscribed = false;
     
     sds_platform_shutdown();
     _initialized = false;
@@ -538,13 +614,16 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
             SdsTableContext* ctx = find_table(table_type);
             if (ctx) {
                 ctx->liveness_interval_ms = meta->liveness_interval_ms;
+                /* Note: eviction_grace_ms is now global (from SdsConfig) */
                 if (meta->own_status_slots_offset > 0) {
                     ctx->status_slots_offset = meta->own_status_slots_offset;
                     ctx->status_slot_size = meta->own_status_slot_size;
                     ctx->max_status_slots = meta->own_max_status_slots;
                     ctx->slot_valid_offset = meta->slot_valid_offset;
                     ctx->slot_online_offset = meta->slot_online_offset;
+                    ctx->slot_eviction_pending_offset = meta->slot_eviction_pending_offset;
                     ctx->slot_last_seen_offset = meta->slot_last_seen_offset;
+                    ctx->slot_eviction_deadline_offset = meta->slot_eviction_deadline_offset;
                     ctx->slot_status_offset = meta->slot_status_offset;
                     ctx->status_count_offset = meta->own_status_count_offset;
                 }
@@ -777,6 +856,25 @@ void sds_set_owner_slot_offsets(
               table_type, valid_offset, online_offset, last_seen_offset);
 }
 
+void sds_set_owner_eviction_offsets(
+    const char* table_type,
+    size_t eviction_pending_offset,
+    size_t eviction_deadline_offset
+) {
+    SdsTableContext* ctx = find_table(table_type);
+    if (!ctx || ctx->role != SDS_ROLE_OWNER) {
+        SDS_LOG_W("sds_set_owner_eviction_offsets: table %s not found or not owner", 
+                  table_type ? table_type : "(null)");
+        return;
+    }
+    
+    ctx->slot_eviction_pending_offset = eviction_pending_offset;
+    ctx->slot_eviction_deadline_offset = eviction_deadline_offset;
+    
+    SDS_LOG_D("Configured eviction offsets for %s: pending=%zu deadline=%zu",
+              table_type, eviction_pending_offset, eviction_deadline_offset);
+}
+
 /**
  * Internal helper to notify errors through the callback.
  */
@@ -909,6 +1007,17 @@ uint32_t sds_get_liveness_interval(const char* table_type) {
     return 0;
 }
 
+uint32_t sds_get_eviction_grace(const char* table_type) {
+    (void)table_type;  /* Eviction grace is now global, table_type ignored */
+    return _eviction_grace_ms;
+}
+
+void sds_on_device_evicted(const char* table_type, SdsDeviceEvictedCallback callback, void* user_data) {
+    (void)table_type;  /* Eviction callback is now global, table_type ignored for backward compat */
+    _eviction_callback = callback;
+    _eviction_user_data = user_data;
+}
+
 /* ============== Internal Functions ============== */
 
 static SdsTableContext* find_table(const char* table_type) {
@@ -935,6 +1044,13 @@ static void subscribe_table_topics(SdsTableContext* ctx) {
         
         snprintf(topic, sizeof(topic), "sds/%s/status/+", ctx->table_type);
         sds_platform_mqtt_subscribe(topic);
+        
+        /* Subscribe to LWT topic for device offline detection (only once) */
+        if (!_lwt_subscribed) {
+            sds_platform_mqtt_subscribe("sds/lwt/+");
+            _lwt_subscribed = true;
+            SDS_LOG_D("Subscribed to LWT topic for device offline detection");
+        }
     }
 }
 
@@ -951,6 +1067,23 @@ static void unsubscribe_table_topics(SdsTableContext* ctx) {
         
         snprintf(topic, sizeof(topic), "sds/%s/status/+", ctx->table_type);
         sds_platform_mqtt_unsubscribe(topic);
+        
+        /* Unsubscribe from LWT if no more owner tables remain */
+        if (_lwt_subscribed) {
+            bool has_other_owners = false;
+            for (int i = 0; i < SDS_MAX_TABLES; i++) {
+                if (_tables[i].active && &_tables[i] != ctx && 
+                    _tables[i].role == SDS_ROLE_OWNER) {
+                    has_other_owners = true;
+                    break;
+                }
+            }
+            if (!has_other_owners) {
+                sds_platform_mqtt_unsubscribe("sds/lwt/+");
+                _lwt_subscribed = false;
+                SDS_LOG_D("Unsubscribed from LWT topic");
+            }
+        }
     }
 }
 
@@ -1225,11 +1358,21 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
     }
     
     /* Update online flag from the message (devices send online=true) */
+    bool msg_online = true;  /* Default to true */
+    sds_json_get_bool_field(&r, "online", &msg_online);
+    
     if (ctx->slot_online_offset > 0) {
         bool* slot_online = (bool*)((uint8_t*)slot + ctx->slot_online_offset);
-        bool msg_online = true;  /* Default to true */
-        sds_json_get_bool_field(&r, "online", &msg_online);
         *slot_online = msg_online;
+    }
+    
+    /* Cancel eviction timer if device came back online */
+    if (msg_online && ctx->slot_eviction_pending_offset > 0) {
+        bool* slot_eviction_pending = (bool*)((uint8_t*)slot + ctx->slot_eviction_pending_offset);
+        if (*slot_eviction_pending) {
+            *slot_eviction_pending = false;
+            SDS_LOG_D("Cancelled eviction timer for %s (device reconnected)", from_node);
+        }
     }
     
     /* Get pointer to status data within the slot */
@@ -1245,12 +1388,103 @@ static void handle_status_message(SdsTableContext* ctx, const char* from_node, c
     }
 }
 
+/**
+ * Handle LWT (Last Will and Testament) message for device offline detection.
+ * 
+ * When a device disconnects unexpectedly, the MQTT broker publishes its LWT.
+ * This function finds all tables where this device has a status slot and
+ * marks them as offline.
+ */
+static void handle_lwt_message(const char* node_id, const uint8_t* payload, size_t len) {
+    /* Parse payload to verify it's an offline message */
+    SdsJsonReader r;
+    sds_json_reader_init(&r, (const char*)payload, len);
+    
+    bool online = true;  /* Default to true, expect false in LWT */
+    sds_json_get_bool_field(&r, "online", &online);
+    
+    if (online) {
+        /* Not an offline message - shouldn't happen for LWT but handle gracefully */
+        SDS_LOG_D("LWT message with online=true from %s, ignoring", node_id);
+        return;
+    }
+    
+    SDS_LOG_I("Device offline (LWT): %s", node_id);
+    
+    /* Iterate through all owner tables and mark this device as offline */
+    for (int i = 0; i < SDS_MAX_TABLES; i++) {
+        SdsTableContext* ctx = &_tables[i];
+        
+        if (!ctx->active || ctx->role != SDS_ROLE_OWNER) {
+            continue;
+        }
+        
+        if (ctx->status_slots_offset == 0 || ctx->max_status_slots == 0) {
+            continue;  /* No slots configured */
+        }
+        
+        /* Search for a slot with this node_id */
+        uint8_t* slots_base = (uint8_t*)ctx->table + ctx->status_slots_offset;
+        size_t valid_offset = ctx->slot_valid_offset ? ctx->slot_valid_offset : SDS_MAX_NODE_ID_LEN;
+        
+        for (uint8_t j = 0; j < ctx->max_status_slots; j++) {
+            uint8_t* slot = slots_base + (j * ctx->status_slot_size);
+            char* slot_node_id = (char*)slot;
+            bool* slot_valid = (bool*)(slot + valid_offset);
+            
+            if (*slot_valid && strcmp(slot_node_id, node_id) == 0) {
+                /* Found the device - mark as offline */
+                if (ctx->slot_online_offset > 0) {
+                    bool* slot_online = (bool*)(slot + ctx->slot_online_offset);
+                    *slot_online = false;
+                    SDS_LOG_D("Marked %s offline in table %s", node_id, ctx->table_type);
+                }
+                
+                /* Update last_seen to track when we got the LWT */
+                uint32_t now = sds_platform_millis();
+                if (ctx->slot_last_seen_offset > 0) {
+                    uint32_t* slot_last_seen = (uint32_t*)(slot + ctx->slot_last_seen_offset);
+                    *slot_last_seen = now;
+                }
+                
+                /* Start eviction timer if global grace period is configured */
+                if (_eviction_grace_ms > 0 && ctx->slot_eviction_pending_offset > 0) {
+                    bool* slot_eviction_pending = (bool*)(slot + ctx->slot_eviction_pending_offset);
+                    *slot_eviction_pending = true;
+                    
+                    if (ctx->slot_eviction_deadline_offset > 0) {
+                        uint32_t* slot_eviction_deadline = (uint32_t*)(slot + ctx->slot_eviction_deadline_offset);
+                        *slot_eviction_deadline = now + _eviction_grace_ms;
+                        SDS_LOG_D("Started eviction timer for %s (deadline: %u ms)", node_id, *slot_eviction_deadline);
+                    }
+                }
+                
+                /* Invoke status callback to notify application */
+                if (ctx->status_callback) {
+                    ctx->status_callback(ctx->table_type, node_id, ctx->status_user_data);
+                }
+                
+                break;  /* Found in this table, move to next table */
+            }
+        }
+    }
+}
+
 static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t payload_len) {
     _stats.messages_received++;
     
     SDS_LOG_D("Message: topic=%s len=%zu", topic, payload_len);
     
     if (strncmp(topic, "sds/", 4) != 0) {
+        return;
+    }
+    
+    /* Handle LWT messages: sds/lwt/{node_id} */
+    if (strncmp(topic + 4, "lwt/", 4) == 0) {
+        const char* node_id = topic + 8;  /* After "sds/lwt/" */
+        if (node_id[0] != '\0') {
+            handle_lwt_message(node_id, payload, payload_len);
+        }
         return;
     }
     

@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['per_20sync_20cycle_0',['Stack Usage (per sync cycle)',['../index.html#autotoc_md8',1,'']]],
-  ['platform_20specific_20considerations_1',['Platform-Specific Considerations',['../index.html#autotoc_md9',1,'']]],
-  ['platformio_2',['ESP32/ESP8266 (PlatformIO)',['../index.html#autotoc_md13',1,'']]]
+  ['generate_20type_20definitions_0',['4. Generate Type Definitions',['../index.html#autotoc_md6',1,'']]],
+  ['getnodeid_1',['getNodeId',['../class_s_d_s_client.html#a196cd5488d81187a72d382a9d62986f2',1,'SDSClient']]],
+  ['getstats_2',['getStats',['../class_s_d_s_client.html#acd34c9dd14f45aa9fb21da370c19fbdf',1,'SDSClient']]]
 ];

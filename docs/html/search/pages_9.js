@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['owner_20roles_0',['Device vs Owner Roles',['../sds_8h.html#roles',1,'']]]
+  ['c_20library_20linux_20macos_0',['C Library (Linux/macOS)',['../index.html#autotoc_md15',1,'']]]
 ];

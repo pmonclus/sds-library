@@ -97,8 +97,10 @@ typedef struct {
 typedef struct {
     char node_id[32];
     bool valid;
-    bool online;            // false if LWT received or graceful disconnect
-    uint32_t last_seen_ms;  // Timestamp of last received status
+    bool online;              // false if LWT received or graceful disconnect
+    uint32_t last_seen_ms;    // Timestamp of last received status
+    bool eviction_pending;    // true if eviction timer is running
+    uint32_t eviction_deadline; // Timestamp when eviction will trigger
     SensorNodeStatus status;
 } SensorNodeStatusSlot;
 
@@ -139,6 +141,7 @@ typedef struct {
     uint16_t mqtt_port;         // MQTT port (default 1883)
     const char* mqtt_username;  // MQTT username (NULL = no auth)
     const char* mqtt_password;  // MQTT password (NULL = no auth)
+    uint32_t eviction_grace_ms; // Grace period before evicting offline devices (0 = disabled)
 } SdsConfig;
 
 SdsError sds_init(const SdsConfig* config);
@@ -374,7 +377,63 @@ A device is considered online if:
 - The `online` flag is true (not cleared by LWT)
 - Last message was within `timeout_ms`
 
-### 5.12 JSON Serialization API
+### 5.12 LWT (Last Will and Testament) Handling
+
+SDS uses MQTT LWT to detect unexpected device disconnections. Each node publishes a retained LWT message on connection that the broker delivers if the node disconnects unexpectedly.
+
+**LWT Topic:** `sds/lwt/{node_id}`
+
+**LWT Payload:**
+```json
+{"online":false,"node":"sensor_01","ts":0}
+```
+
+Owner nodes automatically subscribe to `sds/lwt/+` and receive LWT messages for all devices. When an LWT is received:
+1. The device's `online` flag is set to `false` in all relevant status slots
+2. The `last_seen_ms` is updated
+3. If `eviction_grace_ms > 0`, an eviction timer starts
+4. The status callback is invoked
+
+### 5.13 Device Eviction (Owner)
+
+When a device goes offline (LWT received), SDS can automatically evict it from status slots after a configurable grace period. This prevents slots from being permanently consumed by devices that never reconnect.
+
+**Configuration:** Set `eviction_grace_ms` in `SdsConfig` (0 = disabled).
+
+```c
+SdsConfig config = {
+    .node_id = "owner",
+    .mqtt_broker = "localhost",
+    .eviction_grace_ms = 60000  // Evict after 60 seconds offline
+};
+```
+
+**Eviction Callback:**
+```c
+typedef void (*SdsDeviceEvictedCallback)(
+    const char* table_type,
+    const char* node_id,
+    void* user_data
+);
+
+// Set global eviction callback (called for all tables)
+void sds_on_device_evicted(const char* table_type, SdsDeviceEvictedCallback cb, void* user_data);
+
+// Get the configured eviction grace period
+uint32_t sds_get_eviction_grace(const char* table_type);
+```
+
+**Eviction Flow:**
+1. Device goes offline (LWT received)
+2. `eviction_pending = true`, `eviction_deadline = now + eviction_grace_ms`
+3. If device reconnects (status message with `online:true`), eviction is cancelled
+4. If grace period expires, device is evicted:
+   - `slot.valid = false`
+   - `status_count` decremented
+   - Eviction callback invoked
+   - Slot can now be reused by a new device
+
+### 5.14 JSON Serialization API
 
 ```c
 // Writer API
@@ -399,7 +458,7 @@ bool sds_json_get_float_field(SdsJsonReader* r, const char* key, float* out);
 bool sds_json_get_bool_field(SdsJsonReader* r, const char* key, bool* out);
 ```
 
-### 5.13 Table Metadata Registry
+### 5.15 Table Metadata Registry
 
 The codegen generates a complete metadata registry that enables the simple `sds_register_table()` API.
 
@@ -772,8 +831,9 @@ node3: TableA=DEVICE, TableB=DEVICE  → receives both configs
 ### Open Questions
 
 1. **Status slot management**: How to handle slot overflow when > `SDS_MAX_NODES` devices?
-   - Current: Callback invoked but no slot storage
-   - Options: LRU eviction, error callback, dynamic allocation
+   - **Partially addressed**: Eviction grace period (`eviction_grace_ms`) allows automatic cleanup of offline devices
+   - Current: Callback invoked but no slot storage for overflow
+   - Remaining options: LRU eviction for active devices, dynamic allocation
 
 2. **Reconnection behavior**: Should retained config be re-published on reconnect?
    - Current: Subscriptions restored, but no explicit re-publish
