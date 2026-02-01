@@ -31,7 +31,7 @@ class Sds < Formula
     system "cmake", "--install", "build"
 
     # Install Python package (sds bindings + codegen)
-    system Formula["python@3.12"].opt_bin/"python3", "-m", "pip", "install",
+    system Formula["python@3.12"].opt_bin/"python3.12", "-m", "pip", "install",
            "--prefix=#{prefix}",
            "--no-deps",
            "."
