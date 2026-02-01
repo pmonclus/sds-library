@@ -30,7 +30,14 @@ class Sds < Formula
     system "cmake", "--build", "build"
     system "cmake", "--install", "build"
 
-    # Install Python package (sds bindings + codegen)
+    # Install Python bindings (builds CFFI extension)
+    cd "python" do
+      system Formula["python@3.12"].opt_bin/"python3.12", "-m", "pip", "install",
+             "--prefix=#{prefix}",
+             "."
+    end
+
+    # Install codegen package from root
     system Formula["python@3.12"].opt_bin/"python3.12", "-m", "pip", "install",
            "--prefix=#{prefix}",
            "--no-deps",
