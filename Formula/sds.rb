@@ -9,11 +9,11 @@
 class Sds < Formula
   desc "SDS - Synchronized Data Structures for IoT"
   homepage "https://github.com/pmonclus/sds-library"
-  version "0.4.0"
+  version "0.4.1"
   license "MIT"
 
   url "https://github.com/pmonclus/sds-library/archive/refs/tags/v#{version}.tar.gz"
-  sha256 "8bc40f95e1b22a6e1bb494b012cf0ed22932352cedd305f5a911fa4bbdbd93f9"
+  sha256 "5766dc292a02be5212dc9649df3107a7c48a3affec578513fa8a36cabac6a80f"
 
   depends_on "cmake" => :build
   depends_on "cffi"
