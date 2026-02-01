@@ -12,9 +12,8 @@ class Sds < Formula
   version "0.3.1"
   license "MIT"
 
-  # Local tarball for testing (created by build-package.sh)
-  url "file://#{ENV['HOME']}/sds-source-#{version}.tar.gz"
-  sha256 :no_check  # Disable checksum for local development
+  url "https://github.com/pmonclus/sds-library/archive/refs/tags/v#{version}.tar.gz"
+  sha256 "ce98e8a98486b2ad8ce5c447333d17aed7acd145f5956a9ad3614c4fdb33b472"
 
   depends_on "cmake" => :build
   depends_on "libpaho-mqtt"
