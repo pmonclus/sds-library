@@ -11,7 +11,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
-VERSION="0.3.0"
+VERSION="0.3.1"
 
 cd "$REPO_ROOT"
 

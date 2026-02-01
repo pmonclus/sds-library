@@ -9,7 +9,7 @@
 class Sds < Formula
   desc "SDS - Synchronized Data Structures for IoT"
   homepage "https://github.com/pmonclus/sds-library"
-  version "0.3.0"
+  version "0.3.1"
   license "MIT"
 
   # Local tarball for testing (created by build-package.sh)

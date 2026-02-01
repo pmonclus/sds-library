@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sds-library"
-version = "0.3.0"
+version = "0.3.1"
 description = "SDS - Synchronized Data Structures for IoT"
 readme = "python/README.md"
 license = {text = "MIT"}
