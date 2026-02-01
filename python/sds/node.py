@@ -520,16 +520,21 @@ class SdsNode:
         # - node_id: 32 bytes (SDS_MAX_NODE_ID_LEN)
         # - valid: 1 byte
         # - online: 1 byte
-        # - padding: 2 bytes (for uint32 alignment)
+        # - eviction_pending: 1 byte
+        # - padding: 1 byte (for uint32 alignment)
         # - last_seen_ms: 4 bytes
+        # - eviction_deadline: 4 bytes
         # - status: status_size bytes
         SDS_MAX_NODE_ID_LEN = 32
         slot_node_id_offset = 0
         slot_valid_offset = SDS_MAX_NODE_ID_LEN  # 32
         slot_online_offset = SDS_MAX_NODE_ID_LEN + 1  # 33
+        slot_eviction_pending_offset = SDS_MAX_NODE_ID_LEN + 2  # 34
+        # padding at 35 for uint32 alignment
         slot_last_seen_offset = SDS_MAX_NODE_ID_LEN + 4  # 36 (aligned)
-        slot_status_offset = SDS_MAX_NODE_ID_LEN + 8  # 40
-        slot_size = SDS_MAX_NODE_ID_LEN + 8 + status_size  # 40 + status_size
+        slot_eviction_deadline_offset = SDS_MAX_NODE_ID_LEN + 8  # 40
+        slot_status_offset = SDS_MAX_NODE_ID_LEN + 12  # 44
+        slot_size = SDS_MAX_NODE_ID_LEN + 12 + status_size  # 44 + status_size
         max_slots = 8
         
         # For owner, add space for status_slots and count
@@ -591,6 +596,12 @@ class SdsNode:
                 slot_online_offset,
                 slot_last_seen_offset,
             )
+            # Configure eviction offsets for device eviction support
+            lib.sds_set_owner_eviction_offsets(
+                table_type.encode("utf-8"),
+                slot_eviction_pending_offset,
+                slot_eviction_deadline_offset,
+            )
         
         # Create a fake table_meta for the SdsTable wrapper
         # We'll store the info we need directly
@@ -606,7 +617,9 @@ class SdsNode:
             "slot_size": slot_size,
             "slot_valid_offset": slot_valid_offset,
             "slot_online_offset": slot_online_offset,
+            "slot_eviction_pending_offset": slot_eviction_pending_offset,
             "slot_last_seen_offset": slot_last_seen_offset,
+            "slot_eviction_deadline_offset": slot_eviction_deadline_offset,
             "slot_status_offset": slot_status_offset,
             "max_slots": max_slots,
         }
