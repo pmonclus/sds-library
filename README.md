@@ -12,6 +12,7 @@ SDS enables automatic state synchronization between devices and owners over MQTT
 
 - **Delta Sync**: Only send changed fields, reducing bandwidth by up to 90%
 - **1KB Section Support**: Config, state, and status sections up to 1KB each
+- **Raw MQTT Publish**: Send custom messages (logs, diagnostics) via SDS connection
 - **Schema-Driven**: Define your data in `.sds` files, generate C/Python code
 - **Cross-Platform**: ESP32/Arduino, Linux, macOS, Python
 - **Liveness Detection**: Automatic heartbeats and offline detection with LWT
@@ -250,6 +251,30 @@ sds_init(&config);
 With delta sync, if only `temperature` changes from 23.5 to 24.0:
 - **Without delta**: `{"ts":...,"temperature":24.0,"humidity":45.0,"reading_count":42}`
 - **With delta**: `{"ts":...,"temperature":24.0}`
+
+### 9. Raw MQTT Publish (Logging, Diagnostics)
+
+Send custom messages through the SDS-managed MQTT connection:
+
+**Python:**
+```python
+with SdsNode("sensor_01", "localhost") as node:
+    # Check connection before publishing
+    if node.is_connected():
+        node.publish_raw(f"log/{node.node_id}", '{"level":"info","msg":"Started"}')
+```
+
+**C:**
+```c
+if (sds_is_connected()) {
+    char topic[48];
+    snprintf(topic, sizeof(topic), "log/%s", sds_get_node_id());
+    const char* msg = "{\"level\":\"info\",\"msg\":\"Started\"}";
+    sds_publish_raw(topic, msg, strlen(msg), 0, false);
+}
+```
+
+This is useful for centralized logging without creating a separate MQTT connection.
 
 ---
 

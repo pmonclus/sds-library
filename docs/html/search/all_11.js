@@ -1,11 +1,8 @@
 var searchData=
 [
-  ['macos_0',['C Library (Linux/macOS)',['../index.html#autotoc_md15',1,'']]],
-  ['messages_5freceived_1',['messages_received',['../struct_sds_stats.html#a52decfc1a4d53f109081ece0b3a33893',1,'SdsStats']]],
-  ['messages_5fsent_2',['messages_sent',['../struct_sds_stats.html#a1d631a8649de52256a54a9c04e31010c',1,'SdsStats']]],
-  ['mqtt_20broker_3',['5. Start an MQTT Broker',['../index.html#autotoc_md7',1,'']]],
-  ['mqtt_5fbroker_4',['mqtt_broker',['../struct_sds_config.html#af0aad86b3113014cc79fc99044b96721',1,'SdsConfig']]],
-  ['mqtt_5fpassword_5',['mqtt_password',['../struct_sds_config.html#a29862638ca158cc4a5681219ee668da6',1,'SdsConfig']]],
-  ['mqtt_5fport_6',['mqtt_port',['../struct_sds_config.html#a2f9b1c8ff312e5e48d36cdc3f748d295',1,'SdsConfig']]],
-  ['mqtt_5fusername_7',['mqtt_username',['../struct_sds_config.html#a82a377f9d6fb527a0c59c5b20ad0da0a',1,'SdsConfig']]]
+  ['initialization_20api_0',['Initialization API',['../group__init.html',1,'']]],
+  ['install_20homebrew_20—_20recommended_20for_20users_1',['Option A: Quick Install (Homebrew) — &lt;em&gt;Recommended for users&lt;/em&gt;',['../index.html#autotoc_md6',1,'']]],
+  ['install_20sds_2',['1. Install SDS',['../index.html#autotoc_md4',1,'']]],
+  ['installation_3',['Installation',['../index.html#autotoc_md19',1,'']]],
+  ['isready_4',['isReady',['../class_s_d_s_client.html#a5d7b6872b8b84a0907c59de8a06db001',1,'SDSClient']]]
 ];

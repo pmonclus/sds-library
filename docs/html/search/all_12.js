@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['node_5fid_0',['node_id',['../struct_sds_config.html#a92d3097a776498e13cedfab7a99a2d3c',1,'SdsConfig']]]
+  ['key_20features_20v0_205_200_0',['Key Features (v0.5.0)',['../index.html#autotoc_md2',1,'']]]
 ];

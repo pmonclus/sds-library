@@ -480,6 +480,58 @@ void sds_shutdown(void);
 bool sds_is_ready(void);
 
 /**
+ * @brief Check if the MQTT connection is currently active.
+ * 
+ * This function checks the underlying MQTT connection status.
+ * Use this before calling sds_publish_raw() to avoid publish failures.
+ * 
+ * @return true if connected to MQTT broker, false otherwise
+ * 
+ * @see sds_is_ready, sds_publish_raw
+ */
+bool sds_is_connected(void);
+
+/**
+ * @brief Publish a raw MQTT message through the SDS-managed connection.
+ * 
+ * This function allows publishing arbitrary messages to any MQTT topic
+ * using the existing SDS connection. Useful for logging, diagnostics,
+ * or custom application messages that don't fit the table model.
+ * 
+ * @code{.c}
+ * if (sds_is_connected()) {
+ *     char topic[48];
+ *     snprintf(topic, sizeof(topic), "log/%s", sds_get_node_id());
+ *     const char* msg = "{\"level\":\"info\",\"msg\":\"Started\"}";
+ *     sds_publish_raw(topic, msg, strlen(msg), 0, false);
+ * }
+ * @endcode
+ * 
+ * @param topic MQTT topic string (null-terminated)
+ * @param payload Message payload (binary data or null-terminated string)
+ * @param payload_len Length of payload in bytes
+ * @param qos MQTT QoS level (0, 1, or 2)
+ * @param retained Whether message should be retained by broker
+ * @return SDS_OK on success, error code otherwise
+ *         - SDS_ERR_NOT_INITIALIZED: SDS not initialized
+ *         - SDS_ERR_MQTT_DISCONNECTED: Not connected to broker
+ *         - SDS_ERR_INVALID_CONFIG: Invalid parameters (NULL topic/payload)
+ *         - SDS_ERR_PLATFORM_ERROR: Publish failed
+ * 
+ * @note The "sds/" topic prefix is reserved for internal SDS use.
+ *       Publishing to sds/ topics may interfere with library operation.
+ * 
+ * @see sds_is_connected, sds_get_node_id
+ */
+SdsError sds_publish_raw(
+    const char* topic,
+    const void* payload,
+    size_t payload_len,
+    int qos,
+    bool retained
+);
+
+/**
  * @brief Get the node ID.
  * 
  * Returns the node ID from config, or the auto-generated ID if none

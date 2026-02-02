@@ -17,6 +17,17 @@ var sds_8h =
     [ "SdsStateCallback", "group__callbacks.html#ga6733edea0d33e8c1718333a493cdd254", null ],
     [ "SdsStatusCallback", "group__callbacks.html#gab350835fef85e82bb47c8bc41f931e09", null ],
     [ "SdsVersionMismatchCallback", "group__callbacks.html#ga5ed0d3421d5a6a90667376da7b1dd7c0", null ],
+    [ "SdsFieldType", "group__registry.html#gaf3021e016ef41b7515df447f2fa1b3dc", [
+      [ "SDS_FIELD_BOOL", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca906ad148a31906c71f7980f608f0e907", null ],
+      [ "SDS_FIELD_UINT8", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dcaf0dd0297fd9f6608e6dbcb5973aa4338", null ],
+      [ "SDS_FIELD_INT8", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca9b921ad20afeec3f966cbd7208fd70d1", null ],
+      [ "SDS_FIELD_UINT16", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca24e954c350d95708b6f6af40c9a38d7c", null ],
+      [ "SDS_FIELD_INT16", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dcaf8a335bcbb5e20055d6b601ec5144094", null ],
+      [ "SDS_FIELD_UINT32", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dcae453a3ca23ae79bc84baf93eeae766bd", null ],
+      [ "SDS_FIELD_INT32", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca0117af183dfa7bf85816f67426a83fee", null ],
+      [ "SDS_FIELD_FLOAT", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dcaf282aa907467953cced63e52bf73d9ad", null ],
+      [ "SDS_FIELD_STRING", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca072e261c906a9ac8948763b1c1f3106e", null ]
+    ] ],
     [ "SdsRole", "group__types.html#ga68cca75b054cefd757ee270011408569", [
       [ "SDS_ROLE_OWNER", "group__types.html#gga68cca75b054cefd757ee270011408569acc9b5080e3c4fe81dfa431bf18fbd74f", null ],
       [ "SDS_ROLE_DEVICE", "group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c", null ]
@@ -31,6 +42,7 @@ var sds_8h =
     [ "sds_get_stats", "group__init.html#gab9070cd3bc84e1f14e681e7d626edbb2", null ],
     [ "sds_get_table_count", "group__registration.html#ga4b0b3bf65da3cdabd1b40be352726597", null ],
     [ "sds_init", "group__init.html#ga99eea78bf2771e604ab5ce296cd8a815", null ],
+    [ "sds_is_connected", "group__init.html#gacbebde6c8a878aed82e3830c6da5ec2d", null ],
     [ "sds_is_device_online", "group__owner__helpers.html#gae142a1929b1869cff9059e48b9d29d58", null ],
     [ "sds_is_ready", "group__init.html#ga3fb2f5c3f803258542228416cad2cea6", null ],
     [ "sds_loop", "group__init.html#ga275b11badbc4756a9b93502af7e30778", null ],
@@ -40,6 +52,7 @@ var sds_8h =
     [ "sds_on_state_update", "group__event__callbacks.html#ga91c7b4168913bf321fab470c6bbc920f", null ],
     [ "sds_on_status_update", "group__event__callbacks.html#ga9e44ff93f2a354a19a1cc16bb1031ab7", null ],
     [ "sds_on_version_mismatch", "group__event__callbacks.html#ga547546bec14b0c9a668b44c90f086d89", null ],
+    [ "sds_publish_raw", "group__init.html#ga1fcaa6529e839b694390d2cfceb77b56", null ],
     [ "sds_register_table", "group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4", null ],
     [ "sds_register_table_ex", "group__registration.html#ga62bff7a0359b6f6329224560ed2dec69", null ],
     [ "sds_set_owner_eviction_offsets", "group__owner__helpers.html#gabad46d1e7d411b2b7773e0248651fd5b", null ],

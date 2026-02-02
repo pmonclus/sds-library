@@ -283,6 +283,39 @@ with SdsNode(
         print(f"Device {node_id} evicted from {table_type}")
 ```
 
+### Raw MQTT Publish (v0.5.0+)
+
+Send custom MQTT messages through the SDS-managed connection. Useful for logging,
+diagnostics, or application-specific messages that don't fit the table model:
+
+```python
+with SdsNode("sensor_01", "localhost") as node:
+    # Check connection status
+    if node.is_connected():
+        # Publish a log message
+        node.publish_raw(
+            f"log/{node.node_id}",
+            '{"level": "info", "msg": "Sensor started"}',
+            qos=0,
+            retained=False
+        )
+        
+        # Publish binary data
+        node.publish_raw("sensor/raw_data", b'\x00\x01\x02\x03')
+```
+
+**Methods:**
+
+| Method | Description |
+|--------|-------------|
+| `is_connected()` | Returns `True` if connected to MQTT broker |
+| `publish_raw(topic, payload, qos=0, retained=False)` | Publish arbitrary MQTT message |
+
+**Notes:**
+- The `sds/` topic prefix is reserved for internal SDS use
+- `payload` can be `str` (UTF-8 encoded) or `bytes`
+- Returns `True` on success, `False` on failure
+
 ## API Reference
 
 ### SdsNode

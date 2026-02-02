@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['esp32_0',['Arduino / ESP32',['../index.html#autotoc_md11',1,'']]],
-  ['esp32_20device_20example_1',['ESP32 Device Example',['../index.html#autotoc_md13',1,'']]],
-  ['example_2',['Example',['../index.html#autotoc_md13',1,'ESP32 Device Example'],['../index.html#autotoc_md17',1,'Simple Device Example']]]
+  ['c_20library_20linux_20macos_0',['C Library (Linux/macOS)',['../index.html#autotoc_md22',1,'']]],
+  ['contributors_1',['Option B: Build from Source — &lt;em&gt;For developers and contributors&lt;/em&gt;',['../index.html#autotoc_md8',1,'']]]
 ];

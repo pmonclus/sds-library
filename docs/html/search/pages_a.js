@@ -1,10 +1,8 @@
 var searchData=
 [
-  ['data_20structures_0',['SDS (Synchronized Data Structures)',['../index.html',1,'']]],
-  ['define_20your_20schema_1',['3. Define Your Schema',['../index.html#autotoc_md5',1,'']]],
-  ['definitions_2',['4. Generate Type Definitions',['../index.html#autotoc_md6',1,'']]],
-  ['device_20example_3',['Device Example',['../index.html#autotoc_md13',1,'ESP32 Device Example'],['../index.html#autotoc_md17',1,'Simple Device Example']]],
-  ['device_20python_4',['6. Run Your First Device (Python)',['../index.html#autotoc_md8',1,'']]],
-  ['device_20vs_20owner_20roles_5',['Device vs Owner Roles',['../sds_8h.html#roles',1,'']]],
-  ['documentation_6',['Documentation',['../index.html#autotoc_md21',1,'']]]
+  ['b_3a_20build_20from_20source_20—_20for_20developers_20and_20contributors_0',['Option B: Build from Source — &lt;em&gt;For developers and contributors&lt;/em&gt;',['../index.html#autotoc_md8',1,'']]],
+  ['basic_20usage_1',['Basic Usage',['../sds_8h.html#usage',1,'']]],
+  ['broker_2',['5. Start an MQTT Broker',['../index.html#autotoc_md12',1,'']]],
+  ['build_20from_20source_20—_20for_20developers_20and_20contributors_3',['Option B: Build from Source — &lt;em&gt;For developers and contributors&lt;/em&gt;',['../index.html#autotoc_md8',1,'']]],
+  ['building_4',['Building',['../index.html#autotoc_md23',1,'']]]
 ];

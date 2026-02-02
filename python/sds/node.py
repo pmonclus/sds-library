@@ -328,6 +328,83 @@ class SdsNode:
                 return False
             return lib.sds_is_ready()
     
+    def is_connected(self) -> bool:
+        """
+        Check if the MQTT connection is currently active.
+        
+        Use this before calling publish_raw() to avoid publish failures.
+        Thread-safe.
+        
+        Returns:
+            True if connected to MQTT broker, False otherwise
+        """
+        with self._lock:
+            if not self._initialized:
+                return False
+            return lib.sds_is_connected()
+    
+    def publish_raw(
+        self,
+        topic: str,
+        payload: Union[str, bytes],
+        qos: int = 0,
+        retained: bool = False
+    ) -> bool:
+        """
+        Publish a raw MQTT message through the SDS-managed connection.
+        
+        Allows publishing arbitrary messages to any MQTT topic using the
+        existing SDS connection. Useful for logging, diagnostics, or custom
+        application messages that don't fit the table model.
+        
+        Thread-safe.
+        
+        Args:
+            topic: MQTT topic string
+            payload: Message payload (string or bytes)
+            qos: MQTT QoS level (0, 1, or 2), defaults to 0
+            retained: Whether message should be retained by broker
+        
+        Returns:
+            True on success, False if not connected or publish failed
+        
+        Raises:
+            ValueError: If topic is empty or qos is invalid
+            SdsError: If SDS is not initialized
+        
+        Note:
+            The sds/* topic prefix is reserved for internal SDS use.
+            Publishing to sds/* topics may interfere with library operation.
+        
+        Example:
+            >>> if node.is_connected():
+            ...     node.publish_raw(f"log/{node.node_id}", '{"msg": "hello"}')
+        """
+        if not topic:
+            raise ValueError("topic cannot be empty")
+        if qos not in (0, 1, 2):
+            raise ValueError(f"qos must be 0, 1, or 2, got {qos}")
+        
+        # Convert string payload to bytes
+        if isinstance(payload, str):
+            payload_bytes = payload.encode('utf-8')
+        else:
+            payload_bytes = payload
+        
+        with self._lock:
+            if not self._initialized:
+                raise SdsError.from_code(ErrorCode.NOT_INITIALIZED)
+            
+            topic_bytes = topic.encode('utf-8')
+            result = lib.sds_publish_raw(
+                topic_bytes,
+                payload_bytes,
+                len(payload_bytes),
+                qos,
+                retained
+            )
+            return result == 0  # SDS_OK
+    
     def poll(self, timeout_ms: int = 0) -> None:
         """
         Process MQTT messages and sync table changes.

@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['macos_0',['C Library (Linux/macOS)',['../index.html#autotoc_md15',1,'']]],
-  ['mqtt_20broker_1',['5. Start an MQTT Broker',['../index.html#autotoc_md7',1,'']]]
+  ['homebrew_20—_20recommended_20for_20users_0',['Option A: Quick Install (Homebrew) — &lt;em&gt;Recommended for users&lt;/em&gt;',['../index.html#autotoc_md6',1,'']]]
 ];

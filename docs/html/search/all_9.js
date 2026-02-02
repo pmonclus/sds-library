@@ -1,10 +1,10 @@
 var searchData=
 [
-  ['c_20library_20linux_20macos_0',['C Library (Linux/macOS)',['../index.html#autotoc_md15',1,'']]],
-  ['c_20wrapper_1',['Arduino C++ Wrapper',['../group__arduino.html',1,'']]],
-  ['callback_20types_2',['Callback Types',['../group__callbacks.html',1,'']]],
-  ['callbacks_3',['Event Callbacks',['../group__event__callbacks.html',1,'']]],
-  ['configuration_20constants_4',['Configuration Constants',['../group__config.html',1,'']]],
-  ['constants_5',['Configuration Constants',['../group__config.html',1,'']]],
-  ['core_20types_6',['Core Types',['../group__types.html',1,'']]]
+  ['a_3a_20quick_20install_20homebrew_20—_20recommended_20for_20users_0',['Option A: Quick Install (Homebrew) — &lt;em&gt;Recommended for users&lt;/em&gt;',['../index.html#autotoc_md6',1,'']]],
+  ['an_20mqtt_20broker_1',['5. Start an MQTT Broker',['../index.html#autotoc_md12',1,'']]],
+  ['an_20owner_20python_2',['7. Run an Owner (Python)',['../index.html#autotoc_md14',1,'']]],
+  ['and_20contributors_3',['Option B: Build from Source — &lt;em&gt;For developers and contributors&lt;/em&gt;',['../index.html#autotoc_md8',1,'']]],
+  ['api_4',['API',['../group__init.html',1,'Initialization API'],['../group__registration.html',1,'Table Registration API']]],
+  ['arduino_20c_20wrapper_5',['Arduino C++ Wrapper',['../group__arduino.html',1,'']]],
+  ['arduino_20esp32_6',['Arduino / ESP32',['../index.html#autotoc_md18',1,'']]]
 ];

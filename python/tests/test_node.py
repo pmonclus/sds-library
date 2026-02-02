@@ -337,6 +337,97 @@ class TestSdsNodeCallbacks:
 
 @pytest.mark.requires_cffi
 @pytest.mark.requires_mqtt
+class TestRawPublishAPI:
+    """Tests for raw MQTT publish API."""
+    
+    def test_is_connected_when_connected(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """is_connected() returns True when connected to broker."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            assert node.is_connected() is True
+    
+    def test_publish_raw_success(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """publish_raw() sends message successfully."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            result = node.publish_raw(
+                f"test/{unique_node_id}/raw",
+                '{"msg": "hello"}',
+                qos=0
+            )
+            assert result is True
+    
+    def test_publish_raw_with_bytes(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """publish_raw() accepts bytes payload."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            result = node.publish_raw(
+                f"test/{unique_node_id}/bytes",
+                b'\x00\x01\x02\x03',
+                qos=0
+            )
+            assert result is True
+    
+    def test_publish_raw_retained(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """publish_raw() can set retained flag."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            result = node.publish_raw(
+                f"test/{unique_node_id}/retained",
+                "retained message",
+                retained=True
+            )
+            assert result is True
+    
+    def test_publish_raw_empty_topic_raises(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """publish_raw() raises ValueError for empty topic."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            with pytest.raises(ValueError):
+                node.publish_raw("", "message")
+    
+    def test_publish_raw_invalid_qos_raises(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """publish_raw() raises ValueError for invalid QoS."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            with pytest.raises(ValueError):
+                node.publish_raw("test/topic", "message", qos=5)
+
+
+@pytest.mark.requires_cffi
+class TestIsConnectedWithoutBroker:
+    """Tests for is_connected() without MQTT broker."""
+    
+    def test_is_connected_false_when_not_initialized(self, unique_node_id):
+        """is_connected() returns False when not initialized."""
+        node = SdsNode(
+            unique_node_id,
+            "localhost",
+            auto_init=False
+        )
+        assert node.is_connected() is False
+
+
+@pytest.mark.requires_cffi
+@pytest.mark.requires_mqtt
 class TestDeltaSyncWithBroker:
     """Tests for delta sync behavior with a running MQTT broker."""
     

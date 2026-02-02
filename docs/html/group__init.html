@@ -106,6 +106,10 @@ Functions</h2></td></tr>
 <tr class="memdesc:gae809cf426b23805d83699f84d67882ca"><td class="mdescLeft">&#160;</td><td class="mdescRight">Shutdown SDS and disconnect from MQTT broker.  <br /></td></tr>
 <tr class="memitem:ga3fb2f5c3f803258542228416cad2cea6" id="r_ga3fb2f5c3f803258542228416cad2cea6"><td class="memItemLeft">bool&#160;</td><td class="memItemRight"><a class="el" href="#ga3fb2f5c3f803258542228416cad2cea6">sds_is_ready</a> (void)</td></tr>
 <tr class="memdesc:ga3fb2f5c3f803258542228416cad2cea6"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if SDS is initialized and connected.  <br /></td></tr>
+<tr class="memitem:gacbebde6c8a878aed82e3830c6da5ec2d" id="r_gacbebde6c8a878aed82e3830c6da5ec2d"><td class="memItemLeft">bool&#160;</td><td class="memItemRight"><a class="el" href="#gacbebde6c8a878aed82e3830c6da5ec2d">sds_is_connected</a> (void)</td></tr>
+<tr class="memdesc:gacbebde6c8a878aed82e3830c6da5ec2d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if the MQTT connection is currently active.  <br /></td></tr>
+<tr class="memitem:ga1fcaa6529e839b694390d2cfceb77b56" id="r_ga1fcaa6529e839b694390d2cfceb77b56"><td class="memItemLeft">SdsError&#160;</td><td class="memItemRight"><a class="el" href="#ga1fcaa6529e839b694390d2cfceb77b56">sds_publish_raw</a> (const char *topic, const void *payload, size_t payload_len, int qos, bool retained)</td></tr>
+<tr class="memdesc:ga1fcaa6529e839b694390d2cfceb77b56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Publish a raw MQTT message through the SDS-managed connection.  <br /></td></tr>
 <tr class="memitem:gab2d009b20c5946bae1e107a1efefee0f" id="r_gab2d009b20c5946bae1e107a1efefee0f"><td class="memItemLeft">const char *&#160;</td><td class="memItemRight"><a class="el" href="#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a> (void)</td></tr>
 <tr class="memdesc:gab2d009b20c5946bae1e107a1efefee0f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the node ID.  <br /></td></tr>
 <tr class="memitem:gab9070cd3bc84e1f14e681e7d626edbb2" id="r_gab9070cd3bc84e1f14e681e7d626edbb2"><td class="memItemLeft">const <a class="el" href="struct_sds_stats.html">SdsStats</a> *&#160;</td><td class="memItemRight"><a class="el" href="#gab9070cd3bc84e1f14e681e7d626edbb2">sds_get_stats</a> (void)</td></tr>
@@ -187,6 +191,28 @@ Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="gacbebde6c8a878aed82e3830c6da5ec2d" name="gacbebde6c8a878aed82e3830c6da5ec2d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gacbebde6c8a878aed82e3830c6da5ec2d">&#9670;&#160;</a></span>sds_is_connected()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool sds_is_connected </td>
+          <td>(</td>
+          <td class="paramtype">void</td>          <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Check if the MQTT connection is currently active. </p>
+<p>This function checks the underlying MQTT connection status. Use this before calling <a class="el" href="#ga1fcaa6529e839b694390d2cfceb77b56" title="Publish a raw MQTT message through the SDS-managed connection.">sds_publish_raw()</a> to avoid publish failures.</p>
+<dl class="section return"><dt>Returns</dt><dd>true if connected to MQTT broker, false otherwise</dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga3fb2f5c3f803258542228416cad2cea6" title="Check if SDS is initialized and connected.">sds_is_ready</a>, <a class="el" href="#ga1fcaa6529e839b694390d2cfceb77b56" title="Publish a raw MQTT message through the SDS-managed connection.">sds_publish_raw</a> </dd></dl>
+
+</div>
+</div>
 <a id="ga3fb2f5c3f803258542228416cad2cea6" name="ga3fb2f5c3f803258542228416cad2cea6"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga3fb2f5c3f803258542228416cad2cea6">&#9670;&#160;</a></span>sds_is_ready()</h2>
 
@@ -232,6 +258,73 @@ Functions</h2></td></tr>
 </ul>
 <dl class="section note"><dt>Note</dt><dd>This function is non-blocking and returns quickly.</dd></dl>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga3fb2f5c3f803258542228416cad2cea6" title="Check if SDS is initialized and connected.">sds_is_ready</a> </dd></dl>
+
+</div>
+</div>
+<a id="ga1fcaa6529e839b694390d2cfceb77b56" name="ga1fcaa6529e839b694390d2cfceb77b56"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ga1fcaa6529e839b694390d2cfceb77b56">&#9670;&#160;</a></span>sds_publish_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">SdsError sds_publish_raw </td>
+          <td>(</td>
+          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>topic</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const void *</td>          <td class="paramname"><span class="paramname"><em>payload</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t</td>          <td class="paramname"><span class="paramname"><em>payload_len</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>qos</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool</td>          <td class="paramname"><span class="paramname"><em>retained</em></span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Publish a raw MQTT message through the SDS-managed connection. </p>
+<p>This function allows publishing arbitrary messages to any MQTT topic using the existing SDS connection. Useful for logging, diagnostics, or custom application messages that don't fit the table model.</p>
+<div class="fragment"><div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="#gacbebde6c8a878aed82e3830c6da5ec2d">sds_is_connected</a>()) {</div>
+<div class="line">    <span class="keywordtype">char</span> topic[48];</div>
+<div class="line">    snprintf(topic, <span class="keyword">sizeof</span>(topic), <span class="stringliteral">&quot;log/%s&quot;</span>, <a class="code hl_function" href="#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a>());</div>
+<div class="line">    <span class="keyword">const</span> <span class="keywordtype">char</span>* msg = <span class="stringliteral">&quot;{\&quot;level\&quot;:\&quot;info\&quot;,\&quot;msg\&quot;:\&quot;Started\&quot;}&quot;</span>;</div>
+<div class="line">    <a class="code hl_function" href="#ga1fcaa6529e839b694390d2cfceb77b56">sds_publish_raw</a>(topic, msg, strlen(msg), 0, <span class="keyword">false</span>);</div>
+<div class="line">}</div>
+<div class="ttc" id="agroup__init_html_ga1fcaa6529e839b694390d2cfceb77b56"><div class="ttname"><a href="#ga1fcaa6529e839b694390d2cfceb77b56">sds_publish_raw</a></div><div class="ttdeci">SdsError sds_publish_raw(const char *topic, const void *payload, size_t payload_len, int qos, bool retained)</div><div class="ttdoc">Publish a raw MQTT message through the SDS-managed connection.</div></div>
+<div class="ttc" id="agroup__init_html_gab2d009b20c5946bae1e107a1efefee0f"><div class="ttname"><a href="#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a></div><div class="ttdeci">const char * sds_get_node_id(void)</div><div class="ttdoc">Get the node ID.</div></div>
+<div class="ttc" id="agroup__init_html_gacbebde6c8a878aed82e3830c6da5ec2d"><div class="ttname"><a href="#gacbebde6c8a878aed82e3830c6da5ec2d">sds_is_connected</a></div><div class="ttdeci">bool sds_is_connected(void)</div><div class="ttdoc">Check if the MQTT connection is currently active.</div></div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">topic</td><td>MQTT topic string (null-terminated) </td></tr>
+    <tr><td class="paramname">payload</td><td>Message payload (binary data or null-terminated string) </td></tr>
+    <tr><td class="paramname">payload_len</td><td>Length of payload in bytes </td></tr>
+    <tr><td class="paramname">qos</td><td>MQTT QoS level (0, 1, or 2) </td></tr>
+    <tr><td class="paramname">retained</td><td>Whether message should be retained by broker </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>SDS_OK on success, error code otherwise<ul>
+<li>SDS_ERR_NOT_INITIALIZED: SDS not initialized</li>
+<li>SDS_ERR_MQTT_DISCONNECTED: Not connected to broker</li>
+<li>SDS_ERR_INVALID_CONFIG: Invalid parameters (NULL topic/payload)</li>
+<li>SDS_ERR_PLATFORM_ERROR: Publish failed</li>
+</ul>
+</dd></dl>
+<dl class="section note"><dt>Note</dt><dd>The "sds/" topic prefix is reserved for internal SDS use. Publishing to sds/ topics may interfere with library operation.</dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="#gacbebde6c8a878aed82e3830c6da5ec2d" title="Check if the MQTT connection is currently active.">sds_is_connected</a>, <a class="el" href="#gab2d009b20c5946bae1e107a1efefee0f" title="Get the node ID.">sds_get_node_id</a> </dd></dl>
 
 </div>
 </div>

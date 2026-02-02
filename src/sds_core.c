@@ -532,6 +532,44 @@ bool sds_is_ready(void) {
     return _initialized && sds_platform_mqtt_connected();
 }
 
+bool sds_is_connected(void) {
+    return _initialized && sds_platform_mqtt_connected();
+}
+
+SdsError sds_publish_raw(
+    const char* topic,
+    const void* payload,
+    size_t payload_len,
+    int qos,
+    bool retained
+) {
+    if (!_initialized) {
+        return SDS_ERR_NOT_INITIALIZED;
+    }
+    
+    if (!topic || !payload) {
+        return SDS_ERR_INVALID_CONFIG;
+    }
+    
+    if (!sds_platform_mqtt_connected()) {
+        return SDS_ERR_MQTT_DISCONNECTED;
+    }
+    
+    /* Note: qos parameter is currently ignored - platform uses QoS 0 */
+    /* This could be extended in the platform layer if needed */
+    (void)qos;
+    
+    bool success = sds_platform_mqtt_publish(topic, (const uint8_t*)payload, payload_len, retained);
+    
+    if (success) {
+        _stats.messages_sent++;
+        return SDS_OK;
+    } else {
+        _stats.errors++;
+        return SDS_ERR_PLATFORM_ERROR;
+    }
+}
+
 const char* sds_get_node_id(void) {
     if (!_initialized) {
         return NULL;

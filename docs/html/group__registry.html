@@ -98,8 +98,28 @@ $(function(){initNavTree('group__registry.html','',''); });
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-nested-classes" class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Data Structures</h2></td></tr>
+<tr class="memitem:SdsFieldMeta" id="r_SdsFieldMeta"><td class="memItemLeft">struct &#160;</td><td class="memItemRight"><a class="el" href="struct_sds_field_meta.html">SdsFieldMeta</a></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Field descriptor for delta serialization.  <a href="struct_sds_field_meta.html#details">More...</a><br /></td></tr>
 <tr class="memitem:SdsTableMeta" id="r_SdsTableMeta"><td class="memItemLeft">struct &#160;</td><td class="memItemRight"><a class="el" href="struct_sds_table_meta.html">SdsTableMeta</a></td></tr>
 <tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Complete metadata for a table type.  <a href="struct_sds_table_meta.html#details">More...</a><br /></td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 id="header-enum-members" class="groupheader"><a id="enum-members" name="enum-members"></a>
+Enumerations</h2></td></tr>
+<tr class="memitem:gaf3021e016ef41b7515df447f2fa1b3dc" id="r_gaf3021e016ef41b7515df447f2fa1b3dc"><td class="memItemLeft">enum &#160;</td><td class="memItemRight"><a class="el" href="#gaf3021e016ef41b7515df447f2fa1b3dc">SdsFieldType</a> { <br />
+&#160;&#160;<a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dca906ad148a31906c71f7980f608f0e907">SDS_FIELD_BOOL</a> = 0
+, <a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dcaf0dd0297fd9f6608e6dbcb5973aa4338">SDS_FIELD_UINT8</a>
+, <a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dca9b921ad20afeec3f966cbd7208fd70d1">SDS_FIELD_INT8</a>
+, <a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dca24e954c350d95708b6f6af40c9a38d7c">SDS_FIELD_UINT16</a>
+, <br />
+&#160;&#160;<a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dcaf8a335bcbb5e20055d6b601ec5144094">SDS_FIELD_INT16</a>
+, <a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dcae453a3ca23ae79bc84baf93eeae766bd">SDS_FIELD_UINT32</a>
+, <a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dca0117af183dfa7bf85816f67426a83fee">SDS_FIELD_INT32</a>
+, <a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dcaf282aa907467953cced63e52bf73d9ad">SDS_FIELD_FLOAT</a>
+, <br />
+&#160;&#160;<a class="el" href="#ggaf3021e016ef41b7515df447f2fa1b3dca072e261c906a9ac8948763b1c1f3106e">SDS_FIELD_STRING</a>
+<br />
+ }</td></tr>
+<tr class="memdesc:gaf3021e016ef41b7515df447f2fa1b3dc"><td class="mdescLeft">&#160;</td><td class="mdescRight">Field data types for delta serialization.  <a href="#gaf3021e016ef41b7515df447f2fa1b3dc">More...</a><br /></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-func-members" class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
@@ -110,7 +130,45 @@ Functions</h2></td></tr>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Metadata structures for schema-driven table registration. </p>
 <p>The code generator creates an SDS_TABLE_REGISTRY array containing <a class="el" href="struct_sds_table_meta.html" title="Complete metadata for a table type.">SdsTableMeta</a> entries for each table defined in your schema.sds file. This enables the simple <a class="el" href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4" title="Register a table using the metadata registry.">sds_register_table()</a> API. </p>
-</div><a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">Function Documentation</h2>
+</div><a name="doc-enum-members" id="doc-enum-members"></a><h2 id="header-doc-enum-members" class="groupheader">Enumeration Type Documentation</h2>
+<a id="gaf3021e016ef41b7515df447f2fa1b3dc" name="gaf3021e016ef41b7515df447f2fa1b3dc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaf3021e016ef41b7515df447f2fa1b3dc">&#9670;&#160;</a></span>SdsFieldType</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">enum <a class="el" href="#gaf3021e016ef41b7515df447f2fa1b3dc">SdsFieldType</a></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Field data types for delta serialization. </p>
+<p>Used by <a class="el" href="struct_sds_field_meta.html" title="Field descriptor for delta serialization.">SdsFieldMeta</a> to describe field types for per-field change detection and serialization. </p>
+<table class="fieldtable">
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dca906ad148a31906c71f7980f608f0e907" name="ggaf3021e016ef41b7515df447f2fa1b3dca906ad148a31906c71f7980f608f0e907"></a>SDS_FIELD_BOOL&#160;</td><td class="fielddoc"><p>Boolean (stored as uint8_t) </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dcaf0dd0297fd9f6608e6dbcb5973aa4338" name="ggaf3021e016ef41b7515df447f2fa1b3dcaf0dd0297fd9f6608e6dbcb5973aa4338"></a>SDS_FIELD_UINT8&#160;</td><td class="fielddoc"><p>Unsigned 8-bit integer </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dca9b921ad20afeec3f966cbd7208fd70d1" name="ggaf3021e016ef41b7515df447f2fa1b3dca9b921ad20afeec3f966cbd7208fd70d1"></a>SDS_FIELD_INT8&#160;</td><td class="fielddoc"><p>Signed 8-bit integer </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dca24e954c350d95708b6f6af40c9a38d7c" name="ggaf3021e016ef41b7515df447f2fa1b3dca24e954c350d95708b6f6af40c9a38d7c"></a>SDS_FIELD_UINT16&#160;</td><td class="fielddoc"><p>Unsigned 16-bit integer </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dcaf8a335bcbb5e20055d6b601ec5144094" name="ggaf3021e016ef41b7515df447f2fa1b3dcaf8a335bcbb5e20055d6b601ec5144094"></a>SDS_FIELD_INT16&#160;</td><td class="fielddoc"><p>Signed 16-bit integer </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dcae453a3ca23ae79bc84baf93eeae766bd" name="ggaf3021e016ef41b7515df447f2fa1b3dcae453a3ca23ae79bc84baf93eeae766bd"></a>SDS_FIELD_UINT32&#160;</td><td class="fielddoc"><p>Unsigned 32-bit integer </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dca0117af183dfa7bf85816f67426a83fee" name="ggaf3021e016ef41b7515df447f2fa1b3dca0117af183dfa7bf85816f67426a83fee"></a>SDS_FIELD_INT32&#160;</td><td class="fielddoc"><p>Signed 32-bit integer </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dcaf282aa907467953cced63e52bf73d9ad" name="ggaf3021e016ef41b7515df447f2fa1b3dcaf282aa907467953cced63e52bf73d9ad"></a>SDS_FIELD_FLOAT&#160;</td><td class="fielddoc"><p>32-bit floating point </p>
+</td></tr>
+<tr><td class="fieldname"><a id="ggaf3021e016ef41b7515df447f2fa1b3dca072e261c906a9ac8948763b1c1f3106e" name="ggaf3021e016ef41b7515df447f2fa1b3dca072e261c906a9ac8948763b1c1f3106e"></a>SDS_FIELD_STRING&#160;</td><td class="fielddoc"><p>Null-terminated string (char array) </p>
+</td></tr>
+</table>
+
+</div>
+</div>
+<a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">Function Documentation</h2>
 <a id="ga396e6a8d0d4dd71f5419e8695088eae8" name="ga396e6a8d0d4dd71f5419e8695088eae8"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#ga396e6a8d0d4dd71f5419e8695088eae8">&#9670;&#160;</a></span>sds_find_table_meta()</h2>
 

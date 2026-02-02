@@ -1486,6 +1486,132 @@ TEST(delta_float_tolerance_configurable) {
 }
 
 /* ============================================================================
+ * RAW PUBLISH API TESTS
+ * ============================================================================ */
+
+TEST(is_connected_returns_true_when_connected) {
+    init_sds_with_mock("test_node");
+    
+    ASSERT(sds_is_connected() == true);
+    
+    sds_shutdown();
+}
+
+TEST(is_connected_returns_false_when_not_initialized) {
+    ASSERT(sds_is_connected() == false);
+}
+
+TEST(is_connected_returns_false_when_mqtt_disconnected) {
+    init_sds_with_mock("test_node");
+    
+    /* Simulate MQTT disconnect */
+    SdsMockConfig* cfg = (SdsMockConfig*)sds_mock_get_config();
+    cfg->mqtt_connected = false;
+    sds_mock_configure(cfg);
+    
+    ASSERT(sds_is_connected() == false);
+    
+    sds_shutdown();
+}
+
+TEST(publish_raw_success) {
+    init_sds_with_mock("test_node");
+    
+    const char* topic = "app/test/topic";
+    const char* payload = "{\"msg\":\"hello\"}";
+    
+    SdsError result = sds_publish_raw(topic, payload, strlen(payload), 0, false);
+    
+    ASSERT_EQ(result, SDS_OK);
+    
+    /* Verify message was published */
+    const SdsMockPublishedMessage* msg = sds_mock_find_publish_by_topic(topic);
+    ASSERT(msg != NULL);
+    ASSERT_STR_EQ(msg->topic, topic);
+    ASSERT_STR_CONTAINS((char*)msg->payload, "hello");
+    
+    sds_shutdown();
+}
+
+TEST(publish_raw_fails_when_not_initialized) {
+    const char* topic = "app/test/topic";
+    const char* payload = "test";
+    
+    SdsError result = sds_publish_raw(topic, payload, strlen(payload), 0, false);
+    
+    ASSERT_EQ(result, SDS_ERR_NOT_INITIALIZED);
+}
+
+TEST(publish_raw_fails_with_null_topic) {
+    init_sds_with_mock("test_node");
+    
+    const char* payload = "test";
+    SdsError result = sds_publish_raw(NULL, payload, strlen(payload), 0, false);
+    
+    ASSERT_EQ(result, SDS_ERR_INVALID_CONFIG);
+    
+    sds_shutdown();
+}
+
+TEST(publish_raw_fails_with_null_payload) {
+    init_sds_with_mock("test_node");
+    
+    SdsError result = sds_publish_raw("app/test", NULL, 0, 0, false);
+    
+    ASSERT_EQ(result, SDS_ERR_INVALID_CONFIG);
+    
+    sds_shutdown();
+}
+
+TEST(publish_raw_fails_when_disconnected) {
+    init_sds_with_mock("test_node");
+    
+    /* Simulate MQTT disconnect */
+    SdsMockConfig* cfg = (SdsMockConfig*)sds_mock_get_config();
+    cfg->mqtt_connected = false;
+    sds_mock_configure(cfg);
+    
+    const char* topic = "app/test/topic";
+    const char* payload = "test";
+    SdsError result = sds_publish_raw(topic, payload, strlen(payload), 0, false);
+    
+    ASSERT_EQ(result, SDS_ERR_MQTT_DISCONNECTED);
+    
+    sds_shutdown();
+}
+
+TEST(publish_raw_with_retained_flag) {
+    init_sds_with_mock("test_node");
+    
+    const char* topic = "app/retained/topic";
+    const char* payload = "retained_msg";
+    
+    SdsError result = sds_publish_raw(topic, payload, strlen(payload), 0, true);
+    
+    ASSERT_EQ(result, SDS_OK);
+    
+    /* Verify retained flag was set */
+    const SdsMockPublishedMessage* msg = sds_mock_find_publish_by_topic(topic);
+    ASSERT(msg != NULL);
+    ASSERT(msg->retained == true);
+    
+    sds_shutdown();
+}
+
+TEST(publish_raw_increments_stats) {
+    init_sds_with_mock("test_node");
+    
+    const SdsStats* stats = sds_get_stats();
+    uint32_t initial_sent = stats->messages_sent;
+    
+    sds_publish_raw("app/test", "msg", 3, 0, false);
+    
+    ASSERT_EQ(stats->messages_sent, initial_sent + 1);
+    
+    sds_shutdown();
+}
+
+/* ============================================================================
  * MAIN
  * ============================================================================ */
 
@@ -1582,6 +1708,18 @@ int main(void) {
     RUN_TEST(delta_sync_disabled_by_default);
     RUN_TEST(delta_sync_enabled_in_config);
     RUN_TEST(delta_float_tolerance_configurable);
+    
+    printf("\n─── Raw Publish API Tests ───\n");
+    RUN_TEST(is_connected_returns_true_when_connected);
+    RUN_TEST(is_connected_returns_false_when_not_initialized);
+    RUN_TEST(is_connected_returns_false_when_mqtt_disconnected);
+    RUN_TEST(publish_raw_success);
+    RUN_TEST(publish_raw_fails_when_not_initialized);
+    RUN_TEST(publish_raw_fails_with_null_topic);
+    RUN_TEST(publish_raw_fails_with_null_payload);
+    RUN_TEST(publish_raw_fails_when_disconnected);
+    RUN_TEST(publish_raw_with_retained_flag);
+    RUN_TEST(publish_raw_increments_stats);
     
     printf("\n");
     printf("══════════════════════════════════════════════════════════════\n");

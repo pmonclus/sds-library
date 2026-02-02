@@ -653,30 +653,39 @@ def _create_delta_serializer(self, fields: List[SdsFieldMeta]):
 - [x] Add delta sync to features list (Key Features section)
 - [x] Add usage example with `enable_delta_sync` (section 8)
 - [x] C and Python examples included
+- [x] Add raw MQTT publish feature to Key Features
+- [x] Add section 9: Raw MQTT Publish with examples
 
 ### Task 5.3: Update `TESTING.md`
 
-- [x] Update test count (371+ tests)
+- [x] Update test count (390+ tests)
 - [x] Document `test_delta_sync` (8 tests)
-- [x] Update `test_unit_core` count (60 tests)
+- [x] Update `test_unit_core` count (70 tests)
 - [x] Update Quick Start command
+- [x] Add Raw Publish API test category
 
 ### Task 5.3b: Update `python/README.md`
 
 - [x] Add Configuration Options section
 - [x] Document `enable_delta_sync` and `delta_float_tolerance`
 - [x] Document `eviction_grace_ms`
+- [x] Add Raw MQTT Publish section with examples
+
+### Task 5.3c: Update `DESIGN.md`
+
+- [x] Add section 5.11 Raw MQTT Publish with API documentation
+- [x] Renumber subsequent sections (5.12-5.16)
 
 ### Task 5.4: Regenerate Doxygen
 
-- [ ] Run `doxygen Doxyfile`
-- [ ] Verify new APIs documented
+- [x] Run `doxygen Doxyfile`
+- [x] Verify new APIs documented (sds_is_connected, sds_publish_raw in docs/html)
 
 ### Task 5.5: Version bump and changelog
 
-- [ ] Update version to 0.5.0 in `pyproject.toml`
-- [ ] Update version in `Formula/sds.rb`
-- [ ] Create CHANGELOG.md entry
+- [x] Update version to 0.5.0 in `pyproject.toml`
+- [x] Update version in `Formula/sds.rb`
+- [x] Create CHANGELOG.md with full release notes
 
 ### Task 5.6: Create GitHub release
 

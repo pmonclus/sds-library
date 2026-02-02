@@ -205,6 +205,8 @@ SdsError sds_init(const SdsConfig* config);
 void sds_loop(void);
 void sds_shutdown(void);
 bool sds_is_ready(void);
+bool sds_is_connected(void);
+SdsError sds_publish_raw(const char* topic, const void* payload, size_t payload_len, int qos, bool retained);
 const char* sds_get_node_id(void);
 const SdsStats* sds_get_stats(void);
 

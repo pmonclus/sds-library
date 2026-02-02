@@ -1,6 +1,5 @@
 var searchData=
 [
-  ['tests_0',['Running Tests',['../index.html#autotoc_md23',1,'']]],
-  ['troubleshooting_1',['Troubleshooting',['../index.html#autotoc_md25',1,'']]],
-  ['type_20definitions_2',['4. Generate Type Definitions',['../index.html#autotoc_md6',1,'']]]
+  ['publish_20logging_20diagnostics_0',['9. Raw MQTT Publish (Logging, Diagnostics)',['../index.html#autotoc_md16',1,'']]],
+  ['python_1',['Python',['../index.html#autotoc_md13',1,'6. Run Your First Device (Python)'],['../index.html#autotoc_md14',1,'7. Run an Owner (Python)']]]
 ];

@@ -1,6 +1,14 @@
 var group__registry =
 [
+    [ "SdsFieldMeta", "struct_sds_field_meta.html", [
+      [ "name", "struct_sds_field_meta.html#aa01461e55e6750ea8716d3de401c0acf", null ],
+      [ "offset", "struct_sds_field_meta.html#aa2e4b710fb6e0797f47baaa79ed6415d", null ],
+      [ "size", "struct_sds_field_meta.html#a88f4e32b2e601e8aefbcd01cecc71758", null ],
+      [ "type", "struct_sds_field_meta.html#afb51ff5ac5b083cad8347a518d7bead2", null ]
+    ] ],
     [ "SdsTableMeta", "struct_sds_table_meta.html", [
+      [ "config_field_count", "struct_sds_table_meta.html#ad9cd25e42d137514fa46345f825a0308", null ],
+      [ "config_fields", "struct_sds_table_meta.html#a60adf04c5ca0bfd904b04ad622719f7f", null ],
       [ "deserialize_config", "struct_sds_table_meta.html#a997ccf55f0b5962b6bcad435c8b0c487", null ],
       [ "deserialize_state", "struct_sds_table_meta.html#a2012963ad3e1a4e603eceb0620c9ba1b", null ],
       [ "deserialize_status", "struct_sds_table_meta.html#a97205d43ea37784b63e5d19624abfcc2", null ],
@@ -30,8 +38,23 @@ var group__registry =
       [ "slot_online_offset", "struct_sds_table_meta.html#acdadc28382bb588cc098b5cd05408d93", null ],
       [ "slot_status_offset", "struct_sds_table_meta.html#a47f47505f0848b84fe4fa5afcde2609d", null ],
       [ "slot_valid_offset", "struct_sds_table_meta.html#a7929d08dd5a355f66d85e904fba1d32f", null ],
+      [ "state_field_count", "struct_sds_table_meta.html#abb453a9286e096f5e0ee9e4c6e0ea34c", null ],
+      [ "state_fields", "struct_sds_table_meta.html#aaab31e7ba76277a8f59e9edcc4bd886f", null ],
+      [ "status_field_count", "struct_sds_table_meta.html#afc0cd45e3c725acafe46bd75d13c7ff6", null ],
+      [ "status_fields", "struct_sds_table_meta.html#ab233d51b34c844e6ccedac8ffd7fb634", null ],
       [ "sync_interval_ms", "struct_sds_table_meta.html#a511a03d5619a64e6480bd5d9a37818e8", null ],
       [ "table_type", "struct_sds_table_meta.html#a9d6ad0dfd153b57e9432588cb3732ac9", null ]
+    ] ],
+    [ "SdsFieldType", "group__registry.html#gaf3021e016ef41b7515df447f2fa1b3dc", [
+      [ "SDS_FIELD_BOOL", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca906ad148a31906c71f7980f608f0e907", null ],
+      [ "SDS_FIELD_UINT8", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dcaf0dd0297fd9f6608e6dbcb5973aa4338", null ],
+      [ "SDS_FIELD_INT8", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca9b921ad20afeec3f966cbd7208fd70d1", null ],
+      [ "SDS_FIELD_UINT16", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca24e954c350d95708b6f6af40c9a38d7c", null ],
+      [ "SDS_FIELD_INT16", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dcaf8a335bcbb5e20055d6b601ec5144094", null ],
+      [ "SDS_FIELD_UINT32", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dcae453a3ca23ae79bc84baf93eeae766bd", null ],
+      [ "SDS_FIELD_INT32", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca0117af183dfa7bf85816f67426a83fee", null ],
+      [ "SDS_FIELD_FLOAT", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dcaf282aa907467953cced63e52bf73d9ad", null ],
+      [ "SDS_FIELD_STRING", "group__registry.html#ggaf3021e016ef41b7515df447f2fa1b3dca072e261c906a9ac8948763b1c1f3106e", null ]
     ] ],
     [ "sds_find_table_meta", "group__registry.html#ga396e6a8d0d4dd71f5419e8695088eae8", null ],
     [ "sds_set_table_registry", "group__registry.html#ga4528def4a9a0720c7a02232b7c35d5bc", null ]

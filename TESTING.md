@@ -4,13 +4,13 @@ This document describes the comprehensive test suite for the SDS library.
 
 ## Test Suite Overview
 
-The library has **378+ tests** across C and Python, achieving **~84% code coverage**.
+The library has **390+ tests** across C and Python, achieving **~80% code coverage**.
 
 | Category | Tests | MQTT Broker | Runtime |
 |----------|-------|-------------|---------|
-| Unit Tests (C, Mock) | 200+ | No | ~0.5s |
+| Unit Tests (C, Mock) | 210+ | No | ~0.5s |
 | Integration Tests (C) | ~36 | Yes | ~60s |
-| Python Tests | 142 | Yes | ~25s |
+| Python Tests | 149 | Yes | ~28s |
 | Scale Tests | 1 | Yes | configurable |
 | Fuzz Tests | 2 targets | No | configurable |
 
@@ -32,7 +32,7 @@ cmake .. && make
 
 These tests use a **mock platform layer** that simulates MQTT without a real broker. They run in ~0.5 seconds and are ideal for CI/CD.
 
-### `test_unit_core` (60 tests)
+### `test_unit_core` (70 tests)
 
 Core SDS library functionality.
 
@@ -48,6 +48,7 @@ Core SDS library functionality.
 | Statistics | message counters, error tracking |
 | Edge Cases | empty payload, malformed JSON, unknown table |
 | LWT (Device Offline) | LWT subscription, offline detection, callbacks |
+| Raw Publish API | is_connected, publish_raw success/failure cases |
 | Eviction | eviction timer, reconnect cancellation, grace period |
 | Large Sections | 1KB section serialization, buffer overflow protection |
 | Delta Sync | config enabled/disabled, float tolerance |

@@ -1,5 +1,7 @@
 var struct_sds_table_meta =
 [
+    [ "config_field_count", "struct_sds_table_meta.html#ad9cd25e42d137514fa46345f825a0308", null ],
+    [ "config_fields", "struct_sds_table_meta.html#a60adf04c5ca0bfd904b04ad622719f7f", null ],
     [ "deserialize_config", "struct_sds_table_meta.html#a997ccf55f0b5962b6bcad435c8b0c487", null ],
     [ "deserialize_state", "struct_sds_table_meta.html#a2012963ad3e1a4e603eceb0620c9ba1b", null ],
     [ "deserialize_status", "struct_sds_table_meta.html#a97205d43ea37784b63e5d19624abfcc2", null ],
@@ -29,6 +31,10 @@ var struct_sds_table_meta =
     [ "slot_online_offset", "struct_sds_table_meta.html#acdadc28382bb588cc098b5cd05408d93", null ],
     [ "slot_status_offset", "struct_sds_table_meta.html#a47f47505f0848b84fe4fa5afcde2609d", null ],
     [ "slot_valid_offset", "struct_sds_table_meta.html#a7929d08dd5a355f66d85e904fba1d32f", null ],
+    [ "state_field_count", "struct_sds_table_meta.html#abb453a9286e096f5e0ee9e4c6e0ea34c", null ],
+    [ "state_fields", "struct_sds_table_meta.html#aaab31e7ba76277a8f59e9edcc4bd886f", null ],
+    [ "status_field_count", "struct_sds_table_meta.html#afc0cd45e3c725acafe46bd75d13c7ff6", null ],
+    [ "status_fields", "struct_sds_table_meta.html#ab233d51b34c844e6ccedac8ffd7fb634", null ],
     [ "sync_interval_ms", "struct_sds_table_meta.html#a511a03d5619a64e6480bd5d9a37818e8", null ],
     [ "table_type", "struct_sds_table_meta.html#a9d6ad0dfd153b57e9432588cb3732ac9", null ]
 ];

@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['2_20verify_20installation_0',['2. Verify Installation',['../index.html#autotoc_md4',1,'']]]
+  ['1_20install_20sds_0',['1. Install SDS',['../index.html#autotoc_md4',1,'']]]
 ];

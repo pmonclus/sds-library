@@ -100,11 +100,27 @@ Overview</h1>
 <li><b>Devices</b> (sensors, actuators) send state/status, receive config</li>
 <li><b>Owners</b> (servers, dashboards) send config, receive state/status from all devices</li>
 </ul>
-<h1 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+Key Features (v0.5.0)</h2>
+<ul>
+<li><b>Delta Sync</b>: Only send changed fields, reducing bandwidth by up to 90%</li>
+<li><b>1KB Section Support</b>: Config, state, and status sections up to 1KB each</li>
+<li><b>Raw MQTT Publish</b>: Send custom messages (logs, diagnostics) via SDS connection</li>
+<li><b>Schema-Driven</b>: Define your data in <span class="tt">.sds</span> files, generate C/Python code</li>
+<li><b>Cross-Platform</b>: ESP32/Arduino, Linux, macOS, Python</li>
+<li><b>Liveness Detection</b>: Automatic heartbeats and offline detection with LWT</li>
+<li><b>Device Eviction</b>: Configurable grace period for offline devices</li>
+</ul>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
 Quick Start</h1>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
 1. Install SDS</h2>
-<p><b>macOS (Homebrew):</b> </p><div class="fragment"><div class="line">brew tap pmonclus/sds</div>
+<p>Choose the installation method that fits your needs:</p>
+<hr  />
+<h3 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
+Option A: Quick Install (Homebrew) — <em>Recommended for users</em></h3>
+<p>For macOS users who just want to use SDS in their projects:</p>
+<div class="fragment"><div class="line">brew tap pmonclus/sds</div>
 <div class="line">brew install sds</div>
 </div><!-- fragment --><p>This installs:</p><ul>
 <li>C library (<span class="tt">libsds</span>)</li>
@@ -112,30 +128,61 @@ Quick Start</h1>
 <li><span class="tt">sds-codegen</span> command-line tool</li>
 <li>Arduino library ZIP at <span class="tt">$(brew --prefix)/share/sds/sds-arduino-*.zip</span></li>
 </ul>
-<p><b>Ubuntu/Debian:</b> </p><div class="fragment"><div class="line"># Install dependencies</div>
-<div class="line">sudo apt-get install libpaho-mqtt-dev python3 python3-pip cmake</div>
+<p>Verify installation: </p><div class="fragment"><div class="line">sds-codegen --help</div>
+<div class="line">python3 -c &quot;from sds import SdsNode; print(&#39;SDS OK&#39;)&quot;</div>
+</div><!-- fragment --><hr  />
+<h3 class="doxsection"><a class="anchor" id="autotoc_md8"></a>
+Option B: Build from Source — <em>For developers and contributors</em></h3>
+<p>For those who want to explore the code, run tests, or contribute:</p>
+<p><b>macOS:</b> </p><div class="fragment"><div class="line"># Install dependencies</div>
+<div class="line">brew install paho-mqtt-c cmake python3</div>
 <div class="line"> </div>
-<div class="line"># Clone and build</div>
+<div class="line"># Clone the repository</div>
 <div class="line">git clone https://github.com/pmonclus/sds-library.git</div>
 <div class="line">cd sds-library</div>
 <div class="line"> </div>
+<div class="line"># Build the C library</div>
+<div class="line">mkdir -p build &amp;&amp; cd build</div>
+<div class="line">cmake .. -DSDS_BUILD_TESTS=ON</div>
+<div class="line">make -j4</div>
+<div class="line">cd ..</div>
+<div class="line"> </div>
+<div class="line"># Install Python bindings (optional)</div>
 <div class="line">python3 -m venv venv</div>
 <div class="line">source venv/bin/activate</div>
 <div class="line">pip install cffi</div>
-<div class="line"> </div>
-<div class="line">mkdir -p build &amp;&amp; cd build</div>
-<div class="line">cmake .. -DSDS_BUILD_TESTS=OFF -DSDS_BUILD_EXAMPLES=OFF</div>
-<div class="line">make</div>
-<div class="line">cd ..</div>
-<div class="line"> </div>
 <div class="line">cd python &amp;&amp; pip install -e . &amp;&amp; cd ..</div>
 <div class="line">pip install -e .</div>
-</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
-2. Verify Installation</h2>
-<div class="fragment"><div class="line">sds-codegen --help</div>
-</div><!-- fragment --><p>For Python usage (Ubuntu/Debian only): </p><div class="fragment"><div class="line">source venv/bin/activate</div>
+</div><!-- fragment --><p><b>Ubuntu/Debian:</b> </p><div class="fragment"><div class="line"># Install dependencies</div>
+<div class="line">sudo apt-get install libpaho-mqtt-dev python3 python3-pip cmake</div>
+<div class="line"> </div>
+<div class="line"># Clone the repository</div>
+<div class="line">git clone https://github.com/pmonclus/sds-library.git</div>
+<div class="line">cd sds-library</div>
+<div class="line"> </div>
+<div class="line"># Build the C library</div>
+<div class="line">mkdir -p build &amp;&amp; cd build</div>
+<div class="line">cmake .. -DSDS_BUILD_TESTS=ON</div>
+<div class="line">make -j4</div>
+<div class="line">cd ..</div>
+<div class="line"> </div>
+<div class="line"># Install Python bindings (optional)</div>
+<div class="line">python3 -m venv venv</div>
+<div class="line">source venv/bin/activate</div>
+<div class="line">pip install cffi</div>
+<div class="line">cd python &amp;&amp; pip install -e . &amp;&amp; cd ..</div>
+<div class="line">pip install -e .</div>
+</div><!-- fragment --><p>Verify installation: </p><div class="fragment"><div class="line"># C library tests (no MQTT broker required)</div>
+<div class="line">cd build &amp;&amp; ./test_unit_core &amp;&amp; ./test_json</div>
+<div class="line"> </div>
+<div class="line"># Python (if installed)</div>
+<div class="line">source venv/bin/activate</div>
 <div class="line">python3 -c &quot;from sds import SdsNode; print(&#39;SDS OK&#39;)&quot;</div>
-</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
+<div class="line"> </div>
+<div class="line"># Codegen</div>
+<div class="line">sds-codegen --help</div>
+</div><!-- fragment --><hr  />
+<h2 class="doxsection"><a class="anchor" id="autotoc_md10"></a>
 3. Define Your Schema</h2>
 <p>Create a <span class="tt">schema.sds</span> file that defines your data structure:</p>
 <div class="fragment"><div class="line">// schema.sds</div>
@@ -163,14 +210,14 @@ Quick Start</h1>
 <div class="line">        uint8 error_code;</div>
 <div class="line">    }</div>
 <div class="line">}</div>
-</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md11"></a>
 4. Generate Type Definitions</h2>
 <div class="fragment"><div class="line">sds-codegen schema.sds --c --python</div>
 </div><!-- fragment --><p>This creates:</p><ul>
 <li><span class="tt">sds_types.h</span> - C structs and serialization</li>
 <li><span class="tt">sds_types.py</span> - Python dataclasses</li>
 </ul>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md7"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md12"></a>
 5. Start an MQTT Broker</h2>
 <div class="fragment"><div class="line"># macOS</div>
 <div class="line">brew install mosquitto</div>
@@ -179,7 +226,7 @@ Quick Start</h1>
 <div class="line"># Ubuntu</div>
 <div class="line">sudo apt-get install mosquitto</div>
 <div class="line">sudo systemctl start mosquitto</div>
-</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md8"></a>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md13"></a>
 6. Run Your First Device (Python)</h2>
 <p>Create <span class="tt">device.py</span>:</p>
 <div class="fragment"><div class="line"><span class="comment">#!/usr/bin/env python3</span></div>
@@ -199,7 +246,7 @@ Quick Start</h1>
 <div class="line">        </div>
 <div class="line">        node.poll(timeout_ms=1000)</div>
 </div><!-- fragment --><p>Run it: </p><div class="fragment"><div class="line">python3 device.py</div>
-</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md9"></a>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md14"></a>
 7. Run an Owner (Python)</h2>
 <p>Create <span class="tt">owner.py</span>:</p>
 <div class="fragment"><div class="line"><span class="comment">#!/usr/bin/env python3</span></div>
@@ -219,10 +266,47 @@ Quick Start</h1>
 <div class="line">        node.poll(timeout_ms=1000)</div>
 </div><!-- fragment --><p>Run it in another terminal: </p><div class="fragment"><div class="line">python3 owner.py</div>
 </div><!-- fragment --><p>You should see temperature/humidity readings appearing on the owner!</p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md15"></a>
+8. Enable Delta Sync (Optional)</h2>
+<p>For bandwidth-sensitive applications, enable delta sync to only send changed fields:</p>
+<p><b>Python:</b> </p><div class="fragment"><div class="line"><span class="keyword">with</span> SdsNode(<span class="stringliteral">&quot;sensor_01&quot;</span>, <span class="stringliteral">&quot;localhost&quot;</span>, enable_delta_sync=<span class="keyword">True</span>) <span class="keyword">as</span> node:</div>
+<div class="line">    table = node.register_table(<span class="stringliteral">&quot;SensorData&quot;</span>, Role.DEVICE, schema=SensorData)</div>
+<div class="line">    <span class="comment"># ...</span></div>
+</div><!-- fragment --><p><b>C:</b> </p><div class="fragment"><div class="line"><a class="code hl_struct" href="struct_sds_config.html">SdsConfig</a> config = {</div>
+<div class="line">    .node_id = <span class="stringliteral">&quot;sensor_01&quot;</span>,</div>
+<div class="line">    .mqtt_broker = <span class="stringliteral">&quot;192.168.1.100&quot;</span>,</div>
+<div class="line">    .mqtt_port = 1883,</div>
+<div class="line">    .enable_delta_sync = <span class="keyword">true</span>,         <span class="comment">// Only send changed fields</span></div>
+<div class="line">    .delta_float_tolerance = 0.01f     <span class="comment">// Ignore tiny float changes</span></div>
+<div class="line">};</div>
+<div class="line"><a class="code hl_function" href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a>(&amp;config);</div>
+<div class="ttc" id="agroup__init_html_ga99eea78bf2771e604ab5ce296cd8a815"><div class="ttname"><a href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a></div><div class="ttdeci">SdsError sds_init(const SdsConfig *config)</div><div class="ttdoc">Initialize SDS and connect to MQTT broker.</div></div>
+<div class="ttc" id="astruct_sds_config_html"><div class="ttname"><a href="struct_sds_config.html">SdsConfig</a></div><div class="ttdoc">Configuration for SDS initialization.</div><div class="ttdef"><b>Definition</b> sds.h:119</div></div>
+</div><!-- fragment --><p>With delta sync, if only <span class="tt">temperature</span> changes from 23.5 to 24.0:</p><ul>
+<li><b>Without delta</b>: <span class="tt">{"ts":...,"temperature":24.0,"humidity":45.0,"reading_count":42}</span></li>
+<li><b>With delta</b>: <span class="tt">{"ts":...,"temperature":24.0}</span></li>
+</ul>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md16"></a>
+9. Raw MQTT Publish (Logging, Diagnostics)</h2>
+<p>Send custom messages through the SDS-managed MQTT connection:</p>
+<p><b>Python:</b> </p><div class="fragment"><div class="line"><span class="keyword">with</span> SdsNode(<span class="stringliteral">&quot;sensor_01&quot;</span>, <span class="stringliteral">&quot;localhost&quot;</span>) <span class="keyword">as</span> node:</div>
+<div class="line">    <span class="comment"># Check connection before publishing</span></div>
+<div class="line">    <span class="keywordflow">if</span> node.is_connected():</div>
+<div class="line">        node.publish_raw(f<span class="stringliteral">&quot;log/{node.node_id}&quot;</span>, <span class="stringliteral">&#39;{&quot;level&quot;:&quot;info&quot;,&quot;msg&quot;:&quot;Started&quot;}&#39;</span>)</div>
+</div><!-- fragment --><p><b>C:</b> </p><div class="fragment"><div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="group__init.html#gacbebde6c8a878aed82e3830c6da5ec2d">sds_is_connected</a>()) {</div>
+<div class="line">    <span class="keywordtype">char</span> topic[48];</div>
+<div class="line">    snprintf(topic, <span class="keyword">sizeof</span>(topic), <span class="stringliteral">&quot;log/%s&quot;</span>, <a class="code hl_function" href="group__init.html#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a>());</div>
+<div class="line">    <span class="keyword">const</span> <span class="keywordtype">char</span>* msg = <span class="stringliteral">&quot;{\&quot;level\&quot;:\&quot;info\&quot;,\&quot;msg\&quot;:\&quot;Started\&quot;}&quot;</span>;</div>
+<div class="line">    <a class="code hl_function" href="group__init.html#ga1fcaa6529e839b694390d2cfceb77b56">sds_publish_raw</a>(topic, msg, strlen(msg), 0, <span class="keyword">false</span>);</div>
+<div class="line">}</div>
+<div class="ttc" id="agroup__init_html_ga1fcaa6529e839b694390d2cfceb77b56"><div class="ttname"><a href="group__init.html#ga1fcaa6529e839b694390d2cfceb77b56">sds_publish_raw</a></div><div class="ttdeci">SdsError sds_publish_raw(const char *topic, const void *payload, size_t payload_len, int qos, bool retained)</div><div class="ttdoc">Publish a raw MQTT message through the SDS-managed connection.</div></div>
+<div class="ttc" id="agroup__init_html_gab2d009b20c5946bae1e107a1efefee0f"><div class="ttname"><a href="group__init.html#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a></div><div class="ttdeci">const char * sds_get_node_id(void)</div><div class="ttdoc">Get the node ID.</div></div>
+<div class="ttc" id="agroup__init_html_gacbebde6c8a878aed82e3830c6da5ec2d"><div class="ttname"><a href="group__init.html#gacbebde6c8a878aed82e3830c6da5ec2d">sds_is_connected</a></div><div class="ttdeci">bool sds_is_connected(void)</div><div class="ttdoc">Check if the MQTT connection is currently active.</div></div>
+</div><!-- fragment --><p>This is useful for centralized logging without creating a separate MQTT connection.</p>
 <hr  />
-<h1 class="doxsection"><a class="anchor" id="autotoc_md11"></a>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md18"></a>
 Arduino / ESP32</h1>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md12"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md19"></a>
 Installation</h2>
 <ol type="1">
 <li>Run the packaging script to create the Arduino ZIP: <div class="fragment"><div class="line">./packaging/build-package.sh quick</div>
@@ -237,7 +321,7 @@ Installation</h2>
 <li>In Arduino IDE: <b>Sketch → Include Library → Add .ZIP Library</b></li>
 <li>Install dependency: <b>PubSubClient</b> from Library Manager</li>
 </ol>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md13"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md20"></a>
 ESP32 Device Example</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;WiFi.h&gt;</span></div>
 <div class="line"><span class="preprocessor">#include &lt;PubSubClient.h&gt;</span></div>
@@ -275,21 +359,19 @@ ESP32 Device Example</h2>
 <div class="line">    delay(100);</div>
 <div class="line">}</div>
 <div class="ttc" id="agroup__init_html_ga275b11badbc4756a9b93502af7e30778"><div class="ttname"><a href="group__init.html#ga275b11badbc4756a9b93502af7e30778">sds_loop</a></div><div class="ttdeci">void sds_loop(void)</div><div class="ttdoc">Process SDS events.</div></div>
-<div class="ttc" id="agroup__init_html_ga99eea78bf2771e604ab5ce296cd8a815"><div class="ttname"><a href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a></div><div class="ttdeci">SdsError sds_init(const SdsConfig *config)</div><div class="ttdoc">Initialize SDS and connect to MQTT broker.</div></div>
 <div class="ttc" id="agroup__registration_html_ga0ecdb264b6ba8215cd48675e50dcbbe4"><div class="ttname"><a href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a></div><div class="ttdeci">SdsError sds_register_table(void *table, const char *table_type, SdsRole role, const SdsTableOptions *options)</div><div class="ttdoc">Register a table using the metadata registry.</div></div>
-<div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:106</div></div>
+<div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:108</div></div>
 <div class="ttc" id="asds_8h_html"><div class="ttname"><a href="sds_8h.html">sds.h</a></div><div class="ttdoc">SDS (Simple DDS) Core API Header.</div></div>
-<div class="ttc" id="astruct_sds_config_html"><div class="ttname"><a href="struct_sds_config.html">SdsConfig</a></div><div class="ttdoc">Configuration for SDS initialization.</div><div class="ttdef"><b>Definition</b> sds.h:117</div></div>
 </div><!-- fragment --><p>See <a href="examples/hybrid_demo/esp32_device/">examples/hybrid_demo/esp32_device/</a> for a complete example.</p>
 <hr  />
-<h1 class="doxsection"><a class="anchor" id="autotoc_md15"></a>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md22"></a>
 C Library (Linux/macOS)</h1>
-<h2 class="doxsection"><a class="anchor" id="autotoc_md16"></a>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md23"></a>
 Building</h2>
 <div class="fragment"><div class="line">mkdir build &amp;&amp; cd build</div>
 <div class="line">cmake .. -DSDS_BUILD_TESTS=OFF</div>
 <div class="line">make</div>
-</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md17"></a>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md24"></a>
 Simple Device Example</h2>
 <div class="fragment"><div class="line"><span class="preprocessor">#include &quot;<a class="code" href="sds_8h.html">sds.h</a>&quot;</span></div>
 <div class="line"><span class="preprocessor">#include &quot;sds_types.h&quot;</span></div>
@@ -320,7 +402,7 @@ Simple Device Example</h2>
 </div><!-- fragment --><p>Compile: </p><div class="fragment"><div class="line">gcc -o device device.c -I../include -L../build -lsds -lpaho-mqtt3c</div>
 </div><!-- fragment --><p>See <a href="examples/hybrid_demo/c_device/">examples/hybrid_demo/c_device/</a> for a complete example.</p>
 <hr  />
-<h1 class="doxsection"><a class="anchor" id="autotoc_md19"></a>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md26"></a>
 Schema Reference</h1>
 <div class="fragment"><div class="line">// Comments use double slashes</div>
 <div class="line">@version = &quot;1.0.0&quot;              // Schema version</div>
@@ -344,7 +426,7 @@ Schema Reference</h1>
 <div class="line">}</div>
 </div><!-- fragment --><p><b>Supported types:</b> <span class="tt">bool</span>, <span class="tt">uint8</span>, <span class="tt">int8</span>, <span class="tt">uint16</span>, <span class="tt">int16</span>, <span class="tt">uint32</span>, <span class="tt">int32</span>, <span class="tt">float</span>, <span class="tt">string</span></p>
 <hr  />
-<h1 class="doxsection"><a class="anchor" id="autotoc_md21"></a>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md28"></a>
 Documentation</h1>
 <ul>
 <li>Python README - Full Python API documentation</li>
@@ -353,7 +435,7 @@ Documentation</h1>
 <li><a href="examples/hybrid_demo/">examples/hybrid_demo/</a> - Complete multi-language example</li>
 </ul>
 <hr  />
-<h1 class="doxsection"><a class="anchor" id="autotoc_md23"></a>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md30"></a>
 Running Tests</h1>
 <div class="fragment"><div class="line"># Unit tests (no MQTT broker required)</div>
 <div class="line">cd build &amp;&amp; cmake .. &amp;&amp; make</div>
@@ -365,7 +447,7 @@ Running Tests</h1>
 <div class="line"># Integration tests (requires MQTT broker running)</div>
 <div class="line">./run_tests.sh</div>
 </div><!-- fragment --><hr  />
-<h1 class="doxsection"><a class="anchor" id="autotoc_md25"></a>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md32"></a>
 Troubleshooting</h1>
 <p><b>"sds-codegen: command not found"</b> </p><div class="fragment"><div class="line">export PATH=&quot;$HOME/.local/bin:$PATH&quot;</div>
 </div><!-- fragment --><p><b>"ModuleNotFoundError: No module named 'codegen'"</b> </p><div class="fragment"><div class="line">cd sds-library &amp;&amp; pip install -e .</div>
@@ -374,7 +456,7 @@ Troubleshooting</h1>
 <li>Verify broker address and port</li>
 </ul>
 <hr  />
-<h1 class="doxsection"><a class="anchor" id="autotoc_md27"></a>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md34"></a>
 License</h1>
 <p>MIT </p>
 </div></div><!-- PageDoc -->
