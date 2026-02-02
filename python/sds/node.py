@@ -672,8 +672,17 @@ class SdsNode:
                         if field.field_type.value == "float32":
                             val = ffi.cast("float*", ptr)[0]
                             lib.sds_json_add_float(writer_ptr, field.name.encode(), val)
+                        elif field.field_type.value == "int8":
+                            val = ffi.cast("int8_t*", ptr)[0]
+                            lib.sds_json_add_int(writer_ptr, field.name.encode(), val)
                         elif field.field_type.value == "uint8":
                             val = ffi.cast("uint8_t*", ptr)[0]
+                            lib.sds_json_add_uint(writer_ptr, field.name.encode(), int(val))
+                        elif field.field_type.value == "int16":
+                            val = ffi.cast("int16_t*", ptr)[0]
+                            lib.sds_json_add_int(writer_ptr, field.name.encode(), val)
+                        elif field.field_type.value == "uint16":
+                            val = ffi.cast("uint16_t*", ptr)[0]
                             lib.sds_json_add_uint(writer_ptr, field.name.encode(), int(val))
                         elif field.field_type.value == "int32":
                             val = ffi.cast("int32_t*", ptr)[0]
@@ -707,10 +716,22 @@ class SdsNode:
                             val = ffi.new("float*")
                             if lib.sds_json_get_float_field(reader_ptr, field.name.encode(), val):
                                 ffi.cast("float*", ptr)[0] = val[0]
+                        elif field.field_type.value == "int8":
+                            val = ffi.new("int32_t*")  # Parse as int32, then cast to int8
+                            if lib.sds_json_get_int_field(reader_ptr, field.name.encode(), val):
+                                ffi.cast("int8_t*", ptr)[0] = val[0]
                         elif field.field_type.value == "uint8":
                             val = ffi.new("uint8_t*")
                             if lib.sds_json_get_uint8_field(reader_ptr, field.name.encode(), val):
                                 ffi.cast("uint8_t*", ptr)[0] = val[0]
+                        elif field.field_type.value == "int16":
+                            val = ffi.new("int32_t*")  # Parse as int32, then cast to int16
+                            if lib.sds_json_get_int_field(reader_ptr, field.name.encode(), val):
+                                ffi.cast("int16_t*", ptr)[0] = val[0]
+                        elif field.field_type.value == "uint16":
+                            val = ffi.new("uint32_t*")  # Parse as uint32, then cast to uint16
+                            if lib.sds_json_get_uint_field(reader_ptr, field.name.encode(), val):
+                                ffi.cast("uint16_t*", ptr)[0] = val[0]
                         elif field.field_type.value == "int32":
                             val = ffi.new("int32_t*")
                             if lib.sds_json_get_int_field(reader_ptr, field.name.encode(), val):
