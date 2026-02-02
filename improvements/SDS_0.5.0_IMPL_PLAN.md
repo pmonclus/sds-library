@@ -689,9 +689,10 @@ def _create_delta_serializer(self, fields: List[SdsFieldMeta]):
 
 ### Task 5.6: Create GitHub release
 
-- [ ] Tag v0.5.0
-- [ ] Create release with notes
-- [ ] Update SHA256 in Homebrew formula
+- [x] Tag v0.5.0
+- [x] Create release with notes
+- [x] Update SHA256 in Homebrew formula
+- [x] Close GitHub issue #1 (Raw MQTT Publish API)
 
 ---
 
