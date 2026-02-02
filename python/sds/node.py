@@ -1156,3 +1156,20 @@ class SdsNode:
         """
         c_str = lib.sds_get_schema_version()
         return decode_string(c_str) or "unknown"
+    
+    def set_schema_version(self, version: str) -> None:
+        """
+        Set the schema version for version mismatch detection.
+        
+        This should be called before registering tables if you want to
+        enable schema version checking between devices and owners.
+        
+        Args:
+            version: Schema version string (e.g., "1.2.0")
+        
+        Example:
+            node.set_schema_version("1.2.0")
+            table = node.register_table("SensorData", Role.DEVICE)
+        """
+        with self._lock:
+            lib.sds_set_schema_version(version.encode("utf-8"))
