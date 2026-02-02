@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sds-library"
-version = "0.4.3"
+version = "0.4.4"
 description = "Python bindings for the SDS (Synchronized Data Structures) library"
 readme = "README.md"
 license = {text = "MIT"}
