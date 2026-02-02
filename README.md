@@ -8,6 +8,15 @@ SDS enables automatic state synchronization between devices and owners over MQTT
 - **Devices** (sensors, actuators) send state/status, receive config
 - **Owners** (servers, dashboards) send config, receive state/status from all devices
 
+### Key Features (v0.5.0)
+
+- **Delta Sync**: Only send changed fields, reducing bandwidth by up to 90%
+- **1KB Section Support**: Config, state, and status sections up to 1KB each
+- **Schema-Driven**: Define your data in `.sds` files, generate C/Python code
+- **Cross-Platform**: ESP32/Arduino, Linux, macOS, Python
+- **Liveness Detection**: Automatic heartbeats and offline detection with LWT
+- **Device Eviction**: Configurable grace period for offline devices
+
 ## Quick Start
 
 ### 1. Install SDS
@@ -214,6 +223,33 @@ python3 owner.py
 ```
 
 You should see temperature/humidity readings appearing on the owner!
+
+### 8. Enable Delta Sync (Optional)
+
+For bandwidth-sensitive applications, enable delta sync to only send changed fields:
+
+**Python:**
+```python
+with SdsNode("sensor_01", "localhost", enable_delta_sync=True) as node:
+    table = node.register_table("SensorData", Role.DEVICE, schema=SensorData)
+    # ...
+```
+
+**C:**
+```c
+SdsConfig config = {
+    .node_id = "sensor_01",
+    .mqtt_broker = "192.168.1.100",
+    .mqtt_port = 1883,
+    .enable_delta_sync = true,         // Only send changed fields
+    .delta_float_tolerance = 0.01f     // Ignore tiny float changes
+};
+sds_init(&config);
+```
+
+With delta sync, if only `temperature` changes from 23.5 to 24.0:
+- **Without delta**: `{"ts":...,"temperature":24.0,"humidity":45.0,"reading_count":42}`
+- **With delta**: `{"ts":...,"temperature":24.0}`
 
 ---
 

@@ -73,6 +73,8 @@ typedef struct {
     const char* mqtt_username;
     const char* mqtt_password;
     uint32_t eviction_grace_ms;
+    bool enable_delta_sync;
+    float delta_float_tolerance;
 } SdsConfig;
 
 typedef struct {
@@ -123,6 +125,27 @@ typedef struct {
 typedef void (*SdsSerializeFunc)(void* section, SdsJsonWriter* w);
 typedef void (*SdsDeserializeFunc)(void* section, SdsJsonReader* r);
 
+/* ============== Field Metadata (for delta sync) ============== */
+
+typedef enum {
+    SDS_FIELD_BOOL,
+    SDS_FIELD_UINT8,
+    SDS_FIELD_INT8,
+    SDS_FIELD_UINT16,
+    SDS_FIELD_INT16,
+    SDS_FIELD_UINT32,
+    SDS_FIELD_INT32,
+    SDS_FIELD_FLOAT,
+    SDS_FIELD_STRING,
+} SdsFieldType;
+
+typedef struct {
+    const char* name;
+    SdsFieldType type;
+    uint16_t offset;
+    uint16_t size;
+} SdsFieldMeta;
+
 /* ============== Table Metadata ============== */
 
 typedef struct {
@@ -163,6 +186,14 @@ typedef struct {
     SdsDeserializeFunc deserialize_config;
     SdsDeserializeFunc deserialize_state;
     SdsDeserializeFunc deserialize_status;
+    
+    /* Field metadata for delta serialization */
+    const SdsFieldMeta* config_fields;
+    uint8_t config_field_count;
+    const SdsFieldMeta* state_fields;
+    uint8_t state_field_count;
+    const SdsFieldMeta* status_fields;
+    uint8_t status_field_count;
 } SdsTableMeta;
 
 const SdsTableMeta* sds_find_table_meta(const char* table_type);

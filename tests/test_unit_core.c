@@ -1280,6 +1280,212 @@ TEST(eviction_disabled_when_grace_zero) {
 }
 
 /* ============================================================================
+ * LARGE SECTION TESTS (1KB Support)
+ * ============================================================================ */
+
+/* Large state structure for testing 1KB section support */
+#define LARGE_STATE_STRING_SIZE 250
+#define LARGE_STATE_ARRAY_SIZE 62
+
+typedef struct {
+    float values[LARGE_STATE_ARRAY_SIZE];      /* 248 bytes */
+    uint32_t timestamps[LARGE_STATE_ARRAY_SIZE]; /* 248 bytes */
+    char description[LARGE_STATE_STRING_SIZE];  /* 250 bytes */
+    char location[LARGE_STATE_STRING_SIZE];     /* 250 bytes */
+    uint32_t sequence;                          /* 4 bytes */
+    float average;                              /* 4 bytes */
+    /* Total: ~1004 bytes - fits within 1024 SDS_SHADOW_SIZE */
+} LargeState;
+
+typedef struct {
+    TestConfig config;
+    LargeState state;
+    TestStatus status;
+} LargeDeviceTable;
+
+static void serialize_large_state(void* section, SdsJsonWriter* w) {
+    LargeState* st = (LargeState*)section;
+    
+    /* Serialize a few key fields to verify functionality */
+    sds_json_add_float(w, "value_0", st->values[0]);
+    sds_json_add_float(w, "value_61", st->values[61]);
+    sds_json_add_uint(w, "ts_0", st->timestamps[0]);
+    sds_json_add_uint(w, "ts_61", st->timestamps[61]);
+    sds_json_add_string(w, "description", st->description);
+    sds_json_add_string(w, "location", st->location);
+    sds_json_add_uint(w, "sequence", st->sequence);
+    sds_json_add_float(w, "average", st->average);
+}
+
+static void deserialize_large_state(void* section, SdsJsonReader* r) {
+    LargeState* st = (LargeState*)section;
+    
+    sds_json_get_float_field(r, "value_0", &st->values[0]);
+    sds_json_get_float_field(r, "value_61", &st->values[61]);
+    sds_json_get_uint_field(r, "ts_0", &st->timestamps[0]);
+    sds_json_get_uint_field(r, "ts_61", &st->timestamps[61]);
+    sds_json_get_string_field(r, "description", st->description, sizeof(st->description));
+    sds_json_get_string_field(r, "location", st->location, sizeof(st->location));
+    sds_json_get_uint_field(r, "sequence", &st->sequence);
+    sds_json_get_float_field(r, "average", &st->average);
+}
+
+TEST(large_section_1kb_serialization) {
+    init_sds_with_mock("device_node");
+    
+    LargeDeviceTable table = {0};
+    
+    /* Verify the struct is actually ~1KB */
+    ASSERT(sizeof(LargeState) >= 1000);
+    
+    /* Register with manual offsets */
+    SdsError err = sds_register_table_ex(
+        &table, "LargeTable", SDS_ROLE_DEVICE, NULL,
+        offsetof(LargeDeviceTable, config), sizeof(TestConfig),
+        offsetof(LargeDeviceTable, state), sizeof(LargeState),
+        offsetof(LargeDeviceTable, status), sizeof(TestStatus),
+        NULL,                      /* Device doesn't serialize config */
+        deserialize_test_config,   /* Device receives config */
+        serialize_large_state,     /* Device sends large state */
+        NULL,                      /* Device doesn't receive state */
+        serialize_test_status,     /* Device sends status */
+        NULL                       /* Device doesn't receive status */
+    );
+    
+    ASSERT_EQ(err, SDS_OK);
+    
+    /* Populate large state */
+    table.state.values[0] = 1.5f;
+    table.state.values[61] = 99.9f;
+    table.state.timestamps[0] = 1000;
+    table.state.timestamps[61] = 2000;
+    strncpy(table.state.description, "This is a test description for large section", 
+            sizeof(table.state.description) - 1);
+    strncpy(table.state.location, "Test Location Building A Room 101", 
+            sizeof(table.state.location) - 1);
+    table.state.sequence = 42;
+    table.state.average = 50.5f;
+    
+    /* Trigger sync */
+    sds_mock_advance_time(1100);
+    sds_loop();
+    
+    /* Verify state was published */
+    const SdsMockPublishedMessage* msg = sds_mock_find_publish_by_topic("sds/LargeTable/state");
+    ASSERT(msg != NULL);
+    ASSERT_STR_CONTAINS((char*)msg->payload, "value_0");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "1.5");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "value_61");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "99.9");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "description");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "test description");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "location");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "sequence");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "average");
+}
+
+TEST(large_section_no_buffer_overflow) {
+    init_sds_with_mock("device_node");
+    
+    LargeDeviceTable table = {0};
+    
+    SdsError err = sds_register_table_ex(
+        &table, "LargeTable", SDS_ROLE_DEVICE, NULL,
+        offsetof(LargeDeviceTable, config), sizeof(TestConfig),
+        offsetof(LargeDeviceTable, state), sizeof(LargeState),
+        offsetof(LargeDeviceTable, status), sizeof(TestStatus),
+        NULL, deserialize_test_config,
+        serialize_large_state, NULL,
+        serialize_test_status, NULL
+    );
+    
+    ASSERT_EQ(err, SDS_OK);
+    
+    /* Fill with maximum-length strings */
+    memset(table.state.description, 'A', sizeof(table.state.description) - 1);
+    table.state.description[sizeof(table.state.description) - 1] = '\0';
+    memset(table.state.location, 'B', sizeof(table.state.location) - 1);
+    table.state.location[sizeof(table.state.location) - 1] = '\0';
+    
+    /* Trigger sync - should not crash or overflow */
+    sds_mock_advance_time(1100);
+    sds_loop();
+    
+    /* Verify state was published (may be truncated but shouldn't crash) */
+    const SdsMockPublishedMessage* msg = sds_mock_find_publish_by_topic("sds/LargeTable/state");
+    ASSERT(msg != NULL);
+    ASSERT(msg->payload_len > 0);
+}
+
+/* ============================================================================
+ * DELTA SYNC TESTS
+ * ============================================================================ */
+
+static SdsError init_sds_with_delta_sync(const char* node_id, bool enable_delta, float tolerance) {
+    SdsMockConfig mock_cfg = {
+        .init_returns_success = true,
+        .mqtt_connect_returns_success = true,
+        .mqtt_connected = true,
+        .mqtt_publish_returns_success = true,
+        .mqtt_subscribe_returns_success = true,
+    };
+    sds_mock_configure(&mock_cfg);
+    
+    SdsConfig config = {
+        .node_id = node_id,
+        .mqtt_broker = "mock_broker",
+        .mqtt_port = 1883,
+        .eviction_grace_ms = 0,
+        .enable_delta_sync = enable_delta,
+        .delta_float_tolerance = tolerance
+    };
+    
+    return sds_init(&config);
+}
+
+TEST(delta_sync_disabled_by_default) {
+    /* Init without delta sync */
+    init_sds_with_mock("device_node");
+    
+    TestDeviceTable table = {0};
+    register_device_table(&table, "TestTable");
+    
+    /* Modify state */
+    table.state.temperature = 25.5f;
+    
+    /* Trigger sync */
+    sds_mock_advance_time(1100);
+    sds_loop();
+    
+    /* Verify full state was published (contains all fields) */
+    const SdsMockPublishedMessage* msg = sds_mock_find_publish_by_topic("sds/TestTable/state");
+    ASSERT(msg != NULL);
+    ASSERT_STR_CONTAINS((char*)msg->payload, "temperature");
+    ASSERT_STR_CONTAINS((char*)msg->payload, "humidity");  /* humidity=0 should be in full message */
+    ASSERT_STR_CONTAINS((char*)msg->payload, "reading_count");  /* reading_count=0 should be in full message */
+}
+
+TEST(delta_sync_enabled_in_config) {
+    /* Init with delta sync enabled */
+    init_sds_with_delta_sync("device_node", true, 0.001f);
+    
+    TestDeviceTable table = {0};
+    register_device_table(&table, "TestTable");
+    
+    /* Verify init succeeded */
+    ASSERT(sds_is_ready());
+}
+
+TEST(delta_float_tolerance_configurable) {
+    /* Init with custom tolerance */
+    float custom_tolerance = 0.5f;
+    init_sds_with_delta_sync("device_node", true, custom_tolerance);
+    
+    /* Verify init succeeded */
+    ASSERT(sds_is_ready());
+}
+
+/* ============================================================================
  * MAIN
  * ============================================================================ */
 
@@ -1367,6 +1573,15 @@ int main(void) {
     RUN_TEST(eviction_triggers_after_grace_period);
     RUN_TEST(eviction_callback_invoked);
     RUN_TEST(eviction_disabled_when_grace_zero);
+    
+    printf("\n─── Large Section Tests (1KB Support) ───\n");
+    RUN_TEST(large_section_1kb_serialization);
+    RUN_TEST(large_section_no_buffer_overflow);
+    
+    printf("\n─── Delta Sync Tests ───\n");
+    RUN_TEST(delta_sync_disabled_by_default);
+    RUN_TEST(delta_sync_enabled_in_config);
+    RUN_TEST(delta_float_tolerance_configurable);
     
     printf("\n");
     printf("══════════════════════════════════════════════════════════════\n");

@@ -4,12 +4,13 @@ This document describes the comprehensive test suite for the SDS library.
 
 ## Test Suite Overview
 
-The library has **187+ unit tests** achieving **~84% code coverage**.
+The library has **378+ tests** across C and Python, achieving **~84% code coverage**.
 
 | Category | Tests | MQTT Broker | Runtime |
 |----------|-------|-------------|---------|
-| Unit Tests (Mock) | 187+ | No | ~0.5s |
-| Integration Tests | ~6 suites | Yes | ~60s |
+| Unit Tests (C, Mock) | 200+ | No | ~0.5s |
+| Integration Tests (C) | ~36 | Yes | ~60s |
+| Python Tests | 142 | Yes | ~25s |
 | Scale Tests | 1 | Yes | configurable |
 | Fuzz Tests | 2 targets | No | configurable |
 
@@ -21,7 +22,7 @@ mkdir -p build && cd build
 cmake .. && make
 
 # Run all unit tests (no MQTT required)
-./test_unit_core && ./test_json && ./test_utilities && \
+./test_unit_core && ./test_delta_sync && ./test_json && ./test_utilities && \
 ./test_reconnection && ./test_buffer_overflow && ./test_concurrent
 ```
 
@@ -31,7 +32,7 @@ cmake .. && make
 
 These tests use a **mock platform layer** that simulates MQTT without a real broker. They run in ~0.5 seconds and are ideal for CI/CD.
 
-### `test_unit_core` (55 tests)
+### `test_unit_core` (60 tests)
 
 Core SDS library functionality.
 
@@ -48,9 +49,27 @@ Core SDS library functionality.
 | Edge Cases | empty payload, malformed JSON, unknown table |
 | LWT (Device Offline) | LWT subscription, offline detection, callbacks |
 | Eviction | eviction timer, reconnect cancellation, grace period |
+| Large Sections | 1KB section serialization, buffer overflow protection |
+| Delta Sync | config enabled/disabled, float tolerance |
 
 ```bash
 ./build/test_unit_core
+```
+
+### `test_delta_sync` (8 tests)
+
+Delta synchronization tests.
+
+| Category | Tests |
+|----------|-------|
+| Full Sync | disabled behavior, no publish when unchanged |
+| Delta Sync | single field change, multiple field changes |
+| Float Tolerance | below/above threshold behavior |
+| Status/Liveness | full status on heartbeat |
+| Configuration | delta config value preservation |
+
+```bash
+./build/test_delta_sync
 ```
 
 ### `test_json` (75 tests)

@@ -79,6 +79,37 @@ class TestSdsNodeInit:
         )
         assert node._username == "user"
         assert node._password == "pass"
+    
+    def test_delta_sync_disabled_by_default(self, unique_node_id):
+        """Delta sync is disabled by default."""
+        node = SdsNode(
+            unique_node_id,
+            "localhost",
+            auto_init=False
+        )
+        assert node.delta_sync_enabled is False
+        assert node.delta_float_tolerance == 0.001
+    
+    def test_delta_sync_can_be_enabled(self, unique_node_id):
+        """Delta sync can be enabled via parameter."""
+        node = SdsNode(
+            unique_node_id,
+            "localhost",
+            enable_delta_sync=True,
+            auto_init=False
+        )
+        assert node.delta_sync_enabled is True
+    
+    def test_delta_float_tolerance_configurable(self, unique_node_id):
+        """Delta float tolerance can be customized."""
+        node = SdsNode(
+            unique_node_id,
+            "localhost",
+            enable_delta_sync=True,
+            delta_float_tolerance=0.5,
+            auto_init=False
+        )
+        assert node.delta_float_tolerance == 0.5
 
 
 @pytest.mark.requires_cffi
@@ -302,6 +333,115 @@ class TestSdsNodeCallbacks:
                 return False
             
             assert node._version_mismatch_callback is handle_mismatch
+
+
+@pytest.mark.requires_cffi
+@pytest.mark.requires_mqtt
+class TestDeltaSyncWithBroker:
+    """Tests for delta sync behavior with a running MQTT broker."""
+    
+    def test_delta_sync_node_connects(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """Node with delta sync enabled connects successfully."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port,
+            enable_delta_sync=True
+        ) as node:
+            assert node.is_ready()
+            assert node.delta_sync_enabled is True
+    
+    def test_delta_sync_with_custom_tolerance(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """Node with custom float tolerance connects successfully."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port,
+            enable_delta_sync=True,
+            delta_float_tolerance=0.1
+        ) as node:
+            assert node.is_ready()
+            assert node.delta_float_tolerance == 0.1
+    
+    def test_delta_sync_register_table_device(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """Can register table as device with delta sync enabled."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port,
+            enable_delta_sync=True
+        ) as node:
+            try:
+                node.register_table("SensorData", Role.DEVICE)
+                assert node.get_table_count() == 1
+            except SdsError as e:
+                if e.code == ErrorCode.TABLE_NOT_FOUND:
+                    pytest.skip("SensorData table not in registry")
+                raise
+    
+    def test_delta_sync_register_table_owner(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """Can register table as owner with delta sync enabled."""
+        with SdsNode(
+            f"{unique_node_id}_owner",
+            mqtt_broker_host,
+            mqtt_broker_port,
+            enable_delta_sync=True
+        ) as node:
+            try:
+                node.register_table("SensorData", Role.OWNER)
+                assert node.get_table_count() == 1
+            except SdsError as e:
+                if e.code == ErrorCode.TABLE_NOT_FOUND:
+                    pytest.skip("SensorData table not in registry")
+                raise
+    
+    def test_delta_sync_stats_available(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """Stats are available with delta sync enabled."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port,
+            enable_delta_sync=True
+        ) as node:
+            stats = node.get_stats()
+            assert "messages_sent" in stats
+            assert isinstance(stats["messages_sent"], int)
+    
+    def test_delta_sync_poll_works(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """Poll works correctly with delta sync enabled."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port,
+            enable_delta_sync=True
+        ) as node:
+            try:
+                node.register_table("SensorData", Role.DEVICE)
+                # Poll multiple times to ensure sync happens
+                for _ in range(3):
+                    node.poll(timeout_ms=100)
+            except SdsError as e:
+                if e.code == ErrorCode.TABLE_NOT_FOUND:
+                    pytest.skip("SensorData table not in registry")
+                raise
+    
+    def test_delta_sync_preserves_other_config(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """Delta sync config doesn't interfere with other config options."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port,
+            enable_delta_sync=True,
+            delta_float_tolerance=0.05,
+            eviction_grace_ms=5000,
+            connect_timeout_ms=3000,
+            retry_count=2
+        ) as node:
+            assert node.is_ready()
+            assert node.delta_sync_enabled is True
+            assert node.delta_float_tolerance == 0.05
+            # Other config should work too
+            assert node._eviction_grace_ms == 5000
 
 
 @pytest.mark.requires_cffi

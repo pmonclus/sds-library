@@ -15,12 +15,13 @@
 
 /*
  * Use generated max section size if available (from sds_types.h),
- * otherwise fall back to 256 bytes for manual/standalone usage.
+ * otherwise fall back to 1024 bytes for manual/standalone usage.
+ * This supports sections up to 1KB in size.
  */
 #ifdef SDS_GENERATED_MAX_SECTION_SIZE
     #define SDS_SHADOW_SIZE SDS_GENERATED_MAX_SECTION_SIZE
 #else
-    #define SDS_SHADOW_SIZE 256
+    #define SDS_SHADOW_SIZE 1024
 #endif
 
 /* ============== Internal Types ============== */
@@ -76,6 +77,14 @@ typedef struct {
     size_t slot_online_offset;      /* Offset to online flag within a slot */
     size_t slot_eviction_pending_offset; /* Offset to eviction_pending flag within a slot */
     size_t slot_last_seen_offset;   /* Offset to last_seen_ms within a slot */
+    
+    /* Field metadata for delta sync (from registry) */
+    const SdsFieldMeta* config_fields;
+    uint8_t config_field_count;
+    const SdsFieldMeta* state_fields;
+    uint8_t state_field_count;
+    const SdsFieldMeta* status_fields;
+    uint8_t status_field_count;
     size_t slot_eviction_deadline_offset; /* Offset to eviction_deadline within a slot */
     size_t slot_status_offset;      /* Offset to status within a slot */
     size_t status_count_offset;     /* Offset to status_count in owner table */
@@ -140,6 +149,10 @@ static uint32_t _eviction_grace_ms = 0;
 static SdsDeviceEvictedCallback _eviction_callback = NULL;
 static void* _eviction_user_data = NULL;
 
+/* Delta sync configuration (from SdsConfig) */
+static bool _delta_sync_enabled = false;
+static float _delta_float_tolerance = 0.001f;
+
 /* ============== Forward Declarations ============== */
 
 static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t payload_len);
@@ -148,6 +161,8 @@ static void notify_error(SdsError error, const char* context);
 static void subscribe_table_topics(SdsTableContext* ctx);
 static void unsubscribe_table_topics(SdsTableContext* ctx);
 static void sync_table(SdsTableContext* ctx);
+static bool field_changed(const SdsFieldMeta* field, const void* current, const void* shadow);
+static void serialize_field(const SdsFieldMeta* field, const void* section, SdsJsonWriter* w);
 static void handle_lwt_message(const char* node_id, const uint8_t* payload, size_t len);
 static void handle_config_message(SdsTableContext* ctx, const uint8_t* payload, size_t len);
 static void handle_state_message(SdsTableContext* ctx, const char* from_node, const uint8_t* payload, size_t len);
@@ -290,6 +305,18 @@ SdsError sds_init(const SdsConfig* config) {
     
     if (_eviction_grace_ms > 0) {
         SDS_LOG_I("Device eviction enabled: grace period = %u ms", _eviction_grace_ms);
+    }
+    
+    /* Store delta sync configuration */
+    _delta_sync_enabled = config->enable_delta_sync;
+    if (config->delta_float_tolerance > 0) {
+        _delta_float_tolerance = config->delta_float_tolerance;
+    } else {
+        _delta_float_tolerance = 0.001f;  /* Default tolerance */
+    }
+    
+    if (_delta_sync_enabled) {
+        SDS_LOG_I("Delta sync enabled: float tolerance = %.6f", _delta_float_tolerance);
     }
     
     /* Set MQTT callback */
@@ -585,11 +612,18 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
             NULL                          /* Device doesn't receive status */
         );
         
-        /* Set liveness interval from registry */
+        /* Set liveness interval and field metadata from registry */
         if (err == SDS_OK) {
             SdsTableContext* ctx = find_table(table_type);
             if (ctx) {
                 ctx->liveness_interval_ms = meta->liveness_interval_ms;
+                /* Copy field metadata for delta sync */
+                ctx->config_fields = meta->config_fields;
+                ctx->config_field_count = meta->config_field_count;
+                ctx->state_fields = meta->state_fields;
+                ctx->state_field_count = meta->state_field_count;
+                ctx->status_fields = meta->status_fields;
+                ctx->status_field_count = meta->status_field_count;
             }
         }
         
@@ -609,7 +643,7 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
             meta->deserialize_status      /* Owner receives status */
         );
         
-        /* Populate status slot metadata and liveness for owners */
+        /* Populate status slot metadata, liveness, and field metadata for owners */
         if (err == SDS_OK) {
             SdsTableContext* ctx = find_table(table_type);
             if (ctx) {
@@ -627,6 +661,13 @@ SdsError sds_register_table(void* table, const char* table_type, SdsRole role, c
                     ctx->slot_status_offset = meta->slot_status_offset;
                     ctx->status_count_offset = meta->own_status_count_offset;
                 }
+                /* Copy field metadata for delta sync */
+                ctx->config_fields = meta->config_fields;
+                ctx->config_field_count = meta->config_field_count;
+                ctx->state_fields = meta->state_fields;
+                ctx->state_field_count = meta->state_field_count;
+                ctx->status_fields = meta->status_fields;
+                ctx->status_field_count = meta->status_field_count;
             }
         }
         
@@ -1087,6 +1128,109 @@ static void unsubscribe_table_topics(SdsTableContext* ctx) {
     }
 }
 
+/* ============== Delta Sync Helpers ============== */
+
+/**
+ * Check if a single field has changed between current and shadow.
+ */
+static bool field_changed(const SdsFieldMeta* field, const void* current, const void* shadow) {
+    const uint8_t* cur = (const uint8_t*)current + field->offset;
+    const uint8_t* shd = (const uint8_t*)shadow + field->offset;
+    
+    if (field->type == SDS_FIELD_FLOAT) {
+        float a, b;
+        memcpy(&a, cur, sizeof(float));
+        memcpy(&b, shd, sizeof(float));
+        float diff = (a > b) ? (a - b) : (b - a);
+        return diff > _delta_float_tolerance;
+    }
+    
+    return memcmp(cur, shd, field->size) != 0;
+}
+
+/**
+ * Serialize a single field to JSON.
+ */
+static void serialize_field(const SdsFieldMeta* field, const void* section, SdsJsonWriter* w) {
+    const uint8_t* ptr = (const uint8_t*)section + field->offset;
+    
+    switch (field->type) {
+        case SDS_FIELD_BOOL:
+            sds_json_add_bool(w, field->name, *ptr != 0);
+            break;
+        case SDS_FIELD_UINT8:
+            sds_json_add_uint(w, field->name, *ptr);
+            break;
+        case SDS_FIELD_INT8:
+            sds_json_add_int(w, field->name, *(const int8_t*)ptr);
+            break;
+        case SDS_FIELD_UINT16: {
+            uint16_t val;
+            memcpy(&val, ptr, sizeof(uint16_t));
+            sds_json_add_uint(w, field->name, val);
+            break;
+        }
+        case SDS_FIELD_INT16: {
+            int16_t val;
+            memcpy(&val, ptr, sizeof(int16_t));
+            sds_json_add_int(w, field->name, val);
+            break;
+        }
+        case SDS_FIELD_UINT32: {
+            uint32_t val;
+            memcpy(&val, ptr, sizeof(uint32_t));
+            sds_json_add_uint(w, field->name, val);
+            break;
+        }
+        case SDS_FIELD_INT32: {
+            int32_t val;
+            memcpy(&val, ptr, sizeof(int32_t));
+            sds_json_add_int(w, field->name, val);
+            break;
+        }
+        case SDS_FIELD_FLOAT: {
+            float val;
+            memcpy(&val, ptr, sizeof(float));
+            sds_json_add_float(w, field->name, val);
+            break;
+        }
+        case SDS_FIELD_STRING:
+            sds_json_add_string(w, field->name, (const char*)ptr);
+            break;
+    }
+}
+
+/**
+ * Serialize only changed fields to JSON (delta sync).
+ * 
+ * @param fields Array of field descriptors
+ * @param field_count Number of fields
+ * @param current Current section data
+ * @param shadow Shadow copy for comparison
+ * @param w JSON writer
+ * @return Number of fields that changed
+ */
+static int serialize_delta_fields(
+    const SdsFieldMeta* fields,
+    uint8_t field_count,
+    const void* current,
+    const void* shadow,
+    SdsJsonWriter* w
+) {
+    int changed_count = 0;
+    
+    for (uint8_t i = 0; i < field_count; i++) {
+        if (field_changed(&fields[i], current, shadow)) {
+            serialize_field(&fields[i], current, w);
+            changed_count++;
+        }
+    }
+    
+    return changed_count;
+}
+
+/* ============== Table Sync ============== */
+
 static void sync_table(SdsTableContext* ctx) {
     char topic[SDS_TOPIC_BUFFER_SIZE];
     char buffer[SDS_MSG_BUFFER_SIZE];
@@ -1133,7 +1277,17 @@ static void sync_table(SdsTableContext* ctx) {
             sds_json_start_object(&w);
             sds_json_add_uint(&w, "ts", now);
             sds_json_add_string(&w, "node", _node_id);
-            ctx->serialize_state(state_ptr, &w);  /* Pass section pointer */
+            
+            /* Use delta sync if enabled and field metadata available */
+            if (_delta_sync_enabled && ctx->state_fields && ctx->state_field_count > 0) {
+                int changed = serialize_delta_fields(
+                    ctx->state_fields, ctx->state_field_count,
+                    state_ptr, ctx->shadow_state, &w
+                );
+                SDS_LOG_D("Delta state: %d/%d fields changed", changed, ctx->state_field_count);
+            } else {
+                ctx->serialize_state(state_ptr, &w);  /* Full section */
+            }
             sds_json_end_object(&w);
             
             if (sds_json_has_error(&w)) {
@@ -1165,7 +1319,18 @@ static void sync_table(SdsTableContext* ctx) {
             sds_json_add_uint(&w, "ts", now);
             sds_json_add_bool(&w, "online", true);  /* Always include online=true for heartbeat */
             sds_json_add_string(&w, "sv", _schema_version);  /* Schema version */
-            ctx->serialize_status(status_ptr, &w);  /* Pass section pointer */
+            
+            /* Use delta sync if enabled and field metadata available, but only for changes */
+            if (_delta_sync_enabled && status_changed && ctx->status_fields && ctx->status_field_count > 0) {
+                int changed = serialize_delta_fields(
+                    ctx->status_fields, ctx->status_field_count,
+                    status_ptr, ctx->shadow_status, &w
+                );
+                SDS_LOG_D("Delta status: %d/%d fields changed", changed, ctx->status_field_count);
+            } else {
+                /* Full status on liveness heartbeat or if no field metadata */
+                ctx->serialize_status(status_ptr, &w);
+            }
             sds_json_end_object(&w);
             
             if (sds_json_has_error(&w)) {

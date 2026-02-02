@@ -55,6 +55,19 @@ JSON_READ_MAP = {
     'string': 'sds_json_get_string_field',
 }
 
+# SDS type to SdsFieldType enum mapping
+FIELD_TYPE_MAP = {
+    'bool': 'SDS_FIELD_BOOL',
+    'uint8': 'SDS_FIELD_UINT8',
+    'int8': 'SDS_FIELD_INT8',
+    'uint16': 'SDS_FIELD_UINT16',
+    'int16': 'SDS_FIELD_INT16',
+    'uint32': 'SDS_FIELD_UINT32',
+    'int32': 'SDS_FIELD_INT32',
+    'float': 'SDS_FIELD_FLOAT',
+    'string': 'SDS_FIELD_STRING',
+}
+
 DEFAULT_STRING_SIZE = 32
 DEFAULT_MAX_NODES = 16
 
@@ -206,6 +219,9 @@ def _generate_table(output: TextIO, name: str, table: Table):
     
     # Deserialization functions
     _generate_deserialize_functions(output, name, table)
+    
+    # Field descriptors for delta sync
+    _generate_field_descriptors(output, name, table)
 
 
 def _generate_serialize_functions(output: TextIO, name: str, table: Table):
@@ -297,6 +313,62 @@ def _write_deserialize_field(output: TextIO, field: Field, ptr_name: str):
         output.write(f'    {{ uint32_t tmp; if (sds_json_get_uint_field(r, "{field.name}", &tmp)) {ptr_name}->{field.name} = tmp; }}\n')
     else:
         output.write(f'    sds_json_get_uint_field(r, "{field.name}", &{ptr_name}->{field.name});\n')
+
+
+def _generate_field_descriptors(output: TextIO, name: str, table: Table):
+    """Generate field descriptor arrays for delta serialization."""
+    upper_name = _to_upper_snake(name)
+    
+    # Config field descriptors
+    if table.config_fields:
+        output.write(f"/* Config field descriptors for delta sync */\n")
+        output.write(f"static const SdsFieldMeta SDS_{upper_name}_CONFIG_FIELDS[] = {{\n")
+        for field in table.config_fields:
+            field_type = FIELD_TYPE_MAP.get(field.type, 'SDS_FIELD_UINT8')
+            if field.type == 'string':
+                size = field.array_size if field.array_size else DEFAULT_STRING_SIZE
+                output.write(f'    {{ "{field.name}", {field_type}, '
+                           f'offsetof({name}Config, {field.name}), {size} }},\n')
+            else:
+                output.write(f'    {{ "{field.name}", {field_type}, '
+                           f'offsetof({name}Config, {field.name}), '
+                           f'sizeof((({name}Config*)0)->{field.name}) }},\n')
+        output.write("};\n")
+        output.write(f"#define SDS_{upper_name}_CONFIG_FIELD_COUNT {len(table.config_fields)}\n\n")
+    
+    # State field descriptors
+    if table.state_fields:
+        output.write(f"/* State field descriptors for delta sync */\n")
+        output.write(f"static const SdsFieldMeta SDS_{upper_name}_STATE_FIELDS[] = {{\n")
+        for field in table.state_fields:
+            field_type = FIELD_TYPE_MAP.get(field.type, 'SDS_FIELD_UINT8')
+            if field.type == 'string':
+                size = field.array_size if field.array_size else DEFAULT_STRING_SIZE
+                output.write(f'    {{ "{field.name}", {field_type}, '
+                           f'offsetof({name}State, {field.name}), {size} }},\n')
+            else:
+                output.write(f'    {{ "{field.name}", {field_type}, '
+                           f'offsetof({name}State, {field.name}), '
+                           f'sizeof((({name}State*)0)->{field.name}) }},\n')
+        output.write("};\n")
+        output.write(f"#define SDS_{upper_name}_STATE_FIELD_COUNT {len(table.state_fields)}\n\n")
+    
+    # Status field descriptors
+    if table.status_fields:
+        output.write(f"/* Status field descriptors for delta sync */\n")
+        output.write(f"static const SdsFieldMeta SDS_{upper_name}_STATUS_FIELDS[] = {{\n")
+        for field in table.status_fields:
+            field_type = FIELD_TYPE_MAP.get(field.type, 'SDS_FIELD_UINT8')
+            if field.type == 'string':
+                size = field.array_size if field.array_size else DEFAULT_STRING_SIZE
+                output.write(f'    {{ "{field.name}", {field_type}, '
+                           f'offsetof({name}Status, {field.name}), {size} }},\n')
+            else:
+                output.write(f'    {{ "{field.name}", {field_type}, '
+                           f'offsetof({name}Status, {field.name}), '
+                           f'sizeof((({name}Status*)0)->{field.name}) }},\n')
+        output.write("};\n")
+        output.write(f"#define SDS_{upper_name}_STATUS_FIELD_COUNT {len(table.status_fields)}\n\n")
 
 
 def _generate_max_section_size(output: TextIO, schema: Schema):
@@ -453,6 +525,28 @@ def _generate_table_registry(output: TextIO, schema: Schema):
             output.write(f"        .deserialize_status = {lower_name}_deserialize_status,\n")
         else:
             output.write("        .deserialize_status = NULL,\n")
+        
+        # Field metadata for delta serialization
+        if table.config_fields:
+            output.write(f"        .config_fields = SDS_{upper_name}_CONFIG_FIELDS,\n")
+            output.write(f"        .config_field_count = SDS_{upper_name}_CONFIG_FIELD_COUNT,\n")
+        else:
+            output.write("        .config_fields = NULL,\n")
+            output.write("        .config_field_count = 0,\n")
+        
+        if table.state_fields:
+            output.write(f"        .state_fields = SDS_{upper_name}_STATE_FIELDS,\n")
+            output.write(f"        .state_field_count = SDS_{upper_name}_STATE_FIELD_COUNT,\n")
+        else:
+            output.write("        .state_fields = NULL,\n")
+            output.write("        .state_field_count = 0,\n")
+        
+        if table.status_fields:
+            output.write(f"        .status_fields = SDS_{upper_name}_STATUS_FIELDS,\n")
+            output.write(f"        .status_field_count = SDS_{upper_name}_STATUS_FIELD_COUNT,\n")
+        else:
+            output.write("        .status_fields = NULL,\n")
+            output.write("        .status_field_count = 0,\n")
         
         output.write("    },\n")
     

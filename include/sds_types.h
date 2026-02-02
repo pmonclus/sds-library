@@ -106,6 +106,28 @@ static void sensor_data_deserialize_status(void* section, SdsJsonReader* r) {
     { uint32_t tmp; if (sds_json_get_uint_field(r, "uptime_seconds", &tmp)) st->uptime_seconds = tmp; }
 }
 
+/* Config field descriptors for delta sync */
+static const SdsFieldMeta SDS_SENSOR_DATA_CONFIG_FIELDS[] = {
+    { "command", SDS_FIELD_UINT8, offsetof(SensorDataConfig, command), sizeof(((SensorDataConfig*)0)->command) },
+    { "threshold", SDS_FIELD_FLOAT, offsetof(SensorDataConfig, threshold), sizeof(((SensorDataConfig*)0)->threshold) },
+};
+#define SDS_SENSOR_DATA_CONFIG_FIELD_COUNT 2
+
+/* State field descriptors for delta sync */
+static const SdsFieldMeta SDS_SENSOR_DATA_STATE_FIELDS[] = {
+    { "temperature", SDS_FIELD_FLOAT, offsetof(SensorDataState, temperature), sizeof(((SensorDataState*)0)->temperature) },
+    { "humidity", SDS_FIELD_FLOAT, offsetof(SensorDataState, humidity), sizeof(((SensorDataState*)0)->humidity) },
+};
+#define SDS_SENSOR_DATA_STATE_FIELD_COUNT 2
+
+/* Status field descriptors for delta sync */
+static const SdsFieldMeta SDS_SENSOR_DATA_STATUS_FIELDS[] = {
+    { "error_code", SDS_FIELD_UINT8, offsetof(SensorDataStatus, error_code), sizeof(((SensorDataStatus*)0)->error_code) },
+    { "battery_percent", SDS_FIELD_UINT8, offsetof(SensorDataStatus, battery_percent), sizeof(((SensorDataStatus*)0)->battery_percent) },
+    { "uptime_seconds", SDS_FIELD_UINT32, offsetof(SensorDataStatus, uptime_seconds), sizeof(((SensorDataStatus*)0)->uptime_seconds) },
+};
+#define SDS_SENSOR_DATA_STATUS_FIELD_COUNT 3
+
 /* ============== Table: ActuatorData ============== */
 
 #define SDS_ACTUATOR_DATA_SYNC_INTERVAL_MS 100
@@ -188,6 +210,26 @@ static void actuator_data_deserialize_status(void* section, SdsJsonReader* r) {
     { uint32_t tmp; if (sds_json_get_uint_field(r, "error_code", &tmp)) st->error_code = tmp; }
 }
 
+/* Config field descriptors for delta sync */
+static const SdsFieldMeta SDS_ACTUATOR_DATA_CONFIG_FIELDS[] = {
+    { "target_position", SDS_FIELD_UINT8, offsetof(ActuatorDataConfig, target_position), sizeof(((ActuatorDataConfig*)0)->target_position) },
+    { "speed", SDS_FIELD_UINT8, offsetof(ActuatorDataConfig, speed), sizeof(((ActuatorDataConfig*)0)->speed) },
+};
+#define SDS_ACTUATOR_DATA_CONFIG_FIELD_COUNT 2
+
+/* State field descriptors for delta sync */
+static const SdsFieldMeta SDS_ACTUATOR_DATA_STATE_FIELDS[] = {
+    { "current_position", SDS_FIELD_UINT8, offsetof(ActuatorDataState, current_position), sizeof(((ActuatorDataState*)0)->current_position) },
+};
+#define SDS_ACTUATOR_DATA_STATE_FIELD_COUNT 1
+
+/* Status field descriptors for delta sync */
+static const SdsFieldMeta SDS_ACTUATOR_DATA_STATUS_FIELDS[] = {
+    { "motor_status", SDS_FIELD_UINT8, offsetof(ActuatorDataStatus, motor_status), sizeof(((ActuatorDataStatus*)0)->motor_status) },
+    { "error_code", SDS_FIELD_UINT16, offsetof(ActuatorDataStatus, error_code), sizeof(((ActuatorDataStatus*)0)->error_code) },
+};
+#define SDS_ACTUATOR_DATA_STATUS_FIELD_COUNT 2
+
 /* ============== Max Section Size (for shadow buffers) ============== */
 
 /* Helper macros for compile-time max calculation */
@@ -237,6 +279,12 @@ static const SdsTableMeta SDS_TABLE_REGISTRY[] = {
         .deserialize_config = sensor_data_deserialize_config,
         .deserialize_state = sensor_data_deserialize_state,
         .deserialize_status = sensor_data_deserialize_status,
+        .config_fields = SDS_SENSOR_DATA_CONFIG_FIELDS,
+        .config_field_count = SDS_SENSOR_DATA_CONFIG_FIELD_COUNT,
+        .state_fields = SDS_SENSOR_DATA_STATE_FIELDS,
+        .state_field_count = SDS_SENSOR_DATA_STATE_FIELD_COUNT,
+        .status_fields = SDS_SENSOR_DATA_STATUS_FIELDS,
+        .status_field_count = SDS_SENSOR_DATA_STATUS_FIELD_COUNT,
     },
     /* ActuatorData */
     {
@@ -271,6 +319,12 @@ static const SdsTableMeta SDS_TABLE_REGISTRY[] = {
         .deserialize_config = actuator_data_deserialize_config,
         .deserialize_state = actuator_data_deserialize_state,
         .deserialize_status = actuator_data_deserialize_status,
+        .config_fields = SDS_ACTUATOR_DATA_CONFIG_FIELDS,
+        .config_field_count = SDS_ACTUATOR_DATA_CONFIG_FIELD_COUNT,
+        .state_fields = SDS_ACTUATOR_DATA_STATE_FIELDS,
+        .state_field_count = SDS_ACTUATOR_DATA_STATE_FIELD_COUNT,
+        .status_fields = SDS_ACTUATOR_DATA_STATUS_FIELDS,
+        .status_field_count = SDS_ACTUATOR_DATA_STATUS_FIELD_COUNT,
     },
 };
 

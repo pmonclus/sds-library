@@ -71,6 +71,11 @@ if(SDS_BUILD_TESTS)
     target_link_libraries(test_unit_core sds_mock m)
     target_include_directories(test_unit_core PRIVATE include tests)
     
+    # Delta sync integration tests
+    add_executable(test_delta_sync tests/test_delta_sync.c)
+    target_link_libraries(test_delta_sync sds_mock m)
+    target_include_directories(test_delta_sync PRIVATE include tests)
+    
     # Reconnection scenario tests
     add_executable(test_reconnection tests/test_reconnection.c)
     target_link_libraries(test_reconnection sds_mock m)

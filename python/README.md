@@ -242,6 +242,47 @@ except SdsError as e:
 - MQTT broker (e.g., Mosquitto)
 - libpaho-mqtt development headers (for building from source)
 
+## Configuration Options
+
+### Delta Sync (v0.5.0+)
+
+Enable delta sync to only send changed fields, reducing bandwidth:
+
+```python
+with SdsNode(
+    "sensor_01", 
+    "localhost",
+    enable_delta_sync=True,           # Only send changed fields
+    delta_float_tolerance=0.01        # Ignore tiny float changes
+) as node:
+    # ...
+```
+
+**Benefits:**
+- Reduced bandwidth (only changed fields transmitted)
+- Lower power consumption on battery devices
+- Works automatically with codegen-generated tables
+
+**Limitations:**
+- Config messages are always full (retained on broker)
+- Status heartbeats are always full (liveness detection)
+- Manual schema definitions use full sync
+
+### Eviction Grace Period
+
+Configure how long to wait before evicting offline devices:
+
+```python
+with SdsNode(
+    "owner", 
+    "localhost",
+    eviction_grace_ms=30000  # 30 seconds before eviction
+) as node:
+    @node.on_device_evicted()
+    def handle_eviction(table_type, node_id):
+        print(f"Device {node_id} evicted from {table_type}")
+```
+
 ## API Reference
 
 ### SdsNode

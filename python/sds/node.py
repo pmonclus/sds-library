@@ -86,6 +86,8 @@ class SdsNode:
         retry_count: int = 3,
         retry_delay_ms: int = 1000,
         eviction_grace_ms: int = 0,
+        enable_delta_sync: bool = False,
+        delta_float_tolerance: float = 0.001,
     ):
         """
         Create an SDS node.
@@ -104,6 +106,11 @@ class SdsNode:
             eviction_grace_ms: Grace period before evicting offline devices (default: 0 = disabled)
                               When > 0, devices that go offline (LWT) will be evicted from
                               status slots after this many milliseconds if they don't reconnect.
+            enable_delta_sync: Enable delta updates - only changed fields are sent (default: False)
+                              When True, state and status messages only include fields that have
+                              changed since the last sync, reducing bandwidth usage.
+            delta_float_tolerance: Float comparison tolerance for delta sync (default: 0.001)
+                                  Float values within this tolerance are considered unchanged.
         
         Raises:
             SdsValidationError: If node_id is invalid
@@ -133,6 +140,8 @@ class SdsNode:
         self._retry_count = retry_count
         self._retry_delay_ms = retry_delay_ms
         self._eviction_grace_ms = eviction_grace_ms
+        self._enable_delta_sync = enable_delta_sync
+        self._delta_float_tolerance = delta_float_tolerance
         
         # Thread safety lock - reentrant to allow nested calls
         self._lock = threading.RLock()
@@ -231,6 +240,10 @@ class SdsNode:
             
             # Set eviction grace period
             config.eviction_grace_ms = self._eviction_grace_ms
+            
+            # Set delta sync configuration
+            config.enable_delta_sync = self._enable_delta_sync
+            config.delta_float_tolerance = self._delta_float_tolerance
             
             # Keep config struct alive
             self._config = config
@@ -1146,6 +1159,16 @@ class SdsNode:
     def eviction_grace_ms(self) -> int:
         """The configured eviction grace period in milliseconds."""
         return self._eviction_grace_ms
+    
+    @property
+    def delta_sync_enabled(self) -> bool:
+        """Whether delta sync is enabled."""
+        return self._enable_delta_sync
+    
+    @property
+    def delta_float_tolerance(self) -> float:
+        """The float comparison tolerance for delta sync."""
+        return self._delta_float_tolerance
     
     def get_schema_version(self) -> str:
         """

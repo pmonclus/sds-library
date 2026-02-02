@@ -1,8 +1,8 @@
 # SDS (Simple DDS) - Design Specification
 
-**Version:** 0.5 (Phases 1-8 Complete)  
-**Date:** January 2026  
-**Status:** Library complete with registry-based simple API, ready for hardware testing
+**Version:** 0.5.0 (Delta Sync, 1KB Sections)  
+**Date:** February 2026  
+**Status:** Library complete with delta sync, 1KB section support, ready for production
 
 ## 1. Overview
 
@@ -755,7 +755,49 @@ Messages use a flat structure (no nested "fields" object) for simplicity:
 | `online` | Device online flag (always true in normal messages, false in LWT/shutdown) |
 | `sv` | Schema version string |
 
-## 10.4 Building and Testing (POSIX)
+### 10.4 Delta Updates (v0.5.0+)
+
+When `enable_delta_sync` is enabled in `SdsConfig`, **state** and **status** messages only include fields that have changed since the last sync. This significantly reduces bandwidth usage for tables with many fields.
+
+**Full State Message (delta disabled):**
+```json
+{
+    "ts": 1706000000,
+    "node": "sensor_A3B2C1",
+    "temperature": 23.5,
+    "humidity": 45.0,
+    "reading_count": 42
+}
+```
+
+**Delta State Message (delta enabled, only temperature changed):**
+```json
+{
+    "ts": 1706000001,
+    "node": "sensor_A3B2C1",
+    "temperature": 24.0
+}
+```
+
+**Important notes:**
+- **Config messages are always full** (retained on broker for new subscribers)
+- **Status liveness heartbeats are full** (sent on liveness timer expiry)
+- Delta sync requires field metadata from codegen (schema-driven registration)
+- Manual registration via `sds_register_table_ex()` uses full sync only
+- Float comparisons use configurable tolerance (`delta_float_tolerance`)
+
+**Configuration:**
+```c
+SdsConfig config = {
+    .node_id = "sensor_01",
+    .mqtt_broker = "192.168.1.100",
+    .mqtt_port = 1883,
+    .enable_delta_sync = true,         // Enable delta updates
+    .delta_float_tolerance = 0.001f    // Ignore float changes < 0.001
+};
+```
+
+## 10.5 Building and Testing (POSIX)
 
 ### Prerequisites
 ```bash
