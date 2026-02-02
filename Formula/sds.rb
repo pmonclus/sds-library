@@ -13,7 +13,7 @@ class Sds < Formula
   license "MIT"
 
   url "https://github.com/pmonclus/sds-library/archive/refs/tags/v#{version}.tar.gz"
-  sha256 "3b1ed1e9253defe6603166aaa11122143fc55586d44e7106041fc082af80f81d"
+  sha256 "95584e64c8c503eb2a078ccdec71f9edcbe285479502985e0c58f27d79ac8e92"
 
   depends_on "cmake" => :build
   depends_on "cffi"
