@@ -30,10 +30,16 @@ class Sds < Formula
     system "cmake", "--build", "build"
     system "cmake", "--install", "build"
 
+    # Clean up old Python installations to avoid version conflicts
+    rm_rf "#{lib}/python3.12/site-packages/sds"
+    rm_rf Dir["#{lib}/python3.12/site-packages/sds_library-*.dist-info"]
+
     # Install Python bindings (builds CFFI extension)
     cd "python" do
       system Formula["python@3.12"].opt_bin/"python3.12", "-m", "pip", "install",
              "--prefix=#{prefix}",
+             "--force-reinstall",
+             "--no-deps",
              "."
     end
 

@@ -27,7 +27,7 @@ Example usage:
     ...         node.poll(timeout_ms=1000)
 """
 
-__version__ = "0.4.3"
+__version__ = "0.5.0"
 __author__ = "SDS Team"
 
 # Core classes
