@@ -153,6 +153,19 @@ static void* _eviction_user_data = NULL;
 static bool _delta_sync_enabled = false;
 static float _delta_float_tolerance = 0.001f;
 
+/* Raw MQTT subscription registry */
+#define SDS_RAW_TOPIC_MAX_LEN 128
+
+typedef struct {
+    char topic[SDS_RAW_TOPIC_MAX_LEN];
+    SdsRawMessageCallback callback;
+    void* user_data;
+    bool active;
+} RawSubscription;
+
+static RawSubscription _raw_subs[SDS_MAX_RAW_SUBSCRIPTIONS];
+static uint8_t _raw_sub_count = 0;
+
 /* ============== Forward Declarations ============== */
 
 static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t payload_len);
@@ -167,6 +180,41 @@ static void handle_lwt_message(const char* node_id, const uint8_t* payload, size
 static void handle_config_message(SdsTableContext* ctx, const uint8_t* payload, size_t len);
 static void handle_state_message(SdsTableContext* ctx, const char* from_node, const uint8_t* payload, size_t len);
 static void handle_status_message(SdsTableContext* ctx, const char* from_node, const uint8_t* payload, size_t len);
+static bool mqtt_topic_matches(const char* pattern, const char* topic);
+
+/* ============== MQTT Topic Matching ============== */
+
+/**
+ * Match an MQTT topic against a pattern with wildcards.
+ * Supports + (single level) and # (multi-level) wildcards.
+ */
+static bool mqtt_topic_matches(const char* pattern, const char* topic) {
+    while (*pattern && *topic) {
+        if (*pattern == '+') {
+            /* + matches exactly one level */
+            pattern++;
+            /* Skip to next / or end in topic */
+            while (*topic && *topic != '/') {
+                topic++;
+            }
+            /* If pattern has more after +, both should be at / or end */
+            if (*pattern && *pattern != '/') {
+                return false;
+            }
+        } else if (*pattern == '#') {
+            /* # matches everything remaining */
+            return true;
+        } else if (*pattern == *topic) {
+            pattern++;
+            topic++;
+        } else {
+            return false;
+        }
+    }
+    
+    /* Both should be at end, or pattern ends with # */
+    return (*pattern == '\0' && *topic == '\0') || *pattern == '#';
+}
 
 /* ============== Error Strings ============== */
 
@@ -523,6 +571,18 @@ void sds_shutdown(void) {
     _table_count = 0;
     _lwt_subscribed = false;
     
+    /* Clean up raw subscriptions */
+    for (int i = 0; i < SDS_MAX_RAW_SUBSCRIPTIONS; i++) {
+        if (_raw_subs[i].active) {
+            sds_platform_mqtt_unsubscribe(_raw_subs[i].topic);
+            _raw_subs[i].active = false;
+            _raw_subs[i].topic[0] = '\0';
+            _raw_subs[i].callback = NULL;
+            _raw_subs[i].user_data = NULL;
+        }
+    }
+    _raw_sub_count = 0;
+    
     sds_platform_shutdown();
     _initialized = false;
     SDS_LOG_I("SDS shutdown complete");
@@ -568,6 +628,94 @@ SdsError sds_publish_raw(
         _stats.errors++;
         return SDS_ERR_PLATFORM_ERROR;
     }
+}
+
+SdsError sds_subscribe_raw(
+    const char* topic,
+    SdsRawMessageCallback callback,
+    void* user_data
+) {
+    if (!_initialized) {
+        return SDS_ERR_NOT_INITIALIZED;
+    }
+    
+    if (!topic || !callback) {
+        return SDS_ERR_INVALID_CONFIG;
+    }
+    
+    /* Block sds/ prefix - reserved for internal use */
+    if (strncmp(topic, "sds/", 4) == 0) {
+        SDS_LOG_W("Cannot subscribe to sds/ topics - reserved for internal use");
+        return SDS_ERR_INVALID_CONFIG;
+    }
+    
+    /* Check topic length */
+    size_t topic_len = strlen(topic);
+    if (topic_len >= SDS_RAW_TOPIC_MAX_LEN) {
+        SDS_LOG_W("Topic too long: %zu >= %d", topic_len, SDS_RAW_TOPIC_MAX_LEN);
+        return SDS_ERR_INVALID_CONFIG;
+    }
+    
+    /* Find free slot */
+    int slot = -1;
+    for (int i = 0; i < SDS_MAX_RAW_SUBSCRIPTIONS; i++) {
+        if (!_raw_subs[i].active) {
+            slot = i;
+            break;
+        }
+    }
+    
+    if (slot < 0) {
+        SDS_LOG_W("Max raw subscriptions reached (%d)", SDS_MAX_RAW_SUBSCRIPTIONS);
+        return SDS_ERR_MAX_TABLES_REACHED;
+    }
+    
+    /* Subscribe via platform */
+    if (!sds_platform_mqtt_subscribe(topic)) {
+        SDS_LOG_E("Failed to subscribe to: %s", topic);
+        return SDS_ERR_PLATFORM_ERROR;
+    }
+    
+    /* Store subscription */
+    strncpy(_raw_subs[slot].topic, topic, SDS_RAW_TOPIC_MAX_LEN - 1);
+    _raw_subs[slot].topic[SDS_RAW_TOPIC_MAX_LEN - 1] = '\0';
+    _raw_subs[slot].callback = callback;
+    _raw_subs[slot].user_data = user_data;
+    _raw_subs[slot].active = true;
+    _raw_sub_count++;
+    
+    SDS_LOG_I("Subscribed to raw topic: %s (slot %d)", topic, slot);
+    return SDS_OK;
+}
+
+SdsError sds_unsubscribe_raw(const char* topic) {
+    if (!_initialized) {
+        return SDS_ERR_NOT_INITIALIZED;
+    }
+    
+    if (!topic) {
+        return SDS_ERR_INVALID_CONFIG;
+    }
+    
+    /* Find matching subscription */
+    for (int i = 0; i < SDS_MAX_RAW_SUBSCRIPTIONS; i++) {
+        if (_raw_subs[i].active && strcmp(_raw_subs[i].topic, topic) == 0) {
+            /* Unsubscribe via platform */
+            sds_platform_mqtt_unsubscribe(topic);
+            
+            /* Clear slot */
+            _raw_subs[i].active = false;
+            _raw_subs[i].topic[0] = '\0';
+            _raw_subs[i].callback = NULL;
+            _raw_subs[i].user_data = NULL;
+            _raw_sub_count--;
+            
+            SDS_LOG_I("Unsubscribed from raw topic: %s", topic);
+            return SDS_OK;
+        }
+    }
+    
+    return SDS_ERR_TABLE_NOT_FOUND;
 }
 
 const char* sds_get_node_id(void) {
@@ -1678,7 +1826,16 @@ static void on_mqtt_message(const char* topic, const uint8_t* payload, size_t pa
     
     SDS_LOG_D("Message: topic=%s len=%zu", topic, payload_len);
     
+    /* Check if this is a raw subscription (non-sds/ topics) */
     if (strncmp(topic, "sds/", 4) != 0) {
+        /* Route to raw subscription callbacks */
+        for (uint8_t i = 0; i < SDS_MAX_RAW_SUBSCRIPTIONS; i++) {
+            if (_raw_subs[i].active && mqtt_topic_matches(_raw_subs[i].topic, topic)) {
+                SDS_LOG_D("Raw message matched subscription: %s", _raw_subs[i].topic);
+                _raw_subs[i].callback(topic, payload, payload_len, _raw_subs[i].user_data);
+                /* Continue to check other subscriptions (topic could match multiple patterns) */
+            }
+        }
         return;
     }
     

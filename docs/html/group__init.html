@@ -96,6 +96,11 @@ $(function(){initNavTree('group__init.html','',''); });
 <p>Functions for initializing and shutting down SDS.  
 <a href="#details">More...</a></p>
 <table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 id="header-typedef-members" class="groupheader"><a id="typedef-members" name="typedef-members"></a>
+Typedefs</h2></td></tr>
+<tr class="memitem:gadf7c1e7d63a48b93e9ddc2e8a3d87a2e" id="r_gadf7c1e7d63a48b93e9ddc2e8a3d87a2e"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="#gadf7c1e7d63a48b93e9ddc2e8a3d87a2e">SdsRawMessageCallback</a>) (const char *topic, const uint8_t *payload, size_t payload_len, void *user_data)</td></tr>
+<tr class="memdesc:gadf7c1e7d63a48b93e9ddc2e8a3d87a2e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for raw MQTT message reception.  <br /></td></tr>
+</table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-func-members" class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:ga99eea78bf2771e604ab5ce296cd8a815" id="r_ga99eea78bf2771e604ab5ce296cd8a815"><td class="memItemLeft">SdsError&#160;</td><td class="memItemRight"><a class="el" href="#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a> (const <a class="el" href="struct_sds_config.html">SdsConfig</a> *config)</td></tr>
@@ -110,6 +115,10 @@ Functions</h2></td></tr>
 <tr class="memdesc:gacbebde6c8a878aed82e3830c6da5ec2d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if the MQTT connection is currently active.  <br /></td></tr>
 <tr class="memitem:ga1fcaa6529e839b694390d2cfceb77b56" id="r_ga1fcaa6529e839b694390d2cfceb77b56"><td class="memItemLeft">SdsError&#160;</td><td class="memItemRight"><a class="el" href="#ga1fcaa6529e839b694390d2cfceb77b56">sds_publish_raw</a> (const char *topic, const void *payload, size_t payload_len, int qos, bool retained)</td></tr>
 <tr class="memdesc:ga1fcaa6529e839b694390d2cfceb77b56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Publish a raw MQTT message through the SDS-managed connection.  <br /></td></tr>
+<tr class="memitem:gac05ed532be503ce8e3be0b073ea08ec5" id="r_gac05ed532be503ce8e3be0b073ea08ec5"><td class="memItemLeft">SdsError&#160;</td><td class="memItemRight"><a class="el" href="#gac05ed532be503ce8e3be0b073ea08ec5">sds_subscribe_raw</a> (const char *topic, <a class="el" href="#gadf7c1e7d63a48b93e9ddc2e8a3d87a2e">SdsRawMessageCallback</a> callback, void *user_data)</td></tr>
+<tr class="memdesc:gac05ed532be503ce8e3be0b073ea08ec5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Subscribe to an MQTT topic for raw message reception.  <br /></td></tr>
+<tr class="memitem:gaafa26c698888d3125187984d75b3bd31" id="r_gaafa26c698888d3125187984d75b3bd31"><td class="memItemLeft">SdsError&#160;</td><td class="memItemRight"><a class="el" href="#gaafa26c698888d3125187984d75b3bd31">sds_unsubscribe_raw</a> (const char *topic)</td></tr>
+<tr class="memdesc:gaafa26c698888d3125187984d75b3bd31"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unsubscribe from a raw MQTT topic.  <br /></td></tr>
 <tr class="memitem:gab2d009b20c5946bae1e107a1efefee0f" id="r_gab2d009b20c5946bae1e107a1efefee0f"><td class="memItemLeft">const char *&#160;</td><td class="memItemRight"><a class="el" href="#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a> (void)</td></tr>
 <tr class="memdesc:gab2d009b20c5946bae1e107a1efefee0f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the node ID.  <br /></td></tr>
 <tr class="memitem:gab9070cd3bc84e1f14e681e7d626edbb2" id="r_gab9070cd3bc84e1f14e681e7d626edbb2"><td class="memItemLeft">const <a class="el" href="struct_sds_stats.html">SdsStats</a> *&#160;</td><td class="memItemRight"><a class="el" href="#gab9070cd3bc84e1f14e681e7d626edbb2">sds_get_stats</a> (void)</td></tr>
@@ -117,7 +126,33 @@ Functions</h2></td></tr>
 </table>
 <a name="details" id="details"></a><h2 id="header-details" class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Functions for initializing and shutting down SDS. </p>
-</div><a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">Function Documentation</h2>
+</div><a name="doc-typedef-members" id="doc-typedef-members"></a><h2 id="header-doc-typedef-members" class="groupheader">Typedef Documentation</h2>
+<a id="gadf7c1e7d63a48b93e9ddc2e8a3d87a2e" name="gadf7c1e7d63a48b93e9ddc2e8a3d87a2e"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gadf7c1e7d63a48b93e9ddc2e8a3d87a2e">&#9670;&#160;</a></span>SdsRawMessageCallback</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">typedef void(* SdsRawMessageCallback) (const char *topic, const uint8_t *payload, size_t payload_len, void *user_data)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Callback for raw MQTT message reception. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">topic</td><td>The topic the message arrived on </td></tr>
+    <tr><td class="paramname">payload</td><td>Message payload (not null-terminated) </td></tr>
+    <tr><td class="paramname">payload_len</td><td>Length of payload in bytes </td></tr>
+    <tr><td class="paramname">user_data</td><td>User-provided context pointer </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">Function Documentation</h2>
 <a id="gab2d009b20c5946bae1e107a1efefee0f" name="gab2d009b20c5946bae1e107a1efefee0f"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#gab2d009b20c5946bae1e107a1efefee0f">&#9670;&#160;</a></span>sds_get_node_id()</h2>
 
@@ -346,6 +381,87 @@ Functions</h2></td></tr>
 <p>Shutdown SDS and disconnect from MQTT broker. </p>
 <p>Publishes a graceful offline message, unsubscribes from all topics, and releases resources. Safe to call even if not initialized.</p>
 <dl class="section see"><dt>See also</dt><dd><a class="el" href="#ga99eea78bf2771e604ab5ce296cd8a815" title="Initialize SDS and connect to MQTT broker.">sds_init</a> </dd></dl>
+
+</div>
+</div>
+<a id="gac05ed532be503ce8e3be0b073ea08ec5" name="gac05ed532be503ce8e3be0b073ea08ec5"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gac05ed532be503ce8e3be0b073ea08ec5">&#9670;&#160;</a></span>sds_subscribe_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">SdsError sds_subscribe_raw </td>
+          <td>(</td>
+          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>topic</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="#gadf7c1e7d63a48b93e9ddc2e8a3d87a2e">SdsRawMessageCallback</a></td>          <td class="paramname"><span class="paramname"><em>callback</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">void *</td>          <td class="paramname"><span class="paramname"><em>user_data</em></span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Subscribe to an MQTT topic for raw message reception. </p>
+<p>Allows subscribing to arbitrary MQTT topics outside the SDS namespace. Messages received on matching topics will be delivered to the callback.</p>
+<div class="fragment"><div class="line"><span class="keywordtype">void</span> on_log(<span class="keyword">const</span> <span class="keywordtype">char</span>* topic, <span class="keyword">const</span> uint8_t* payload, <span class="keywordtype">size_t</span> len, <span class="keywordtype">void</span>* ud) {</div>
+<div class="line">    printf(<span class="stringliteral">&quot;Log from %s: %.*s\n&quot;</span>, topic, (<span class="keywordtype">int</span>)len, payload);</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_function" href="#gac05ed532be503ce8e3be0b073ea08ec5">sds_subscribe_raw</a>(<span class="stringliteral">&quot;log/+&quot;</span>, on_log, NULL);</div>
+<div class="ttc" id="agroup__init_html_gac05ed532be503ce8e3be0b073ea08ec5"><div class="ttname"><a href="#gac05ed532be503ce8e3be0b073ea08ec5">sds_subscribe_raw</a></div><div class="ttdeci">SdsError sds_subscribe_raw(const char *topic, SdsRawMessageCallback callback, void *user_data)</div><div class="ttdoc">Subscribe to an MQTT topic for raw message reception.</div></div>
+</div><!-- fragment --><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">topic</td><td>MQTT topic pattern (supports + and # wildcards) </td></tr>
+    <tr><td class="paramname">callback</td><td>Function to call when message arrives </td></tr>
+    <tr><td class="paramname">user_data</td><td>User context passed to callback </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>SDS_OK on success, error code otherwise<ul>
+<li>SDS_ERR_NOT_INITIALIZED: SDS not initialized</li>
+<li>SDS_ERR_INVALID_CONFIG: Topic starts with "sds/" (reserved)</li>
+<li>SDS_ERR_MAX_TABLES_REACHED: Too many raw subscriptions</li>
+<li>SDS_ERR_PLATFORM_ERROR: Subscribe failed</li>
+</ul>
+</dd></dl>
+<dl class="section note"><dt>Note</dt><dd>Topics starting with "sds/" are reserved and will be rejected. </dd>
+<dd>
+Maximum of SDS_MAX_RAW_SUBSCRIPTIONS (8) concurrent subscriptions.</dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="#gaafa26c698888d3125187984d75b3bd31" title="Unsubscribe from a raw MQTT topic.">sds_unsubscribe_raw</a>, <a class="el" href="#ga1fcaa6529e839b694390d2cfceb77b56" title="Publish a raw MQTT message through the SDS-managed connection.">sds_publish_raw</a> </dd></dl>
+
+</div>
+</div>
+<a id="gaafa26c698888d3125187984d75b3bd31" name="gaafa26c698888d3125187984d75b3bd31"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#gaafa26c698888d3125187984d75b3bd31">&#9670;&#160;</a></span>sds_unsubscribe_raw()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">SdsError sds_unsubscribe_raw </td>
+          <td>(</td>
+          <td class="paramtype">const char *</td>          <td class="paramname"><span class="paramname"><em>topic</em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>Unsubscribe from a raw MQTT topic. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">topic</td><td>The topic pattern to unsubscribe from (must match exactly) </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>SDS_OK on success, SDS_ERR_TABLE_NOT_FOUND if not subscribed</dd></dl>
+<dl class="section see"><dt>See also</dt><dd><a class="el" href="#gac05ed532be503ce8e3be0b073ea08ec5" title="Subscribe to an MQTT topic for raw message reception.">sds_subscribe_raw</a> </dd></dl>
 
 </div>
 </div>

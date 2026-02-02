@@ -4,6 +4,7 @@ var sds_8h =
     [ "SDS_DEFAULT_MQTT_PORT", "group__config.html#ga198fd5752ad2f525a66fecc0dfb29a46", null ],
     [ "SDS_DEFAULT_SYNC_INTERVAL_MS", "group__config.html#ga53d4fc5be9e9eff0acc80e8137eefac0", null ],
     [ "SDS_MAX_NODE_ID_LEN", "group__config.html#ga74cac56f4582eab6a9f65ffcc678c2ef", null ],
+    [ "SDS_MAX_RAW_SUBSCRIPTIONS", "group__config.html#ga3f8b32e091f147084b31d7268f73d554", null ],
     [ "SDS_MAX_TABLE_TYPE_LEN", "group__config.html#ga2115533a6fc532331ae1b0b659f6dee1", null ],
     [ "SDS_MAX_TABLES", "group__config.html#gad36ade84fa5fd2ae20589cfbf4ec9d41", null ],
     [ "SDS_MSG_BUFFER_SIZE", "group__config.html#ga5fc9a201a766acf6f4c090c004286029", null ],
@@ -13,6 +14,7 @@ var sds_8h =
     [ "SdsDeviceEvictedCallback", "group__callbacks.html#ga1620244dfc15a6423fe29b7d9c3edc3e", null ],
     [ "SdsErrorCallback", "group__callbacks.html#ga0c01cb5dd7ba9f1283e33dfac541fe08", null ],
     [ "SdsNodeIterator", "group__callbacks.html#ga663545907da5cc9b3981185ffe824c52", null ],
+    [ "SdsRawMessageCallback", "group__init.html#gadf7c1e7d63a48b93e9ddc2e8a3d87a2e", null ],
     [ "SdsSerializeFunc", "group__serialization.html#ga7c07d1ba6575c0a6a05017bf410d3d6c", null ],
     [ "SdsStateCallback", "group__callbacks.html#ga6733edea0d33e8c1718333a493cdd254", null ],
     [ "SdsStatusCallback", "group__callbacks.html#gab350835fef85e82bb47c8bc41f931e09", null ],
@@ -61,5 +63,7 @@ var sds_8h =
     [ "sds_set_schema_version", "group__event__callbacks.html#gad4f633ef22ed2f61a8b9887b852ca08d", null ],
     [ "sds_set_table_registry", "group__registry.html#ga4528def4a9a0720c7a02232b7c35d5bc", null ],
     [ "sds_shutdown", "group__init.html#gae809cf426b23805d83699f84d67882ca", null ],
-    [ "sds_unregister_table", "group__registration.html#ga294a959fb443b6175e6c58dcc0aff90d", null ]
+    [ "sds_subscribe_raw", "group__init.html#gac05ed532be503ce8e3be0b073ea08ec5", null ],
+    [ "sds_unregister_table", "group__registration.html#ga294a959fb443b6175e6c58dcc0aff90d", null ],
+    [ "sds_unsubscribe_raw", "group__init.html#gaafa26c698888d3125187984d75b3bd31", null ]
 ];

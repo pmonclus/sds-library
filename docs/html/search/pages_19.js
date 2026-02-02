@@ -9,6 +9,7 @@ var searchData=
   ['start_6',['Quick Start',['../index.html#autotoc_md3',1,'']]],
   ['start_20an_20mqtt_20broker_7',['5. Start an MQTT Broker',['../index.html#autotoc_md12',1,'']]],
   ['structures_8',['SDS (Synchronized Data Structures)',['../index.html',1,'']]],
-  ['sync_20optional_9',['8. Enable Delta Sync (Optional)',['../index.html#autotoc_md15',1,'']]],
-  ['synchronized_20data_20structures_10',['SDS (Synchronized Data Structures)',['../index.html',1,'']]]
+  ['subscribe_20logging_20diagnostics_9',['9. Raw MQTT Publish/Subscribe (Logging, Diagnostics)',['../index.html#autotoc_md16',1,'']]],
+  ['sync_20optional_10',['8. Enable Delta Sync (Optional)',['../index.html#autotoc_md15',1,'']]],
+  ['synchronized_20data_20structures_11',['SDS (Synchronized Data Structures)',['../index.html',1,'']]]
 ];

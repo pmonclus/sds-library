@@ -8,6 +8,6 @@ var searchData=
   ['device_20example_5',['Device Example',['../index.html#autotoc_md20',1,'ESP32 Device Example'],['../index.html#autotoc_md24',1,'Simple Device Example']]],
   ['device_20python_6',['6. Run Your First Device (Python)',['../index.html#autotoc_md13',1,'']]],
   ['device_20vs_20owner_20roles_7',['Device vs Owner Roles',['../sds_8h.html#roles',1,'']]],
-  ['diagnostics_8',['9. Raw MQTT Publish (Logging, Diagnostics)',['../index.html#autotoc_md16',1,'']]],
+  ['diagnostics_8',['9. Raw MQTT Publish/Subscribe (Logging, Diagnostics)',['../index.html#autotoc_md16',1,'']]],
   ['documentation_9',['Documentation',['../index.html#autotoc_md28',1,'']]]
 ];

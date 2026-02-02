@@ -4,6 +4,7 @@ var group__config =
     [ "SDS_DEFAULT_MQTT_PORT", "group__config.html#ga198fd5752ad2f525a66fecc0dfb29a46", null ],
     [ "SDS_DEFAULT_SYNC_INTERVAL_MS", "group__config.html#ga53d4fc5be9e9eff0acc80e8137eefac0", null ],
     [ "SDS_MAX_NODE_ID_LEN", "group__config.html#ga74cac56f4582eab6a9f65ffcc678c2ef", null ],
+    [ "SDS_MAX_RAW_SUBSCRIPTIONS", "group__config.html#ga3f8b32e091f147084b31d7268f73d554", null ],
     [ "SDS_MAX_TABLE_TYPE_LEN", "group__config.html#ga2115533a6fc532331ae1b0b659f6dee1", null ],
     [ "SDS_MAX_TABLES", "group__config.html#gad36ade84fa5fd2ae20589cfbf4ec9d41", null ],
     [ "SDS_MSG_BUFFER_SIZE", "group__config.html#ga5fc9a201a766acf6f4c090c004286029", null ],

@@ -1612,6 +1612,143 @@ TEST(publish_raw_increments_stats) {
 }
 
 /* ============================================================================
+ * RAW SUBSCRIBE API TESTS
+ * ============================================================================ */
+
+static int g_raw_callback_count = 0;
+static char g_raw_callback_topic[128] = "";
+static char g_raw_callback_payload[256] = "";
+
+static void test_raw_callback(const char* topic, const uint8_t* payload, size_t len, void* user_data) {
+    g_raw_callback_count++;
+    strncpy(g_raw_callback_topic, topic, sizeof(g_raw_callback_topic) - 1);
+    if (len < sizeof(g_raw_callback_payload)) {
+        memcpy(g_raw_callback_payload, payload, len);
+        g_raw_callback_payload[len] = '\0';
+    }
+    (void)user_data;
+}
+
+TEST(subscribe_raw_success) {
+    init_sds_with_mock("test_node");
+    
+    SdsError result = sds_subscribe_raw("log/+", test_raw_callback, NULL);
+    
+    ASSERT_EQ(result, SDS_OK);
+    
+    sds_shutdown();
+}
+
+TEST(subscribe_raw_fails_when_not_initialized) {
+    SdsError result = sds_subscribe_raw("log/+", test_raw_callback, NULL);
+    
+    ASSERT_EQ(result, SDS_ERR_NOT_INITIALIZED);
+}
+
+TEST(subscribe_raw_rejects_sds_prefix) {
+    init_sds_with_mock("test_node");
+    
+    SdsError result = sds_subscribe_raw("sds/test/config", test_raw_callback, NULL);
+    
+    ASSERT_EQ(result, SDS_ERR_INVALID_CONFIG);
+    
+    sds_shutdown();
+}
+
+TEST(subscribe_raw_fails_with_null_topic) {
+    init_sds_with_mock("test_node");
+    
+    SdsError result = sds_subscribe_raw(NULL, test_raw_callback, NULL);
+    
+    ASSERT_EQ(result, SDS_ERR_INVALID_CONFIG);
+    
+    sds_shutdown();
+}
+
+TEST(subscribe_raw_fails_with_null_callback) {
+    init_sds_with_mock("test_node");
+    
+    SdsError result = sds_subscribe_raw("log/+", NULL, NULL);
+    
+    ASSERT_EQ(result, SDS_ERR_INVALID_CONFIG);
+    
+    sds_shutdown();
+}
+
+TEST(unsubscribe_raw_success) {
+    init_sds_with_mock("test_node");
+    
+    sds_subscribe_raw("log/test", test_raw_callback, NULL);
+    SdsError result = sds_unsubscribe_raw("log/test");
+    
+    ASSERT_EQ(result, SDS_OK);
+    
+    sds_shutdown();
+}
+
+TEST(unsubscribe_raw_fails_when_not_subscribed) {
+    init_sds_with_mock("test_node");
+    
+    SdsError result = sds_unsubscribe_raw("log/not_subscribed");
+    
+    ASSERT_EQ(result, SDS_ERR_TABLE_NOT_FOUND);
+    
+    sds_shutdown();
+}
+
+TEST(raw_callback_invoked_on_message) {
+    init_sds_with_mock("test_node");
+    
+    g_raw_callback_count = 0;
+    g_raw_callback_topic[0] = '\0';
+    g_raw_callback_payload[0] = '\0';
+    
+    sds_subscribe_raw("log/sensor", test_raw_callback, NULL);
+    
+    /* Inject a message on the subscribed topic */
+    const char* msg = "{\"level\":\"info\"}";
+    sds_mock_inject_message("log/sensor", (const uint8_t*)msg, strlen(msg));
+    
+    ASSERT_EQ(g_raw_callback_count, 1);
+    ASSERT_STR_EQ(g_raw_callback_topic, "log/sensor");
+    ASSERT_STR_CONTAINS(g_raw_callback_payload, "info");
+    
+    sds_shutdown();
+}
+
+TEST(raw_callback_wildcard_plus) {
+    init_sds_with_mock("test_node");
+    
+    g_raw_callback_count = 0;
+    
+    sds_subscribe_raw("log/+", test_raw_callback, NULL);
+    
+    /* Inject messages matching the wildcard */
+    sds_mock_inject_message("log/sensor1", (const uint8_t*)"msg1", 4);
+    sds_mock_inject_message("log/sensor2", (const uint8_t*)"msg2", 4);
+    
+    ASSERT_EQ(g_raw_callback_count, 2);
+    
+    sds_shutdown();
+}
+
+TEST(raw_callback_wildcard_hash) {
+    init_sds_with_mock("test_node");
+    
+    g_raw_callback_count = 0;
+    
+    sds_subscribe_raw("log/#", test_raw_callback, NULL);
+    
+    /* Inject messages matching the multi-level wildcard */
+    sds_mock_inject_message("log/sensor1", (const uint8_t*)"msg1", 4);
+    sds_mock_inject_message("log/sensor2/sub", (const uint8_t*)"msg2", 4);
+    
+    ASSERT_EQ(g_raw_callback_count, 2);
+    
+    sds_shutdown();
+}
+
+/* ============================================================================
  * MAIN
  * ============================================================================ */
 
@@ -1720,6 +1857,18 @@ int main(void) {
     RUN_TEST(publish_raw_fails_when_disconnected);
     RUN_TEST(publish_raw_with_retained_flag);
     RUN_TEST(publish_raw_increments_stats);
+    
+    printf("\n─── Raw Subscribe API Tests ───\n");
+    RUN_TEST(subscribe_raw_success);
+    RUN_TEST(subscribe_raw_fails_when_not_initialized);
+    RUN_TEST(subscribe_raw_rejects_sds_prefix);
+    RUN_TEST(subscribe_raw_fails_with_null_topic);
+    RUN_TEST(subscribe_raw_fails_with_null_callback);
+    RUN_TEST(unsubscribe_raw_success);
+    RUN_TEST(unsubscribe_raw_fails_when_not_subscribed);
+    RUN_TEST(raw_callback_invoked_on_message);
+    RUN_TEST(raw_callback_wildcard_plus);
+    RUN_TEST(raw_callback_wildcard_hash);
     
     printf("\n");
     printf("══════════════════════════════════════════════════════════════\n");

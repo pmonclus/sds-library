@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.1] - 2026-02-01
+
+### Added
+
+- **Raw MQTT Subscribe API**: Receive custom messages through the SDS connection
+  - `sds_subscribe_raw()` - Subscribe to arbitrary MQTT topics with wildcards
+  - `sds_unsubscribe_raw()` - Unsubscribe from topics
+  - `SdsRawMessageCallback` - Callback type for received messages
+  - Supports `+` (single-level) and `#` (multi-level) wildcards
+  - Topics starting with `sds/` are reserved and rejected
+  - Maximum 8 concurrent raw subscriptions
+  - Python bindings: `subscribe_raw()`, `unsubscribe_raw()` methods
+
+### Tests
+
+- 10 new C unit tests for raw subscribe functionality
+- 5 new Python integration tests for raw subscribe
+
 ## [0.5.0] - 2026-02-02
 
 ### Added

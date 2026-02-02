@@ -105,7 +105,7 @@ Key Features (v0.5.0)</h2>
 <ul>
 <li><b>Delta Sync</b>: Only send changed fields, reducing bandwidth by up to 90%</li>
 <li><b>1KB Section Support</b>: Config, state, and status sections up to 1KB each</li>
-<li><b>Raw MQTT Publish</b>: Send custom messages (logs, diagnostics) via SDS connection</li>
+<li><b>Raw MQTT Publish/Subscribe</b>: Send and receive custom messages via SDS connection</li>
 <li><b>Schema-Driven</b>: Define your data in <span class="tt">.sds</span> files, generate C/Python code</li>
 <li><b>Cross-Platform</b>: ESP32/Arduino, Linux, macOS, Python</li>
 <li><b>Liveness Detection</b>: Automatic heartbeats and offline detection with LWT</li>
@@ -281,19 +281,19 @@ Option B: Build from Source — <em>For developers and contributors</em></h3>
 <div class="line">};</div>
 <div class="line"><a class="code hl_function" href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a>(&amp;config);</div>
 <div class="ttc" id="agroup__init_html_ga99eea78bf2771e604ab5ce296cd8a815"><div class="ttname"><a href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a></div><div class="ttdeci">SdsError sds_init(const SdsConfig *config)</div><div class="ttdoc">Initialize SDS and connect to MQTT broker.</div></div>
-<div class="ttc" id="astruct_sds_config_html"><div class="ttname"><a href="struct_sds_config.html">SdsConfig</a></div><div class="ttdoc">Configuration for SDS initialization.</div><div class="ttdef"><b>Definition</b> sds.h:119</div></div>
+<div class="ttc" id="astruct_sds_config_html"><div class="ttname"><a href="struct_sds_config.html">SdsConfig</a></div><div class="ttdoc">Configuration for SDS initialization.</div><div class="ttdef"><b>Definition</b> sds.h:122</div></div>
 </div><!-- fragment --><p>With delta sync, if only <span class="tt">temperature</span> changes from 23.5 to 24.0:</p><ul>
 <li><b>Without delta</b>: <span class="tt">{"ts":...,"temperature":24.0,"humidity":45.0,"reading_count":42}</span></li>
 <li><b>With delta</b>: <span class="tt">{"ts":...,"temperature":24.0}</span></li>
 </ul>
 <h2 class="doxsection"><a class="anchor" id="autotoc_md16"></a>
-9. Raw MQTT Publish (Logging, Diagnostics)</h2>
-<p>Send custom messages through the SDS-managed MQTT connection:</p>
-<p><b>Python:</b> </p><div class="fragment"><div class="line"><span class="keyword">with</span> SdsNode(<span class="stringliteral">&quot;sensor_01&quot;</span>, <span class="stringliteral">&quot;localhost&quot;</span>) <span class="keyword">as</span> node:</div>
+9. Raw MQTT Publish/Subscribe (Logging, Diagnostics)</h2>
+<p>Send and receive custom messages through the SDS-managed MQTT connection:</p>
+<p><b>Publishing (Python):</b> </p><div class="fragment"><div class="line"><span class="keyword">with</span> SdsNode(<span class="stringliteral">&quot;sensor_01&quot;</span>, <span class="stringliteral">&quot;localhost&quot;</span>) <span class="keyword">as</span> node:</div>
 <div class="line">    <span class="comment"># Check connection before publishing</span></div>
 <div class="line">    <span class="keywordflow">if</span> node.is_connected():</div>
 <div class="line">        node.publish_raw(f<span class="stringliteral">&quot;log/{node.node_id}&quot;</span>, <span class="stringliteral">&#39;{&quot;level&quot;:&quot;info&quot;,&quot;msg&quot;:&quot;Started&quot;}&#39;</span>)</div>
-</div><!-- fragment --><p><b>C:</b> </p><div class="fragment"><div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="group__init.html#gacbebde6c8a878aed82e3830c6da5ec2d">sds_is_connected</a>()) {</div>
+</div><!-- fragment --><p><b>Publishing (C):</b> </p><div class="fragment"><div class="line"><span class="keywordflow">if</span> (<a class="code hl_function" href="group__init.html#gacbebde6c8a878aed82e3830c6da5ec2d">sds_is_connected</a>()) {</div>
 <div class="line">    <span class="keywordtype">char</span> topic[48];</div>
 <div class="line">    snprintf(topic, <span class="keyword">sizeof</span>(topic), <span class="stringliteral">&quot;log/%s&quot;</span>, <a class="code hl_function" href="group__init.html#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a>());</div>
 <div class="line">    <span class="keyword">const</span> <span class="keywordtype">char</span>* msg = <span class="stringliteral">&quot;{\&quot;level\&quot;:\&quot;info\&quot;,\&quot;msg\&quot;:\&quot;Started\&quot;}&quot;</span>;</div>
@@ -302,7 +302,20 @@ Option B: Build from Source — <em>For developers and contributors</em></h3>
 <div class="ttc" id="agroup__init_html_ga1fcaa6529e839b694390d2cfceb77b56"><div class="ttname"><a href="group__init.html#ga1fcaa6529e839b694390d2cfceb77b56">sds_publish_raw</a></div><div class="ttdeci">SdsError sds_publish_raw(const char *topic, const void *payload, size_t payload_len, int qos, bool retained)</div><div class="ttdoc">Publish a raw MQTT message through the SDS-managed connection.</div></div>
 <div class="ttc" id="agroup__init_html_gab2d009b20c5946bae1e107a1efefee0f"><div class="ttname"><a href="group__init.html#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a></div><div class="ttdeci">const char * sds_get_node_id(void)</div><div class="ttdoc">Get the node ID.</div></div>
 <div class="ttc" id="agroup__init_html_gacbebde6c8a878aed82e3830c6da5ec2d"><div class="ttname"><a href="group__init.html#gacbebde6c8a878aed82e3830c6da5ec2d">sds_is_connected</a></div><div class="ttdeci">bool sds_is_connected(void)</div><div class="ttdoc">Check if the MQTT connection is currently active.</div></div>
-</div><!-- fragment --><p>This is useful for centralized logging without creating a separate MQTT connection.</p>
+</div><!-- fragment --><p><b>Subscribing (Python):</b> </p><div class="fragment"><div class="line"><span class="keyword">def </span>on_log(topic, payload):</div>
+<div class="line">    print(f<span class="stringliteral">&quot;Log from {topic}: {payload.decode()}&quot;</span>)</div>
+<div class="line"> </div>
+<div class="line"><span class="keyword">with</span> SdsNode(<span class="stringliteral">&quot;controller&quot;</span>, <span class="stringliteral">&quot;localhost&quot;</span>) <span class="keyword">as</span> node:</div>
+<div class="line">    node.subscribe_raw(<span class="stringliteral">&quot;log/+&quot;</span>, on_log)  <span class="comment"># Receive logs from all devices</span></div>
+<div class="line">    <span class="keywordflow">while</span> <span class="keyword">True</span>:</div>
+<div class="line">        node.poll()</div>
+</div><!-- fragment --><p><b>Subscribing (C):</b> </p><div class="fragment"><div class="line"><span class="keywordtype">void</span> on_log(<span class="keyword">const</span> <span class="keywordtype">char</span>* topic, <span class="keyword">const</span> uint8_t* payload, <span class="keywordtype">size_t</span> len, <span class="keywordtype">void</span>* ud) {</div>
+<div class="line">    printf(<span class="stringliteral">&quot;Log from %s: %.*s\n&quot;</span>, topic, (<span class="keywordtype">int</span>)len, payload);</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_function" href="group__init.html#gac05ed532be503ce8e3be0b073ea08ec5">sds_subscribe_raw</a>(<span class="stringliteral">&quot;log/+&quot;</span>, on_log, NULL);  <span class="comment">// Receive logs from all devices</span></div>
+<div class="ttc" id="agroup__init_html_gac05ed532be503ce8e3be0b073ea08ec5"><div class="ttname"><a href="group__init.html#gac05ed532be503ce8e3be0b073ea08ec5">sds_subscribe_raw</a></div><div class="ttdeci">SdsError sds_subscribe_raw(const char *topic, SdsRawMessageCallback callback, void *user_data)</div><div class="ttdoc">Subscribe to an MQTT topic for raw message reception.</div></div>
+</div><!-- fragment --><p>This is useful for centralized logging without creating a separate MQTT connection. Note: Topics starting with <span class="tt">sds/</span> are reserved and cannot be used.</p>
 <hr  />
 <h1 class="doxsection"><a class="anchor" id="autotoc_md18"></a>
 Arduino / ESP32</h1>
@@ -360,7 +373,7 @@ ESP32 Device Example</h2>
 <div class="line">}</div>
 <div class="ttc" id="agroup__init_html_ga275b11badbc4756a9b93502af7e30778"><div class="ttname"><a href="group__init.html#ga275b11badbc4756a9b93502af7e30778">sds_loop</a></div><div class="ttdeci">void sds_loop(void)</div><div class="ttdoc">Process SDS events.</div></div>
 <div class="ttc" id="agroup__registration_html_ga0ecdb264b6ba8215cd48675e50dcbbe4"><div class="ttname"><a href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a></div><div class="ttdeci">SdsError sds_register_table(void *table, const char *table_type, SdsRole role, const SdsTableOptions *options)</div><div class="ttdoc">Register a table using the metadata registry.</div></div>
-<div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:108</div></div>
+<div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:111</div></div>
 <div class="ttc" id="asds_8h_html"><div class="ttname"><a href="sds_8h.html">sds.h</a></div><div class="ttdoc">SDS (Simple DDS) Core API Header.</div></div>
 </div><!-- fragment --><p>See <a href="examples/hybrid_demo/esp32_device/">examples/hybrid_demo/esp32_device/</a> for a complete example.</p>
 <hr  />

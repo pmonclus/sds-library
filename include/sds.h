@@ -65,6 +65,9 @@ extern "C" {
 /** @brief Maximum number of tables per node */
 #define SDS_MAX_TABLES           8
 
+/** @brief Maximum number of raw MQTT subscriptions */
+#define SDS_MAX_RAW_SUBSCRIPTIONS 8
+
 /** @brief Maximum length of node ID string (including null terminator) */
 #define SDS_MAX_NODE_ID_LEN      32
 
@@ -530,6 +533,65 @@ SdsError sds_publish_raw(
     int qos,
     bool retained
 );
+
+/**
+ * @brief Callback for raw MQTT message reception.
+ * 
+ * @param topic The topic the message arrived on
+ * @param payload Message payload (not null-terminated)
+ * @param payload_len Length of payload in bytes
+ * @param user_data User-provided context pointer
+ */
+typedef void (*SdsRawMessageCallback)(
+    const char* topic,
+    const uint8_t* payload,
+    size_t payload_len,
+    void* user_data
+);
+
+/**
+ * @brief Subscribe to an MQTT topic for raw message reception.
+ * 
+ * Allows subscribing to arbitrary MQTT topics outside the SDS namespace.
+ * Messages received on matching topics will be delivered to the callback.
+ * 
+ * @code{.c}
+ * void on_log(const char* topic, const uint8_t* payload, size_t len, void* ud) {
+ *     printf("Log from %s: %.*s\n", topic, (int)len, payload);
+ * }
+ * 
+ * sds_subscribe_raw("log/+", on_log, NULL);
+ * @endcode
+ * 
+ * @param topic MQTT topic pattern (supports + and # wildcards)
+ * @param callback Function to call when message arrives
+ * @param user_data User context passed to callback
+ * @return SDS_OK on success, error code otherwise
+ *         - SDS_ERR_NOT_INITIALIZED: SDS not initialized
+ *         - SDS_ERR_INVALID_CONFIG: Topic starts with "sds/" (reserved)
+ *         - SDS_ERR_MAX_TABLES_REACHED: Too many raw subscriptions
+ *         - SDS_ERR_PLATFORM_ERROR: Subscribe failed
+ * 
+ * @note Topics starting with "sds/" are reserved and will be rejected.
+ * @note Maximum of SDS_MAX_RAW_SUBSCRIPTIONS (8) concurrent subscriptions.
+ * 
+ * @see sds_unsubscribe_raw, sds_publish_raw
+ */
+SdsError sds_subscribe_raw(
+    const char* topic,
+    SdsRawMessageCallback callback,
+    void* user_data
+);
+
+/**
+ * @brief Unsubscribe from a raw MQTT topic.
+ * 
+ * @param topic The topic pattern to unsubscribe from (must match exactly)
+ * @return SDS_OK on success, SDS_ERR_TABLE_NOT_FOUND if not subscribed
+ * 
+ * @see sds_subscribe_raw
+ */
+SdsError sds_unsubscribe_raw(const char* topic);
 
 /**
  * @brief Get the node ID.

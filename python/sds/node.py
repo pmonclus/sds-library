@@ -157,6 +157,10 @@ class SdsNode:
         self._version_mismatch_callback: Optional[VersionMismatchCallback] = None
         self._eviction_callback: Optional[DeviceEvictedCallback] = None
         
+        # Raw subscription callback storage
+        self._raw_callbacks: Dict[str, Callable[[str, bytes], None]] = {}
+        self._raw_callback_handle: Optional[Any] = None
+        
         # Keep C callback handles alive
         self._c_callbacks: Dict[str, Any] = {}
         
@@ -404,6 +408,129 @@ class SdsNode:
                 retained
             )
             return result == 0  # SDS_OK
+    
+    def subscribe_raw(
+        self,
+        topic: str,
+        callback: Callable[[str, bytes], None],
+        qos: int = 0
+    ) -> bool:
+        """
+        Subscribe to an MQTT topic for raw message reception.
+        
+        Messages received on matching topics will be delivered to the callback.
+        
+        Thread-safe.
+        
+        Args:
+            topic: MQTT topic pattern (supports + and # wildcards)
+            callback: Function called with (topic: str, payload: bytes) for each message
+            qos: MQTT QoS level (currently ignored, uses QoS 0)
+        
+        Returns:
+            True on success, False on failure
+        
+        Raises:
+            ValueError: If topic is empty or starts with "sds/"
+            SdsError: If SDS is not initialized or max subscriptions reached
+        
+        Note:
+            Topics starting with "sds/" are reserved and will be rejected.
+        
+        Example:
+            >>> def on_log(topic, payload):
+            ...     print(f"Log from {topic}: {payload.decode()}")
+            >>> node.subscribe_raw("log/+", on_log)
+        """
+        if not topic:
+            raise ValueError("topic cannot be empty")
+        if topic.startswith("sds/"):
+            raise ValueError("Topics starting with 'sds/' are reserved")
+        
+        with self._lock:
+            if not self._initialized:
+                raise SdsError.from_code(ErrorCode.NOT_INITIALIZED)
+            
+            # Store callback in our registry
+            self._raw_callbacks[topic] = callback
+            
+            # Create C callback wrapper if not already done
+            if self._raw_callback_handle is None:
+                @ffi.callback("SdsRawMessageCallback")
+                def raw_callback_wrapper(c_topic, c_payload, payload_len, user_data):
+                    try:
+                        topic_str = ffi.string(c_topic).decode('utf-8')
+                        payload_bytes = bytes(ffi.buffer(c_payload, payload_len))
+                        # Find matching callback
+                        for pattern, cb in self._raw_callbacks.items():
+                            if self._topic_matches(pattern, topic_str):
+                                cb(topic_str, payload_bytes)
+                    except Exception as e:
+                        logger.error(f"Error in raw callback: {e}")
+                
+                self._raw_callback_handle = raw_callback_wrapper
+            
+            topic_bytes = topic.encode('utf-8')
+            result = lib.sds_subscribe_raw(
+                topic_bytes,
+                self._raw_callback_handle,
+                ffi.NULL
+            )
+            
+            if result != 0:
+                # Remove from our registry on failure
+                del self._raw_callbacks[topic]
+                return False
+            
+            return True
+    
+    def unsubscribe_raw(self, topic: str) -> bool:
+        """
+        Unsubscribe from a raw MQTT topic.
+        
+        Thread-safe.
+        
+        Args:
+            topic: The topic pattern to unsubscribe from (must match exactly)
+        
+        Returns:
+            True on success, False if not subscribed
+        """
+        if not topic:
+            raise ValueError("topic cannot be empty")
+        
+        with self._lock:
+            if not self._initialized:
+                raise SdsError.from_code(ErrorCode.NOT_INITIALIZED)
+            
+            topic_bytes = topic.encode('utf-8')
+            result = lib.sds_unsubscribe_raw(topic_bytes)
+            
+            if result == 0:
+                # Remove from our registry
+                self._raw_callbacks.pop(topic, None)
+                return True
+            
+            return False
+    
+    @staticmethod
+    def _topic_matches(pattern: str, topic: str) -> bool:
+        """Match an MQTT topic against a pattern with wildcards."""
+        pattern_parts = pattern.split('/')
+        topic_parts = topic.split('/')
+        
+        i = 0
+        for i, p in enumerate(pattern_parts):
+            if p == '#':
+                return True  # # matches everything remaining
+            if i >= len(topic_parts):
+                return False
+            if p == '+':
+                continue  # + matches any single level
+            if p != topic_parts[i]:
+                return False
+        
+        return len(pattern_parts) == len(topic_parts)
     
     def poll(self, timeout_ms: int = 0) -> None:
         """

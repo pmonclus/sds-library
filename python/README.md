@@ -283,11 +283,12 @@ with SdsNode(
         print(f"Device {node_id} evicted from {table_type}")
 ```
 
-### Raw MQTT Publish (v0.5.0+)
+### Raw MQTT Publish/Subscribe (v0.5.0+)
 
-Send custom MQTT messages through the SDS-managed connection. Useful for logging,
-diagnostics, or application-specific messages that don't fit the table model:
+Send and receive custom MQTT messages through the SDS-managed connection. Useful for
+logging, diagnostics, or application-specific messages that don't fit the table model.
 
+**Publishing:**
 ```python
 with SdsNode("sensor_01", "localhost") as node:
     # Check connection status
@@ -304,17 +305,42 @@ with SdsNode("sensor_01", "localhost") as node:
         node.publish_raw("sensor/raw_data", b'\x00\x01\x02\x03')
 ```
 
+**Subscribing:**
+```python
+def on_log(topic: str, payload: bytes):
+    print(f"Log from {topic}: {payload.decode()}")
+
+with SdsNode("controller", "localhost") as node:
+    # Subscribe to all logs (+ matches any single level)
+    node.subscribe_raw("log/+", on_log)
+    
+    # Or use # for multi-level wildcard
+    node.subscribe_raw("sensors/#", on_sensor_data)
+    
+    # Main loop
+    while True:
+        node.poll()
+        time.sleep(0.1)
+    
+    # Unsubscribe when done
+    node.unsubscribe_raw("log/+")
+```
+
 **Methods:**
 
 | Method | Description |
 |--------|-------------|
 | `is_connected()` | Returns `True` if connected to MQTT broker |
 | `publish_raw(topic, payload, qos=0, retained=False)` | Publish arbitrary MQTT message |
+| `subscribe_raw(topic, callback, qos=0)` | Subscribe to topic pattern with callback |
+| `unsubscribe_raw(topic)` | Unsubscribe from a topic pattern |
 
 **Notes:**
-- The `sds/` topic prefix is reserved for internal SDS use
-- `payload` can be `str` (UTF-8 encoded) or `bytes`
-- Returns `True` on success, `False` on failure
+- Topics starting with `sds/` are reserved and will raise `ValueError`
+- `payload` for publish can be `str` (UTF-8 encoded) or `bytes`
+- Callback receives `(topic: str, payload: bytes)`
+- Maximum 8 concurrent raw subscriptions
+- Wildcard subscriptions (`log/+`) count as 1 subscription regardless of matching topics
 
 ## API Reference
 

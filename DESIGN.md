@@ -392,7 +392,49 @@ void remote_log(const char* message) {
 
 **Note**: The `sds/` topic prefix is reserved for internal SDS use.
 
-### 5.12 Liveness Detection (Owner)
+### 5.12 Raw MQTT Subscribe
+
+Subscribe to arbitrary MQTT topics through the SDS-managed connection. Useful for receiving logs, commands, or application-specific messages:
+
+```c
+// Callback for received messages
+typedef void (*SdsRawMessageCallback)(
+    const char* topic,
+    const uint8_t* payload,
+    size_t payload_len,
+    void* user_data
+);
+
+// Subscribe to a topic pattern
+// topic: MQTT topic pattern (supports + and # wildcards)
+// callback: Function called when message arrives
+// user_data: User context passed to callback
+SdsError sds_subscribe_raw(
+    const char* topic,
+    SdsRawMessageCallback callback,
+    void* user_data
+);
+
+// Unsubscribe from a topic
+SdsError sds_unsubscribe_raw(const char* topic);
+```
+
+**Example: Centralized log receiver**
+```c
+void on_log(const char* topic, const uint8_t* payload, size_t len, void* ud) {
+    printf("Log from %s: %.*s\n", topic, (int)len, payload);
+}
+
+// Subscribe to all logs from any node
+sds_subscribe_raw("log/+", on_log, NULL);
+```
+
+**Notes**:
+- Topics starting with `sds/` are reserved and will be rejected
+- Maximum `SDS_MAX_RAW_SUBSCRIPTIONS` (8) concurrent subscriptions
+- Wildcard subscriptions count as 1 slot regardless of matching topics
+
+### 5.13 Liveness Detection (Owner)
 
 ```c
 // Check if a device is online (owner only)
@@ -413,7 +455,7 @@ A device is considered online if:
 - The `online` flag is true (not cleared by LWT)
 - Last message was within `timeout_ms`
 
-### 5.13 LWT (Last Will and Testament) Handling
+### 5.14 LWT (Last Will and Testament) Handling
 
 SDS uses MQTT LWT to detect unexpected device disconnections. Each node publishes a retained LWT message on connection that the broker delivers if the node disconnects unexpectedly.
 
@@ -430,7 +472,7 @@ Owner nodes automatically subscribe to `sds/lwt/+` and receive LWT messages for 
 3. If `eviction_grace_ms > 0`, an eviction timer starts
 4. The status callback is invoked
 
-### 5.14 Device Eviction (Owner)
+### 5.15 Device Eviction (Owner)
 
 When a device goes offline (LWT received), SDS can automatically evict it from status slots after a configurable grace period. This prevents slots from being permanently consumed by devices that never reconnect.
 
@@ -469,7 +511,7 @@ uint32_t sds_get_eviction_grace(const char* table_type);
    - Eviction callback invoked
    - Slot can now be reused by a new device
 
-### 5.15 JSON Serialization API
+### 5.16 JSON Serialization API
 
 ```c
 // Writer API
@@ -494,7 +536,7 @@ bool sds_json_get_float_field(SdsJsonReader* r, const char* key, float* out);
 bool sds_json_get_bool_field(SdsJsonReader* r, const char* key, bool* out);
 ```
 
-### 5.16 Table Metadata Registry
+### 5.17 Table Metadata Registry
 
 The codegen generates a complete metadata registry that enables the simple `sds_register_table()` API.
 

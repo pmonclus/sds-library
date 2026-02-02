@@ -14,7 +14,7 @@ var index =
       [ "6. Run Your First Device (Python)", "index.html#autotoc_md13", null ],
       [ "7. Run an Owner (Python)", "index.html#autotoc_md14", null ],
       [ "8. Enable Delta Sync (Optional)", "index.html#autotoc_md15", null ],
-      [ "9. Raw MQTT Publish (Logging, Diagnostics)", "index.html#autotoc_md16", null ]
+      [ "9. Raw MQTT Publish/Subscribe (Logging, Diagnostics)", "index.html#autotoc_md16", null ]
     ] ],
     [ "Arduino / ESP32", "index.html#autotoc_md18", [
       [ "Installation", "index.html#autotoc_md19", null ],

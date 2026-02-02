@@ -1,6 +1,6 @@
 var searchData=
 [
-  ['raw_20mqtt_20publish_20logging_20diagnostics_0',['9. Raw MQTT Publish (Logging, Diagnostics)',['../index.html#autotoc_md16',1,'']]],
+  ['raw_20mqtt_20publish_20subscribe_20logging_20diagnostics_0',['9. Raw MQTT Publish/Subscribe (Logging, Diagnostics)',['../index.html#autotoc_md16',1,'']]],
   ['recommended_20for_20users_1',['Option A: Quick Install (Homebrew) — &lt;em&gt;Recommended for users&lt;/em&gt;',['../index.html#autotoc_md6',1,'']]],
   ['reconnect_5fcount_2',['reconnect_count',['../struct_sds_stats.html#a42382c71a584c5d5ef80560bae544d60',1,'SdsStats']]],
   ['reference_3',['Schema Reference',['../index.html#autotoc_md26',1,'']]],

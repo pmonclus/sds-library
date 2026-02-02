@@ -12,7 +12,7 @@ SDS enables automatic state synchronization between devices and owners over MQTT
 
 - **Delta Sync**: Only send changed fields, reducing bandwidth by up to 90%
 - **1KB Section Support**: Config, state, and status sections up to 1KB each
-- **Raw MQTT Publish**: Send custom messages (logs, diagnostics) via SDS connection
+- **Raw MQTT Publish/Subscribe**: Send and receive custom messages via SDS connection
 - **Schema-Driven**: Define your data in `.sds` files, generate C/Python code
 - **Cross-Platform**: ESP32/Arduino, Linux, macOS, Python
 - **Liveness Detection**: Automatic heartbeats and offline detection with LWT
@@ -252,11 +252,11 @@ With delta sync, if only `temperature` changes from 23.5 to 24.0:
 - **Without delta**: `{"ts":...,"temperature":24.0,"humidity":45.0,"reading_count":42}`
 - **With delta**: `{"ts":...,"temperature":24.0}`
 
-### 9. Raw MQTT Publish (Logging, Diagnostics)
+### 9. Raw MQTT Publish/Subscribe (Logging, Diagnostics)
 
-Send custom messages through the SDS-managed MQTT connection:
+Send and receive custom messages through the SDS-managed MQTT connection:
 
-**Python:**
+**Publishing (Python):**
 ```python
 with SdsNode("sensor_01", "localhost") as node:
     # Check connection before publishing
@@ -264,7 +264,7 @@ with SdsNode("sensor_01", "localhost") as node:
         node.publish_raw(f"log/{node.node_id}", '{"level":"info","msg":"Started"}')
 ```
 
-**C:**
+**Publishing (C):**
 ```c
 if (sds_is_connected()) {
     char topic[48];
@@ -274,7 +274,27 @@ if (sds_is_connected()) {
 }
 ```
 
-This is useful for centralized logging without creating a separate MQTT connection.
+**Subscribing (Python):**
+```python
+def on_log(topic, payload):
+    print(f"Log from {topic}: {payload.decode()}")
+
+with SdsNode("controller", "localhost") as node:
+    node.subscribe_raw("log/+", on_log)  # Receive logs from all devices
+    while True:
+        node.poll()
+```
+
+**Subscribing (C):**
+```c
+void on_log(const char* topic, const uint8_t* payload, size_t len, void* ud) {
+    printf("Log from %s: %.*s\n", topic, (int)len, payload);
+}
+
+sds_subscribe_raw("log/+", on_log, NULL);  // Receive logs from all devices
+```
+
+This is useful for centralized logging without creating a separate MQTT connection. Note: Topics starting with `sds/` are reserved and cannot be used.
 
 ---
 

@@ -19,6 +19,6 @@ var searchData=
   ['device_20python_16',['6. Run Your First Device (Python)',['../index.html#autotoc_md13',1,'']]],
   ['device_20vs_20owner_20roles_17',['Device vs Owner Roles',['../sds_8h.html#roles',1,'']]],
   ['device_5ftable_5fsize_18',['device_table_size',['../struct_sds_table_meta.html#af487ae99d07e016dbbbbef7ffde8d670',1,'SdsTableMeta']]],
-  ['diagnostics_19',['9. Raw MQTT Publish (Logging, Diagnostics)',['../index.html#autotoc_md16',1,'']]],
+  ['diagnostics_19',['9. Raw MQTT Publish/Subscribe (Logging, Diagnostics)',['../index.html#autotoc_md16',1,'']]],
   ['documentation_20',['Documentation',['../index.html#autotoc_md28',1,'']]]
 ];

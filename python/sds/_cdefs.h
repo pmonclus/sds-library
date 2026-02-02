@@ -207,6 +207,10 @@ void sds_shutdown(void);
 bool sds_is_ready(void);
 bool sds_is_connected(void);
 SdsError sds_publish_raw(const char* topic, const void* payload, size_t payload_len, int qos, bool retained);
+typedef void (*SdsRawMessageCallback)(const char* topic, const uint8_t* payload, size_t payload_len, void* user_data);
+extern "Python" void _raw_message_callback(const char* topic, const uint8_t* payload, size_t payload_len, void* user_data);
+SdsError sds_subscribe_raw(const char* topic, SdsRawMessageCallback callback, void* user_data);
+SdsError sds_unsubscribe_raw(const char* topic);
 const char* sds_get_node_id(void);
 const SdsStats* sds_get_stats(void);
 

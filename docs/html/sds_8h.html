@@ -123,6 +123,9 @@ Macros</h2></td></tr>
 <tr class="memitem:gad36ade84fa5fd2ae20589cfbf4ec9d41" id="r_gad36ade84fa5fd2ae20589cfbf4ec9d41"><td class="memItemLeft">
 #define&#160;</td><td class="memItemRight"><b>SDS_MAX_TABLES</b>&#160;&#160;&#160;8</td></tr>
 <tr class="memdesc:gad36ade84fa5fd2ae20589cfbf4ec9d41"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum number of tables per node. <br /></td></tr>
+<tr class="memitem:ga3f8b32e091f147084b31d7268f73d554" id="r_ga3f8b32e091f147084b31d7268f73d554"><td class="memItemLeft">
+#define&#160;</td><td class="memItemRight"><b>SDS_MAX_RAW_SUBSCRIPTIONS</b>&#160;&#160;&#160;8</td></tr>
+<tr class="memdesc:ga3f8b32e091f147084b31d7268f73d554"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum number of raw MQTT subscriptions. <br /></td></tr>
 <tr class="memitem:ga74cac56f4582eab6a9f65ffcc678c2ef" id="r_ga74cac56f4582eab6a9f65ffcc678c2ef"><td class="memItemLeft">
 #define&#160;</td><td class="memItemRight"><b>SDS_MAX_NODE_ID_LEN</b>&#160;&#160;&#160;32</td></tr>
 <tr class="memdesc:ga74cac56f4582eab6a9f65ffcc678c2ef"><td class="mdescLeft">&#160;</td><td class="mdescRight">Maximum length of node ID string (including null terminator). <br /></td></tr>
@@ -165,6 +168,8 @@ Typedefs</h2></td></tr>
 <tr class="memdesc:ga7c07d1ba6575c0a6a05017bf410d3d6c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to serialize a table section to JSON.  <br /></td></tr>
 <tr class="memitem:ga9eaf6f3d2985ea98e489974a911e724b" id="r_ga9eaf6f3d2985ea98e489974a911e724b"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="group__serialization.html#ga9eaf6f3d2985ea98e489974a911e724b">SdsDeserializeFunc</a>) (void *section, <a class="el" href="struct_sds_json_reader.html">SdsJsonReader</a> *r)</td></tr>
 <tr class="memdesc:ga9eaf6f3d2985ea98e489974a911e724b"><td class="mdescLeft">&#160;</td><td class="mdescRight">Function to deserialize a table section from JSON.  <br /></td></tr>
+<tr class="memitem:gadf7c1e7d63a48b93e9ddc2e8a3d87a2e" id="r_gadf7c1e7d63a48b93e9ddc2e8a3d87a2e"><td class="memItemLeft">typedef void(*&#160;</td><td class="memItemRight"><a class="el" href="group__init.html#gadf7c1e7d63a48b93e9ddc2e8a3d87a2e">SdsRawMessageCallback</a>) (const char *topic, const uint8_t *payload, size_t payload_len, void *user_data)</td></tr>
+<tr class="memdesc:gadf7c1e7d63a48b93e9ddc2e8a3d87a2e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback for raw MQTT message reception.  <br /></td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 id="header-enum-members" class="groupheader"><a id="enum-members" name="enum-members"></a>
 Enumerations</h2></td></tr>
@@ -205,6 +210,10 @@ Functions</h2></td></tr>
 <tr class="memdesc:gacbebde6c8a878aed82e3830c6da5ec2d"><td class="mdescLeft">&#160;</td><td class="mdescRight">Check if the MQTT connection is currently active.  <br /></td></tr>
 <tr class="memitem:ga1fcaa6529e839b694390d2cfceb77b56" id="r_ga1fcaa6529e839b694390d2cfceb77b56"><td class="memItemLeft">SdsError&#160;</td><td class="memItemRight"><a class="el" href="group__init.html#ga1fcaa6529e839b694390d2cfceb77b56">sds_publish_raw</a> (const char *topic, const void *payload, size_t payload_len, int qos, bool retained)</td></tr>
 <tr class="memdesc:ga1fcaa6529e839b694390d2cfceb77b56"><td class="mdescLeft">&#160;</td><td class="mdescRight">Publish a raw MQTT message through the SDS-managed connection.  <br /></td></tr>
+<tr class="memitem:gac05ed532be503ce8e3be0b073ea08ec5" id="r_gac05ed532be503ce8e3be0b073ea08ec5"><td class="memItemLeft">SdsError&#160;</td><td class="memItemRight"><a class="el" href="group__init.html#gac05ed532be503ce8e3be0b073ea08ec5">sds_subscribe_raw</a> (const char *topic, <a class="el" href="group__init.html#gadf7c1e7d63a48b93e9ddc2e8a3d87a2e">SdsRawMessageCallback</a> callback, void *user_data)</td></tr>
+<tr class="memdesc:gac05ed532be503ce8e3be0b073ea08ec5"><td class="mdescLeft">&#160;</td><td class="mdescRight">Subscribe to an MQTT topic for raw message reception.  <br /></td></tr>
+<tr class="memitem:gaafa26c698888d3125187984d75b3bd31" id="r_gaafa26c698888d3125187984d75b3bd31"><td class="memItemLeft">SdsError&#160;</td><td class="memItemRight"><a class="el" href="group__init.html#gaafa26c698888d3125187984d75b3bd31">sds_unsubscribe_raw</a> (const char *topic)</td></tr>
+<tr class="memdesc:gaafa26c698888d3125187984d75b3bd31"><td class="mdescLeft">&#160;</td><td class="mdescRight">Unsubscribe from a raw MQTT topic.  <br /></td></tr>
 <tr class="memitem:gab2d009b20c5946bae1e107a1efefee0f" id="r_gab2d009b20c5946bae1e107a1efefee0f"><td class="memItemLeft">const char *&#160;</td><td class="memItemRight"><a class="el" href="group__init.html#gab2d009b20c5946bae1e107a1efefee0f">sds_get_node_id</a> (void)</td></tr>
 <tr class="memdesc:gab2d009b20c5946bae1e107a1efefee0f"><td class="mdescLeft">&#160;</td><td class="mdescRight">Get the node ID.  <br /></td></tr>
 <tr class="memitem:gab9070cd3bc84e1f14e681e7d626edbb2" id="r_gab9070cd3bc84e1f14e681e7d626edbb2"><td class="memItemLeft">const <a class="el" href="struct_sds_stats.html">SdsStats</a> *&#160;</td><td class="memItemRight"><a class="el" href="group__init.html#gab9070cd3bc84e1f14e681e7d626edbb2">sds_get_stats</a> (void)</td></tr>
@@ -278,9 +287,9 @@ Basic Usage</h1>
 <div class="ttc" id="agroup__init_html_ga99eea78bf2771e604ab5ce296cd8a815"><div class="ttname"><a href="group__init.html#ga99eea78bf2771e604ab5ce296cd8a815">sds_init</a></div><div class="ttdeci">SdsError sds_init(const SdsConfig *config)</div><div class="ttdoc">Initialize SDS and connect to MQTT broker.</div></div>
 <div class="ttc" id="agroup__init_html_gae809cf426b23805d83699f84d67882ca"><div class="ttname"><a href="group__init.html#gae809cf426b23805d83699f84d67882ca">sds_shutdown</a></div><div class="ttdeci">void sds_shutdown(void)</div><div class="ttdoc">Shutdown SDS and disconnect from MQTT broker.</div></div>
 <div class="ttc" id="agroup__registration_html_ga0ecdb264b6ba8215cd48675e50dcbbe4"><div class="ttname"><a href="group__registration.html#ga0ecdb264b6ba8215cd48675e50dcbbe4">sds_register_table</a></div><div class="ttdeci">SdsError sds_register_table(void *table, const char *table_type, SdsRole role, const SdsTableOptions *options)</div><div class="ttdoc">Register a table using the metadata registry.</div></div>
-<div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:108</div></div>
+<div class="ttc" id="agroup__types_html_gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c"><div class="ttname"><a href="group__types.html#gga68cca75b054cefd757ee270011408569ae06505e3698cbc137bb6b958255d270c">SDS_ROLE_DEVICE</a></div><div class="ttdeci">@ SDS_ROLE_DEVICE</div><div class="ttdef"><b>Definition</b> sds.h:111</div></div>
 <div class="ttc" id="asds_8h_html"><div class="ttname"><a href="sds_8h.html">sds.h</a></div><div class="ttdoc">SDS (Simple DDS) Core API Header.</div></div>
-<div class="ttc" id="astruct_sds_config_html"><div class="ttname"><a href="struct_sds_config.html">SdsConfig</a></div><div class="ttdoc">Configuration for SDS initialization.</div><div class="ttdef"><b>Definition</b> sds.h:119</div></div>
+<div class="ttc" id="astruct_sds_config_html"><div class="ttname"><a href="struct_sds_config.html">SdsConfig</a></div><div class="ttdoc">Configuration for SDS initialization.</div><div class="ttdef"><b>Definition</b> sds.h:122</div></div>
 </div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="roles"></a>
 Device vs Owner Roles</h1>
 <ul>

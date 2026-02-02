@@ -428,6 +428,77 @@ class TestIsConnectedWithoutBroker:
 
 @pytest.mark.requires_cffi
 @pytest.mark.requires_mqtt
+class TestRawSubscribeAPI:
+    """Tests for raw MQTT subscribe API."""
+    
+    def test_subscribe_raw_success(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """subscribe_raw() succeeds with valid topic."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            received = []
+            def on_message(topic, payload):
+                received.append((topic, payload))
+            
+            result = node.subscribe_raw(f"test/{unique_node_id}/sub", on_message)
+            assert result is True
+    
+    def test_subscribe_raw_rejects_sds_prefix(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """subscribe_raw() rejects topics starting with sds/."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            def on_message(topic, payload):
+                pass
+            
+            with pytest.raises(ValueError):
+                node.subscribe_raw("sds/test/config", on_message)
+    
+    def test_subscribe_raw_empty_topic_raises(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """subscribe_raw() raises ValueError for empty topic."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            def on_message(topic, payload):
+                pass
+            
+            with pytest.raises(ValueError):
+                node.subscribe_raw("", on_message)
+    
+    def test_unsubscribe_raw_success(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """unsubscribe_raw() succeeds after subscribe."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            def on_message(topic, payload):
+                pass
+            
+            topic = f"test/{unique_node_id}/unsub"
+            node.subscribe_raw(topic, on_message)
+            result = node.unsubscribe_raw(topic)
+            assert result is True
+    
+    def test_unsubscribe_raw_fails_when_not_subscribed(self, unique_node_id, mqtt_broker_host, mqtt_broker_port):
+        """unsubscribe_raw() returns False when not subscribed."""
+        with SdsNode(
+            unique_node_id,
+            mqtt_broker_host,
+            mqtt_broker_port
+        ) as node:
+            result = node.unsubscribe_raw("test/not_subscribed")
+            assert result is False
+
+
+@pytest.mark.requires_cffi
+@pytest.mark.requires_mqtt
 class TestDeltaSyncWithBroker:
     """Tests for delta sync behavior with a running MQTT broker."""
     
